@@ -1,0 +1,23 @@
+# Python dependencies for IDX ETL Pipeline
+# Install: pip install -r requirements.txt
+
+# Data fetching & processing
+yfinance==0.2.32
+pandas==2.2.0
+requests==2.31.0
+python-dateutil==2.8.2
+beautifulsoup4==4.12.2  # Web scraping for IDX XBRL
+
+# Database
+supabase==2.3.0
+python-dotenv==1.0.0
+
+# Technical Analysis
+ta==0.10.2  # Technical Analysis Indicators
+
+# XML/XBRL parsing (for future IDX XBRL parsing)
+lxml==4.9.3
+
+# Utilities
+pytz==2024.1
+numpy==1.24.3  # For numerical calculations

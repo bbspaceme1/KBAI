@@ -1,0 +1,74 @@
+name: 🗂️ Initial IDX Historical Data Load
+
+on:
+  # Only manual trigger - run once to load 5-year history
+  workflow_dispatch:
+    inputs:
+      confirm_long_run:
+        description: "This will take 2-4 hours. Confirm?"
+        required: true
+        default: "false"
+        type: boolean
+
+jobs:
+  initial-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300 # 5 hours for full load
+
+    steps:
+      - name: Check confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm_long_run }}" != "true" ]; then
+            echo "❌ Long-running job cancelled - confirmation required"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "scripts/etl/requirements.txt"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/etl/requirements.txt
+
+      - name: Load 5-year historical data (NO RATIOS)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          cd scripts/etl
+          echo "🚀 Starting 5-year historical data load..."
+          echo "⏱️  Start time: $(date '+%Y-%m-%d %H:%M:%S WIB')"
+
+          # Load full history, skip ratio computation (too slow)
+          python idx_pipeline.py --full --no-ratios
+
+          echo "⏱️  End time: $(date '+%Y-%m-%d %H:%M:%S WIB')"
+          echo "✅ Historical data load complete!"
+
+      - name: Compute technical indicators for top 200 stocks
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          cd scripts/etl
+          echo "📊 Computing technical indicators..."
+          python idx_compute_indicators.py 200
+
+      - name: Success notification
+        if: success()
+        run: |
+          echo "🎉 Initial load complete!"
+          echo "✅ 5-year historical OHLCV data loaded"
+          echo "✅ Technical indicators computed for top 200 stocks"
+          echo ""
+          echo "Next: Daily updates will run at 17:10 WIB on weekdays"

@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+# Ensure local auto-sync is configured and no accidental sensitive files are committed.
+# This hook is intentionally simple to avoid creating commit loops.
+
+if [ -n "$CI" ]; then
+  echo "⏭️ Skipping auto-sync in CI environment"
+else
+  if [ -f "./auto-sync.sh" ]; then
+    echo "🔄 Running auto-sync before commit..."
+    ./auto-sync.sh
+  fi
+fi
+
+# Basic secret scanning on staged files. Not a replacement for dedicated tools.
+PATTERN="AKIA[0-9A-Z]{16}|-----BEGIN (RSA )?PRIVATE KEY-----|-----BEGIN OPENSSH PRIVATE KEY-----|SUPABASE_SERVICE_ROLE|sk_live_|xox[baprs]-|sq0atp-|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|password"
+
+staged_files=$(git diff --cached --name-only -z)
+if [ -n "$staged_files" ]; then
+  IFS=$'\0'
+  for file in $staged_files; do
+    [ -z "$file" ] && continue
+    # skip binary blobs heuristically
+    if git show :"$file" 2>/dev/null | head -c 8000 | grep -I -n -E "$PATTERN" >/dev/null 2>&1; then
+      echo "🚨 Potential secret found in staged file: $file" >&2
+      echo "Run 'git show :$file | sed -n '1,200p'' to inspect the staged content." >&2
+      exit 1
+    fi
+  done
+fi
+
+echo "✅ pre-commit hook complete"

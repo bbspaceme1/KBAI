@@ -1,0 +1,295 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+}
+
+/*
+ * Institutional dark palette — pure neutral (zinc/slate).
+ * No accent hue. Color is reserved for P/L semantics.
+ * Single source of truth: :root is dark.
+ */
+:root {
+  --radius: 0.25rem;
+
+  /* KBAI brand tokens (unified with landing page) */
+  --background: #07080a; /* main dark navy - matches landing */
+  --foreground: #f0f2f5; /* primary text - matches landing */
+
+  --card: #0d0f12;
+  --card-foreground: #f0f2f5;
+
+  --popover: #111418;
+  --popover-foreground: #f0f2f5;
+
+  --primary: #f0f2f5;
+  --primary-foreground: #07080a;
+
+  --secondary: #6b7280;
+  --secondary-foreground: #f0f2f5;
+
+  /* Muted color adjusted to meet WCAG AA on dark background */
+  --muted: #6b7280;
+  --muted-foreground: #6b7280;
+
+  --accent: #22c55e; /* green accent - matches landing */
+  --accent-foreground: #07080a;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #07080a;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.04);
+  --ring: rgba(34, 197, 94, 0.12);
+
+  /* Semantic finance colors — used ONLY for P/L. */
+  --pos: #5fa87a;
+  --neg: #c97070;
+
+  /* Charts colors (approx) */
+  --chart-1: #7eb8b0; /* Portfolio */
+  --chart-2: #8a9ab5; /* IHSG */
+  --chart-3: #c9a96e; /* Gold */
+  --chart-4: #5fa87a; /* BTC */
+  --chart-5: #6b6fb0; /* muted */
+
+  --sidebar: #07080a;
+  --sidebar-foreground: #f0f2f5;
+  --sidebar-primary: #f0f2f5;
+  --sidebar-primary-foreground: #07080a;
+  --sidebar-accent: #22c55e;
+  --sidebar-accent-foreground: #07080a;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: rgba(34, 197, 94, 0.12);
+
+  /* Fonts — prefer brand display/serif for headings */
+  --font-sans:
+    "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  --font-display: "Syne", var(--font-sans);
+  --font-serif: "Cormorant Garamond", serif;
+}
+
+/* Light variant — institutional, neutral, paper-like */
+.light {
+  color-scheme: light;
+  --background: oklch(0.985 0.002 270);
+  --foreground: oklch(0.18 0.005 270);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.005 270);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.005 270);
+  --primary: oklch(0.22 0.005 270);
+  --primary-foreground: oklch(0.98 0.003 270);
+  --secondary: oklch(0.95 0.003 270);
+  --secondary-foreground: oklch(0.2 0.005 270);
+  --muted: oklch(0.95 0.003 270);
+  --muted-foreground: oklch(0.46 0.008 270);
+  --accent: oklch(0.94 0.003 270);
+  --accent-foreground: oklch(0.18 0.005 270);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0.003 270);
+  --border: oklch(0.9 0.004 270);
+  --input: oklch(0.9 0.004 270);
+  --ring: oklch(0.7 0.005 270);
+  --pos: oklch(0.55 0.16 152);
+  --neg: oklch(0.55 0.2 25);
+  --sidebar: oklch(0.97 0.003 270);
+  --sidebar-foreground: oklch(0.28 0.005 270);
+  --sidebar-primary: oklch(0.22 0.005 270);
+  --sidebar-primary-foreground: oklch(0.98 0.003 270);
+  --sidebar-accent: oklch(0.92 0.004 270);
+  --sidebar-accent-foreground: oklch(0.18 0.005 270);
+  --sidebar-border: oklch(0.9 0.004 270);
+  --sidebar-ring: oklch(0.7 0.005 270);
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Type scale (use these instead of ad-hoc text-[10px]/[11px]) */
+  .text-display {
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .text-h1 {
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+  .text-h2 {
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+  .text-h3 {
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+  .text-body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .text-caption {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .text-micro {
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+  }
+  .text-mono-sm {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  /* Motion tokens */
+  :root {
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+    --ease-decel: cubic-bezier(0, 0, 0, 1);
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 320ms;
+  }
+  .motion-fast {
+    transition: all var(--duration-fast) var(--ease-standard);
+  }
+  .motion-base {
+    transition: all var(--duration-base) var(--ease-standard);
+  }
+  .motion-slow {
+    transition: all var(--duration-slow) var(--ease-emphasized);
+  }
+
+  /* Tabular numerals globally for trading-grade alignment */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      "tnum" 1,
+      "cv11" 1;
+  }
+
+  /* A11y: visible focus ring */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted-foreground);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

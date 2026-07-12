@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Quality and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check merge conflicts
+        run: |
+          if grep -R "<<<<<<< HEAD\|=======\|>>>>>>> " --include='*.ts' --include='*.tsx' --include='*.json' --include='*.jsonc' .; then
+            echo "❌ Merge conflicts detected!"
+            exit 1
+          fi
+      - name: Lint
+        run: npm run lint:ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Supabase admin guard check
+        run: node ./scripts/check_supabase_admin_guards.cjs
+      - name: Unit tests
+        run: npm run test:run
+      - name: Generate coverage report
+        run: npm run test:coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          fail_ci_if_error: false
+          verbose: true
+        continue-on-error: true
+      - name: Validate required secrets
+        run: |
+          test -n "$SUPABASE_URL" || { echo "SUPABASE_URL is required"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "SUPABASE_SERVICE_ROLE_KEY is required"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "SUPABASE_ANON_KEY is required"; exit 1; }
+          test -n "$OPENAI_API_KEY" || { echo "OPENAI_API_KEY is required"; exit 1; }
+          test -n "$ANTHROPIC_API_KEY" || { echo "ANTHROPIC_API_KEY is required"; exit 1; }
+          test -n "$GEMINI_API_KEY" || { echo "GEMINI_API_KEY is required"; exit 1; }
+          test -n "$MIDTRANS_SERVER_KEY" || { echo "MIDTRANS_SERVER_KEY is required"; exit 1; }
+          test -n "$MIDTRANS_CLIENT_KEY" || { echo "MIDTRANS_CLIENT_KEY is required"; exit 1; }
+          test -n "$SENTRY_DSN" || { echo "SENTRY_DSN is required"; exit 1; }
+          test -n "$VITE_POSTHOG_KEY" || { echo "VITE_POSTHOG_KEY is required"; exit 1; }
+      - name: E2E tests
+        run: npm run test:e2e
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
+          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
