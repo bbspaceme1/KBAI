@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { TOTP, Secret } from "otpauth";
+import { getStartContext } from "@tanstack/start-storage-context";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { insertAuditLog } from "./audit.functions";
 import { hashRecoveryCode, verifyRecoveryCode } from "./crypto.functions";
-import { rateLimitMiddleware } from "@/lib/rate-limiter";
+import { checkRateLimit, rateLimitMiddleware } from "@/lib/rate-limiter";
 
 const ISSUER = "KBAI Terminal";
 
@@ -105,20 +106,43 @@ export async function get2faStatus() {
   return { enabled: !!data?.enabled, enrolled_at: data?.enrolled_at ?? null };
 }
 
+function getClientIp(): string {
+  const startContext = getStartContext({ throwIfNotFound: false });
+  const request = startContext?.request;
+  if (!request) return "unknown";
+
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  const realIp = request.headers.get("x-real-ip");
+  return realIp || "unknown";
+}
+
 /**
  * Verify recovery code during login
  * SEC-03: Recovery codes are now stored as hashes, verified with constant-time comparison
  * Returns true if code is valid, false otherwise
  * Note: Does NOT mark code as used (application layer should track this separately)
  */
-const limitRecoveryCode = rateLimitMiddleware((context) => {
-  const data = context as { userId?: string };
-  return data.userId ?? "anonymous";
-});
-
-export const verifyRecoveryCodeForLogin = limitRecoveryCode(
-  async function verifyRecoveryCodeForLogin(data: { userId: string; recovery_code: string }) {
+export async function verifyRecoveryCodeForLogin(data: { userId: string; recovery_code: string }) {
     const { userId, recovery_code } = data;
+    const clientIp = getClientIp();
+    const ipRateLimit = await checkRateLimit(`recovery-code-ip:${clientIp}`);
+
+    if (!ipRateLimit.allowed) {
+      const resetIn = Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000);
+      throw new Response(`Rate limit exceeded. Try again in ${resetIn} seconds.`, {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": ipRateLimit.remaining.toString(),
+          "X-RateLimit-Reset": ipRateLimit.resetTime.toString(),
+          "Retry-After": resetIn.toString(),
+        },
+      });
+    }
+
     const rateLimitWindow = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count, error: countError } = await supabaseAdmin
       .from("audit_logs")
@@ -177,7 +201,6 @@ export const verifyRecoveryCodeForLogin = limitRecoveryCode(
     }
 
     return { ok: true, remaining_codes: remainingCodes.length };
-  },
-);
+  }
 
 export const verify2faSetup = verify2fa;

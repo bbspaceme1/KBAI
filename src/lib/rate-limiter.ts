@@ -82,7 +82,21 @@ export function rateLimitMiddleware(
           (arg): arg is { userId?: string } =>
             typeof arg === "object" && arg !== null && "userId" in arg,
         ) ?? {};
-      const identifier = identifierFn ? await identifierFn(context) : "anonymous";
+
+      let identifier: string | undefined;
+      if (identifierFn) {
+        identifier = await identifierFn(context);
+      }
+
+      if (!identifier) {
+        throw new Response("Authentication required.", {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": "Bearer",
+          },
+        });
+      }
+
       const { allowed, remaining, resetTime } = await checkRateLimit(identifier);
 
       if (!allowed) {

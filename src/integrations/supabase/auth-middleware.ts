@@ -26,7 +26,11 @@ export async function requireSupabaseAuth() {
       throw new Error("Authentication required");
     }
 
-    return { supabase, userId: user.id, claims: { sub: user.id } };
+    return {
+      supabase,
+      userId: user.id,
+      claims: { sub: user.id, app_metadata: user.app_metadata ?? {} },
+    };
   }
 
   const {

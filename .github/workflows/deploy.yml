@@ -1,3 +1,4 @@
+# Vercel dashboard auto-deploy on push must be DISABLED for this project going forward (Settings > Git > Ignored Build Step, or disconnect auto production deploys), since this workflow now owns production deploys instead.
 name: Deploy
 
 on:
@@ -29,3 +30,15 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Deploy to Vercel (production)
+        run: npx vercel deploy --prod --token=$VERCEL_TOKEN --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Smoke test deployed health endpoint
+        run: |
+          sleep 15
+          curl -f https://kbaiterminal.vercel.app/api/health || exit 1

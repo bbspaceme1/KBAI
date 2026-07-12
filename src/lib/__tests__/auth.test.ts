@@ -70,8 +70,40 @@ describe("Auth Context", () => {
     const result = await requireSupabaseAuth();
 
     expect(result.userId).toBe("user-123");
-    expect(result.claims).toEqual({ sub: "user-123" });
+    expect(result.claims).toEqual({ sub: "user-123", app_metadata: {} });
     expect(supabaseAdmin.auth.getUser).toHaveBeenCalledWith("valid-token");
+  });
+
+  test("request with admin roles in app metadata returns them in claims", async () => {
+    const mockedContext: StartContext = {
+      request: new Request("https://example.com", {
+        headers: { Authorization: "Bearer valid-token" },
+      }),
+      contextAfterGlobalMiddlewares: {},
+      executedRequestMiddlewares: new Set(),
+      handlerType: "serverFn",
+      getRouter: async () => ({}),
+      requestAssets: [],
+      startOptions: {},
+    };
+
+    vi.mocked(getStartContext).mockReturnValue(
+      mockedContext as unknown as ReturnType<typeof getStartContext>,
+    );
+    vi.mocked(supabaseAdmin.auth.getUser).mockResolvedValue({
+      data: {
+        user: {
+          id: "admin-123",
+          app_metadata: { roles: ["admin"] },
+        },
+      },
+      error: null,
+    });
+
+    const result = await requireSupabaseAuth();
+
+    expect(result.userId).toBe("admin-123");
+    expect(result.claims).toEqual({ sub: "admin-123", app_metadata: { roles: ["admin"] } });
   });
 
   test("request without Authorization header throws Authentication required", async () => {

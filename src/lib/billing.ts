@@ -37,7 +37,7 @@ export async function processMidtransNotification(payload: MidtransNotificationP
     asString(payload.transaction_time || payload.transactionTime) || new Date().toISOString();
 
   // Try to extract user id from payload or order id
-  let userId = payload.user_id || payload.userId;
+  let userId = asString(payload.user_id ?? payload.userId);
   if (!userId && typeof orderId === "string") {
     const parts = orderId.split("_");
     // If order format: order_{userId}_{nonce}

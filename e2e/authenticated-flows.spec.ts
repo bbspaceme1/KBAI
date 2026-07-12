@@ -151,6 +151,13 @@ test.describe("Admin Dashboard - Admin Role", () => {
     await expect(page.locator('h1:has-text("Admin Dashboard")')).toBeVisible();
   });
 
+  test("admin user receives a successful response for user management route", async () => {
+    const response = await page.goto("/admin/users", { waitUntil: "domcontentloaded" });
+
+    expect(response?.status()).toBe(200);
+    await expect(page.url()).toContain("/admin/users");
+  });
+
   test("should view user management section", async () => {
     await page.goto("/admin/users");
     await expect(page.locator('[data-testid="users-list"]')).toBeVisible();

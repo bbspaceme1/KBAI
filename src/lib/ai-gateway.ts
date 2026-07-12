@@ -255,12 +255,8 @@ function getProviderChain(): AIProviderChain {
  */
 const limitAiGateway = rateLimitMiddleware(async (context) => {
   if (context.userId) return context.userId;
-  try {
-    const { userId } = await requireSupabaseAuth();
-    return userId;
-  } catch {
-    return "anonymous";
-  }
+  const { userId } = await requireSupabaseAuth();
+  return userId;
 });
 
 export const callAI = limitAiGateway(async function callAI<T = string>(
