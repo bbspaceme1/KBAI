@@ -255,9 +255,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     });
     res.statusCode = 500;
     res.setHeader("content-type", "text/plain; charset=utf-8");
-    res.end(
-      "Internal Server Error: " +
-        (error instanceof Error ? error.message : String(error)),
-    );
+    res.end("Internal Server Error: " + (error instanceof Error ? error.message : String(error)));
   }
 }

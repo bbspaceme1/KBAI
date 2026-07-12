@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useAuthSafe } from "@/auth";
 import { tokens } from "./tokens";
 import { NavLink as NavLinkType } from "./landing.types";
 
@@ -13,6 +14,7 @@ interface NavbarProps {
  */
 export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
   const navigate = useNavigate();
+  const auth = useAuthSafe();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -135,58 +137,117 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
 
       {/* Desktop Actions */}
       <div className="hidden md:flex items-center gap-3">
-        <button
-          onClick={() => handleNavClick("#login")}
-          style={{
-            background: "none",
-            border: `1px solid ${tokens.color.border}`,
-            color: tokens.color.text,
-            padding: "10px 20px",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: "500",
-            transition: "all 0.2s ease",
-            fontFamily: '"Instrument Sans", sans-serif',
-          }}
-          onMouseEnter={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.borderColor = tokens.color.accent;
-            btn.style.color = tokens.color.accent;
-          }}
-          onMouseLeave={(e) => {
-            const btn = e.currentTarget as HTMLButtonElement;
-            btn.style.borderColor = tokens.color.border;
-            btn.style.color = tokens.color.text;
-          }}
-        >
-          Login
-        </button>
-        <button
-          onClick={() => navigate({ to: "/request-access" })}
-          style={{
-            background: tokens.color.accent,
-            border: "none",
-            color: tokens.color.bg,
-            padding: "10px 20px",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: "600",
-            transition: "all 0.2s ease",
-            fontFamily: '"Instrument Sans", sans-serif',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-          }}
-        >
-          Mulai Sekarang
-        </button>
+        {auth?.isAuthenticated ? (
+          <>
+            <button
+              onClick={() => navigate({ to: "/app/community" })}
+              style={{
+                background: "none",
+                border: `1px solid ${tokens.color.border}`,
+                color: tokens.color.text,
+                padding: "10px 20px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                fontFamily: '"Instrument Sans", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.borderColor = tokens.color.accent;
+                btn.style.color = tokens.color.accent;
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.borderColor = tokens.color.border;
+                btn.style.color = tokens.color.text;
+              }}
+            >
+              {auth.username || "Dashboard"}
+            </button>
+            <button
+              onClick={() => auth.signOut().then(() => navigate({ to: "/" }))}
+              style={{
+                background: tokens.color.accent,
+                border: "none",
+                color: tokens.color.bg,
+                padding: "10px 20px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
+                transition: "all 0.2s ease",
+                fontFamily: '"Instrument Sans", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+              }}
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => navigate({ to: "/login" })}
+              style={{
+                background: "none",
+                border: `1px solid ${tokens.color.border}`,
+                color: tokens.color.text,
+                padding: "10px 20px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "500",
+                transition: "all 0.2s ease",
+                fontFamily: '"Instrument Sans", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.borderColor = tokens.color.accent;
+                btn.style.color = tokens.color.accent;
+              }}
+              onMouseLeave={(e) => {
+                const btn = e.currentTarget as HTMLButtonElement;
+                btn.style.borderColor = tokens.color.border;
+                btn.style.color = tokens.color.text;
+              }}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => navigate({ to: "/request-access" })}
+              style={{
+                background: tokens.color.accent,
+                border: "none",
+                color: tokens.color.bg,
+                padding: "10px 20px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
+                transition: "all 0.2s ease",
+                fontFamily: '"Instrument Sans", sans-serif',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+              }}
+            >
+              Mulai Sekarang
+            </button>
+          </>
+        )}
       </div>
 
       {/* Mobile Hamburger */}
@@ -275,40 +336,92 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
               margin: "8px 0",
             }}
           />
-          <button
-            onClick={() => handleNavClick("#login")}
-            style={{
-              background: "none",
-              border: "none",
-              color: tokens.color.text,
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "500",
-              padding: "12px",
-              textAlign: "left",
-              fontFamily: '"Instrument Sans", sans-serif',
-            }}
-            role="menuitem"
-          >
-            Login
-          </button>
-          <button
-            onClick={() => navigate({ to: "/request-access" })}
-            style={{
-              background: tokens.color.accent,
-              border: "none",
-              color: tokens.color.bg,
-              cursor: "pointer",
-              fontSize: "14px",
-              fontWeight: "600",
-              padding: "12px",
-              borderRadius: "6px",
-              fontFamily: '"Instrument Sans", sans-serif',
-            }}
-            role="menuitem"
-          >
-            Mulai Sekarang
-          </button>
+          {auth?.isAuthenticated ? (
+            <>
+              <button
+                onClick={() => {
+                  navigate({ to: "/app/community" });
+                  setMobileOpen(false);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: tokens.color.text,
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  padding: "12px",
+                  textAlign: "left",
+                  fontFamily: '"Instrument Sans", sans-serif',
+                }}
+                role="menuitem"
+              >
+                {auth.username || "Dashboard"}
+              </button>
+              <button
+                onClick={() => {
+                  auth.signOut().then(() => {
+                    navigate({ to: "/" });
+                    setMobileOpen(false);
+                  });
+                }}
+                style={{
+                  background: tokens.color.accent,
+                  border: "none",
+                  color: tokens.color.bg,
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  padding: "12px",
+                  borderRadius: "6px",
+                  fontFamily: '"Instrument Sans", sans-serif',
+                }}
+                role="menuitem"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  navigate({ to: "/login" });
+                  setMobileOpen(false);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: tokens.color.text,
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  padding: "12px",
+                  textAlign: "left",
+                  fontFamily: '"Instrument Sans", sans-serif',
+                }}
+                role="menuitem"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => navigate({ to: "/request-access" })}
+                style={{
+                  background: tokens.color.accent,
+                  border: "none",
+                  color: tokens.color.bg,
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  padding: "12px",
+                  borderRadius: "6px",
+                  fontFamily: '"Instrument Sans", sans-serif',
+                }}
+                role="menuitem"
+              >
+                Mulai Sekarang
+              </button>
+            </>
+          )}
         </div>
       )}
     </nav>
