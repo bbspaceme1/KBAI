@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuthSafe } from "@/auth";
 import { tokens } from "./tokens";
 import { TickerItem } from "./landing.types";
 
@@ -23,6 +25,8 @@ export const Hero: React.FC<HeroProps> = ({
   ],
   onCTA,
 }) => {
+  const navigate = useNavigate();
+  const auth = useAuthSafe();
   const [scrollHint, setScrollHint] = useState(true);
 
   useEffect(() => {
@@ -161,7 +165,13 @@ export const Hero: React.FC<HeroProps> = ({
           className="hero-actions"
         >
           <button
-            onClick={() => onCTA?.("demo")}
+            onClick={() => {
+              if (auth?.isAuthenticated) {
+                navigate({ to: "/app/community" });
+              } else {
+                onCTA?.("demo");
+              }
+            }}
             style={{
               padding: "12px 32px",
               background: tokens.color.accent,

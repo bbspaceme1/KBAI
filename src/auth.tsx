@@ -145,3 +145,8 @@ export function useAuth(): AuthState {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+export function useAuthSafe(): AuthState | null {
+  const ctx = useContext(AuthContext);
+  return ctx;
+}
