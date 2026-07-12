@@ -99,6 +99,11 @@ function setResponseHeaders(res: ServerResponse, response: Response) {
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  console.log("[entry] Handler called", {
+    method: req.method,
+    url: req.url,
+    hasServerEntry: !!serverEntry,
+  });
   try {
     // Health check endpoint: /api/health
     try {
@@ -227,6 +232,16 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       body: body,
     });
 
+    if (!serverEntry || !serverEntry.fetch) {
+      console.error("[entry] serverEntry or fetch is missing", {
+        hasServerEntry: !!serverEntry,
+        hasFetch: !!serverEntry?.fetch,
+        serverEntryKeys: serverEntry ? Object.keys(serverEntry) : [],
+      });
+      throw new Error("ServerEntry fetch handler not available");
+    }
+
+    console.log("[entry] Calling serverEntry.fetch");
     const response = await serverEntry.fetch(request, undefined, undefined);
     setResponseHeaders(res, response);
     res.statusCode = response.status;
@@ -234,9 +249,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const buffer = Buffer.from(await response.arrayBuffer());
     res.end(buffer);
   } catch (error) {
-    console.error(error);
+    console.error("[entry] Error in handler:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     res.statusCode = 500;
     res.setHeader("content-type", "text/plain; charset=utf-8");
-    res.end("Internal Server Error");
+    res.end(
+      "Internal Server Error: " +
+        (error instanceof Error ? error.message : String(error)),
+    );
   }
 }
