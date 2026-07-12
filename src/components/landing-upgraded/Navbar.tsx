@@ -195,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
         ) : (
           <>
             <button
-              onClick={() => handleNavClick("#login")}
+              onClick={() => navigate({ to: "/login" })}
               style={{
                 background: "none",
                 border: `1px solid ${tokens.color.border}`,
@@ -384,7 +384,10 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
           ) : (
             <>
               <button
-                onClick={() => handleNavClick("#login")}
+                onClick={() => {
+                  navigate({ to: "/login" });
+                  setMobileOpen(false);
+                }}
                 style={{
                   background: "none",
                   border: "none",
