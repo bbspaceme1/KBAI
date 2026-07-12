@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-// @ts-ignore - dist/server/server.js is generated at build time; may or may not
+// @ts-expect-error - dist/server/server.js is generated at build time; may or may not
 // be present on disk depending on whether a build has run yet in this environment.
 import serverEntry from "../dist/server/server.js";
 import { processMidtransNotification, verifyMidtransSignature } from "../src/lib/billing";

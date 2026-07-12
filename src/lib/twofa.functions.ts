@@ -127,80 +127,80 @@ function getClientIp(): string {
  * Note: Does NOT mark code as used (application layer should track this separately)
  */
 export async function verifyRecoveryCodeForLogin(data: { userId: string; recovery_code: string }) {
-    const { userId, recovery_code } = data;
-    const clientIp = getClientIp();
-    const ipRateLimit = await checkRateLimit(`recovery-code-ip:${clientIp}`);
+  const { userId, recovery_code } = data;
+  const clientIp = getClientIp();
+  const ipRateLimit = await checkRateLimit(`recovery-code-ip:${clientIp}`);
 
-    if (!ipRateLimit.allowed) {
-      const resetIn = Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000);
-      throw new Response(`Rate limit exceeded. Try again in ${resetIn} seconds.`, {
-        status: 429,
-        headers: {
-          "X-RateLimit-Remaining": ipRateLimit.remaining.toString(),
-          "X-RateLimit-Reset": ipRateLimit.resetTime.toString(),
-          "Retry-After": resetIn.toString(),
-        },
-      });
-    }
-
-    const rateLimitWindow = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error: countError } = await supabaseAdmin
-      .from("audit_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("action", "auth.recovery_code_fail")
-      .gte("created_at", rateLimitWindow);
-
-    if (countError) {
-      console.warn("Failed to read 2FA rate limit history:", countError.message);
-    }
-
-    if ((count ?? 0) >= 5) {
-      throw new Error("Terlalu banyak percobaan gagal. Coba lagi dalam 1 jam.");
-    }
-
-    const { data: row } = await supabaseAdmin
-      .from("user_2fa")
-      .select("recovery_codes, enabled")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!row?.enabled || !row.recovery_codes || row.recovery_codes.length === 0) {
-      return { ok: false, message: "2FA tidak diaktifkan atau recovery codes tidak tersedia" };
-    }
-
-    const hashedCodes = row.recovery_codes as string[];
-    let matchedIndex = -1;
-
-    for (let i = 0; i < hashedCodes.length; i++) {
-      const isValid = await verifyRecoveryCode(recovery_code, hashedCodes[i]);
-      if (isValid) {
-        matchedIndex = i;
-        break;
-      }
-    }
-
-    if (matchedIndex === -1) {
-      await insertAuditLog({
-        user_id: userId,
-        action: "auth.recovery_code_fail",
-        metadata: { reason: "invalid recovery code" },
-      });
-      return { ok: false, message: "Recovery code tidak valid" };
-    }
-
-    const remainingCodes = hashedCodes.filter((_, i) => i !== matchedIndex);
-    const { error: updateError } = await supabaseAdmin
-      .from("user_2fa")
-      .update({ recovery_codes: remainingCodes })
-      .eq("user_id", userId);
-
-    if (updateError) {
-      console.error("[2FA] Gagal invalidate recovery code:", updateError);
-      return { ok: false, message: "Gagal memproses recovery code, coba lagi" };
-    }
-
-    return { ok: true, remaining_codes: remainingCodes.length };
+  if (!ipRateLimit.allowed) {
+    const resetIn = Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000);
+    throw new Response(`Rate limit exceeded. Try again in ${resetIn} seconds.`, {
+      status: 429,
+      headers: {
+        "X-RateLimit-Remaining": ipRateLimit.remaining.toString(),
+        "X-RateLimit-Reset": ipRateLimit.resetTime.toString(),
+        "Retry-After": resetIn.toString(),
+      },
+    });
   }
+
+  const rateLimitWindow = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count, error: countError } = await supabaseAdmin
+    .from("audit_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("action", "auth.recovery_code_fail")
+    .gte("created_at", rateLimitWindow);
+
+  if (countError) {
+    console.warn("Failed to read 2FA rate limit history:", countError.message);
+  }
+
+  if ((count ?? 0) >= 5) {
+    throw new Error("Terlalu banyak percobaan gagal. Coba lagi dalam 1 jam.");
+  }
+
+  const { data: row } = await supabaseAdmin
+    .from("user_2fa")
+    .select("recovery_codes, enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!row?.enabled || !row.recovery_codes || row.recovery_codes.length === 0) {
+    return { ok: false, message: "2FA tidak diaktifkan atau recovery codes tidak tersedia" };
+  }
+
+  const hashedCodes = row.recovery_codes as string[];
+  let matchedIndex = -1;
+
+  for (let i = 0; i < hashedCodes.length; i++) {
+    const isValid = await verifyRecoveryCode(recovery_code, hashedCodes[i]);
+    if (isValid) {
+      matchedIndex = i;
+      break;
+    }
+  }
+
+  if (matchedIndex === -1) {
+    await insertAuditLog({
+      user_id: userId,
+      action: "auth.recovery_code_fail",
+      metadata: { reason: "invalid recovery code" },
+    });
+    return { ok: false, message: "Recovery code tidak valid" };
+  }
+
+  const remainingCodes = hashedCodes.filter((_, i) => i !== matchedIndex);
+  const { error: updateError } = await supabaseAdmin
+    .from("user_2fa")
+    .update({ recovery_codes: remainingCodes })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("[2FA] Gagal invalidate recovery code:", updateError);
+    return { ok: false, message: "Gagal memproses recovery code, coba lagi" };
+  }
+
+  return { ok: true, remaining_codes: remainingCodes.length };
+}
 
 export const verify2faSetup = verify2fa;

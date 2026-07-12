@@ -62,7 +62,11 @@ describe("verifyRecoveryCodeForLogin", () => {
     const fromMock = vi.mocked(supabaseAdmin.from);
     const checkLimitMock = vi.mocked(checkRateLimit);
 
-    checkLimitMock.mockResolvedValue({ allowed: true, remaining: 9, resetTime: Date.now() + 60_000 });
+    checkLimitMock.mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetTime: Date.now() + 60_000,
+    });
 
     fromMock.mockImplementation((table: string) => {
       if (table === "audit_logs") {

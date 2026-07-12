@@ -16,9 +16,9 @@ describe("rate limiter", () => {
   });
 
   it("keeps different authenticated users in separate buckets", async () => {
-    const wrapped = rateLimitMiddleware((context) => context.userId ?? "")(
-      async () => ({ ok: true }),
-    );
+    const wrapped = rateLimitMiddleware((context) => context.userId ?? "")(async () => ({
+      ok: true,
+    }));
 
     for (let index = 0; index < 10; index += 1) {
       const response = await wrapped({ userId: "user-a" });
