@@ -2,8 +2,42 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 // @ts-expect-error - dist/server/server.js is generated at build time; may or may not
 // be present on disk depending on whether a build has run yet in this environment.
 import serverEntry from "../dist/server/server.js";
-import { processMidtransNotification, verifyMidtransSignature } from "../src/lib/billing";
-import { supabaseAdmin } from "../src/integrations/supabase/client.server";
+
+// Lazy-loaded modules with fallbacks
+let billingModule: Record<string, unknown> | null = null;
+let supabaseModule: Record<string, unknown> | null = null;
+
+async function getBillingModule(): Promise<Record<string, unknown>> {
+  if (!billingModule) {
+    try {
+      billingModule = await import("../src/lib/billing");
+    } catch {
+      billingModule = {
+        processMidtransNotification: async () => ({
+          ok: false,
+          reason: "billing module not available",
+        }),
+        verifyMidtransSignature: () => false,
+      };
+    }
+  }
+  return billingModule;
+}
+
+async function getSupabaseModule(): Promise<Record<string, unknown>> {
+  if (!supabaseModule) {
+    try {
+      supabaseModule = await import("../src/integrations/supabase/client.server");
+    } catch {
+      supabaseModule = {
+        supabaseAdmin: {
+          from: () => ({ select: () => ({ limit: () => ({ error: "db not available" }) }) }),
+        },
+      };
+    }
+  }
+  return supabaseModule;
+}
 
 // Simple in-process rate limiter for Node adapter (protects /api/* on Vercel)
 const RL_WINDOW_MS = 60 * 1000; // 1 minute
@@ -71,6 +105,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       const url = new URL(getRequestUrl(req));
       if (req.method === "GET" && url.pathname === "/api/health") {
         try {
+          const { supabaseAdmin } = await getSupabaseModule();
           const dbOk = await supabaseAdmin.from("profiles").select("id").limit(1);
           res.statusCode = dbOk.error ? 503 : 200;
           res.setHeader("Content-Type", "application/json");
@@ -99,6 +134,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     try {
       const url = new URL(getRequestUrl(req));
       if (req.method === "POST" && url.pathname === "/api/midtrans-webhook") {
+        const { verifyMidtransSignature, processMidtransNotification } = await getBillingModule();
+        const { supabaseAdmin } = await getSupabaseModule();
+
         const chunks: Buffer[] = [];
         for await (const chunk of req) {
           chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
