@@ -31,18 +31,19 @@ The auto-fix system has 3 tiers:
 Add these to your GitHub repository settings (Settings > Secrets and variables > Actions):
 
 ```
-VERCEL_TOKEN        = Your Vercel API token (get from https://vercel.com/account/tokens)
-VERCEL_ORG_ID       = Your Vercel organization ID
-VERCEL_PROJECT_ID   = Your Vercel project ID (from project settings)
+VERCEL_PERSONAL_ACCESS_TOKEN  = Your Vercel Personal Access Token (get from https://vercel.com/account/tokens)
+VERCEL_ORG_ID                 = Your Vercel organization ID
+VERCEL_PROJECT_ID             = Your Vercel project ID (from project settings)
 ```
 
 **How to get these values:**
 
-- **VERCEL_TOKEN**:
+- **VERCEL_PERSONAL_ACCESS_TOKEN**:
 
   ```bash
   # Go to https://vercel.com/account/tokens
-  # Create a new token with read-only access to deployments
+  # Create a new Personal Access Token
+  # Recommended scopes: read deployments, read project settings
   ```
 
 - **VERCEL_ORG_ID**:

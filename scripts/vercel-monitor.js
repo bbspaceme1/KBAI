@@ -14,12 +14,15 @@ import https from "https";
 
 class VercelMonitor {
   constructor() {
-    this.token = process.env.VERCEL_TOKEN;
+    // Support both token names - prefer VERCEL_PERSONAL_ACCESS_TOKEN
+    this.token = process.env.VERCEL_PERSONAL_ACCESS_TOKEN || process.env.VERCEL_TOKEN;
     this.projectId = process.env.VERCEL_PROJECT_ID;
     this.orgId = process.env.VERCEL_ORG_ID;
 
     if (!this.token || !this.projectId) {
-      throw new Error("Missing VERCEL_TOKEN or VERCEL_PROJECT_ID environment variables");
+      throw new Error(
+        "Missing VERCEL_PERSONAL_ACCESS_TOKEN/VERCEL_TOKEN or VERCEL_PROJECT_ID environment variables",
+      );
     }
   }
 

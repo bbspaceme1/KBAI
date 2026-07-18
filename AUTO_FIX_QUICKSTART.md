@@ -3,6 +3,7 @@
 ## What You Now Have
 
 A fully autonomous error detection and fixing system that:
+
 1. Monitors Vercel deployments every 10 minutes
 2. Detects build errors and deployment issues
 3. Automatically runs diagnostics and applies fixes
@@ -13,6 +14,7 @@ A fully autonomous error detection and fixing system that:
 ## Quick Setup (5 minutes)
 
 ### Step 1: Get Your Vercel Credentials
+
 ```bash
 # Get your Vercel token (read-only, deployment access)
 # Visit: https://vercel.com/account/tokens
@@ -24,12 +26,13 @@ npx vercel project list
 ```
 
 ### Step 2: Add GitHub Secrets
+
 In your GitHub repo > Settings > Secrets and variables > Actions, add:
 
 ```
-VERCEL_TOKEN        = (your token from above)
-VERCEL_ORG_ID       = (your org ID)
-VERCEL_PROJECT_ID   = (your project ID)
+VERCEL_PERSONAL_ACCESS_TOKEN  = (your token from above)
+VERCEL_ORG_ID                 = (your org ID)
+VERCEL_PROJECT_ID             = (your project ID)
 ```
 
 ### Step 3: Done! The system is active
@@ -55,12 +58,14 @@ npm run monitor:check
 ## How to Monitor
 
 ### In GitHub Actions
+
 1. Go to your repo > Actions tab
 2. Select "Auto Monitor & Fix Deployment Issues"
 3. Watch it run every 10 minutes
 4. See detailed logs for each check
 
 ### In Your Terminal
+
 ```bash
 # Watch deployment status in real-time
 npm run monitor:vercel
@@ -69,11 +74,13 @@ npm run monitor:vercel
 ## What It Automatically Fixes
 
 ✓ **Auto-Fixed:**
+
 - Code formatting issues (Prettier)
 - Import organization (ESLint)
 - Common linting violations
 
 ⚠️ **Flagged for Review:**
+
 - Circular dependencies
 - Bundle size issues
 - TypeScript type errors
@@ -97,20 +104,25 @@ npm run monitor:vercel
 ## Customization
 
 ### Run Every 5 Minutes (faster)
+
 Edit `.github/workflows/auto-monitor-and-fix.yml`:
+
 ```yaml
 schedule:
-  - cron: "*/5 * * * *"  # Changed from */10
+  - cron: "*/5 * * * *" # Changed from */10
 ```
 
 ### Run Every Hour (slower)
+
 ```yaml
 schedule:
   - cron: "0 * * * *"
 ```
 
 ### Run Only on Manual Trigger
+
 Remove the schedule and keep only workflow_dispatch:
+
 ```yaml
 on:
   workflow_dispatch:
@@ -122,15 +134,18 @@ on:
 ## Troubleshooting
 
 ### Workflow not running?
+
 1. Check Actions are enabled in repo settings
 2. Verify secrets are set (typo-free)
 3. Check workflow syntax in GitHub Actions
 
 ### Getting too many commits?
+
 1. Increase interval from 10 to 30 minutes
 2. Or run manual fixes with `npm run auto-fix` locally
 
 ### Want to disable it?
+
 Rename `.github/workflows/auto-monitor-and-fix.yml` to `.github/workflows/auto-monitor-and-fix.yml.disabled`
 
 ## Full Documentation
@@ -150,5 +165,5 @@ npm run monitor:report      # Get full deployment analysis
 
 ## That's It!
 
-Your system is now continuously monitoring and self-healing. 
+Your system is now continuously monitoring and self-healing.
 Check the Actions tab in GitHub to watch it work.
