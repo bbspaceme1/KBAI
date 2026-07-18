@@ -66,7 +66,7 @@ interface AIProvider {
 class OpenAIProvider implements AIProvider {
   name = "openai";
 
-  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<string> {
+  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<ProviderResult> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
@@ -100,7 +100,7 @@ class OpenAIProvider implements AIProvider {
 class AnthropicProvider implements AIProvider {
   name = "anthropic";
 
-  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<string> {
+  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<ProviderResult> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
@@ -142,7 +142,7 @@ class AnthropicProvider implements AIProvider {
 class GeminiProvider implements AIProvider {
   name = "gemini";
 
-  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<string> {
+  async complete(messages: ChatMessage[], options?: AiGatewayOptions): Promise<ProviderResult> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 

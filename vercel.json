@@ -1,7 +1,8 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run lint:ci && npm run type-check && npm run build",
   "outputDirectory": "dist/client",
   "installCommand": "npm ci --include=dev",
+  "ignoreCommand": "git diff --quiet $VERCEL_GIT_COMMIT_REF^ $VERCEL_GIT_COMMIT_REF -- --exclude=.github",
   "framework": null,
   "rewrites": [
     {

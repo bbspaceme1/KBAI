@@ -452,7 +452,9 @@ export async function deleteUser(data: { target_user_id: string }) {
 
 // ============================================
 export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: string }) {
-  const expected = import.meta.env.VITE_BOOTSTRAP_SECRET;
+  // SECURITY: Use getBootstrapSecret() to ensure env var is only read server-side
+  // Environment variable BOOTSTRAP_SECRET must be set in Vercel production secrets, NOT in client bundle
+  const expected = getBootstrapSecret();
   if (!expected || data.bootstrap_secret !== expected) {
     throw new Response("Forbidden", { status: 403 });
   }
@@ -469,6 +471,15 @@ export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: 
     .from("user_roles")
     .upsert([{ user_id: data.user_id, role: "admin" }], { onConflict: "user_id,role" });
   return { ok: true };
+}
+
+// Server-only helper to access bootstrap secret without exposing to client
+function getBootstrapSecret(): string | undefined {
+  // In production, read from process.env (Vercel secrets)
+  // In dev, read from .env.development.local
+  return typeof process !== "undefined" && process.env.BOOTSTRAP_SECRET
+    ? process.env.BOOTSTRAP_SECRET
+    : undefined;
 }
 
 // Aliases for backward compatibility

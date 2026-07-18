@@ -167,7 +167,7 @@ export const Hero: React.FC<HeroProps> = ({
           <button
             onClick={() => {
               if (auth?.isAuthenticated) {
-                navigate({ to: "/app/community" });
+                navigate({ to: "/community" });
               } else {
                 onCTA?.("demo");
               }

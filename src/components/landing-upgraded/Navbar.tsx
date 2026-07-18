@@ -140,7 +140,7 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
         {auth?.isAuthenticated ? (
           <>
             <button
-              onClick={() => navigate({ to: "/app/community" })}
+              onClick={() => navigate({ to: "/community" })}
               style={{
                 background: "none",
                 border: `1px solid ${tokens.color.border}`,
@@ -340,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({ links, onScroll }) => {
             <>
               <button
                 onClick={() => {
-                  navigate({ to: "/app/community" });
+                  navigate({ to: "/community" });
                   setMobileOpen(false);
                 }}
                 style={{

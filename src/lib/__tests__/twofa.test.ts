@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyRecoveryCodeForLogin } from "@/lib/twofa.functions";
 import { getStartContext } from "@tanstack/start-storage-context";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { insertAuditLog } from "./audit.functions";
+import { insertAuditLog } from "@/lib/audit.functions";
 import { checkRateLimit } from "@/lib/rate-limiter";
-import { verifyRecoveryCode } from "./crypto.functions";
+import { verifyRecoveryCode } from "@/lib/crypto.functions";
 
 vi.mock("@/integrations/supabase/client.server", async () => {
   const actual = await vi.importActual<typeof import("@/integrations/supabase/client.server")>(

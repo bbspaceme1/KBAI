@@ -23,11 +23,13 @@ export default defineConfig({
         output: {
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              if (id.includes("@tanstack/react-router") || id.includes("@tanstack/react-start")) {
-                return "router";
-              }
-              if (id.includes("@radix-ui")) {
-                return "ui";
+              // Consolidate all core vendor libraries into single chunk to avoid circular deps
+              if (
+                id.includes("@tanstack/react-router") ||
+                id.includes("@tanstack/react-start") ||
+                id.includes("@radix-ui")
+              ) {
+                return "vendor-core";
               }
               if (id.includes("recharts")) {
                 return "charts";
