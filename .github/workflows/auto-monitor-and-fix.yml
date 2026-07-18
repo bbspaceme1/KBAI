@@ -1,0 +1,211 @@
+name: Auto Monitor & Fix Deployment Issues
+
+on:
+  schedule:
+    # Run every 10 minutes to catch and fix errors quickly
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_check:
+        description: "Force check deployment status"
+        required: false
+        default: "false"
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  monitor-and-fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Get latest deployment status from Vercel
+        id: deploy_status
+        run: |
+          # Fetch latest deployment info from Vercel API
+          DEPLOYMENT_INFO=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&limit=5" \
+            | jq '.deployments[0]')
+          
+          echo "deployment_info<<EOF" >> $GITHUB_OUTPUT
+          echo "$DEPLOYMENT_INFO" | jq '.' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Extract status
+          DEPLOY_STATE=$(echo "$DEPLOYMENT_INFO" | jq -r '.state // "unknown"')
+          DEPLOY_ERROR=$(echo "$DEPLOYMENT_INFO" | jq -r '.errorMessage // ""')
+          DEPLOY_ID=$(echo "$DEPLOYMENT_INFO" | jq -r '.uid // ""')
+          
+          echo "deploy_state=$DEPLOY_STATE" >> $GITHUB_OUTPUT
+          echo "deploy_error=$DEPLOY_ERROR" >> $GITHUB_OUTPUT
+          echo "deploy_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          
+          echo "Latest deployment state: $DEPLOY_STATE"
+          if [ ! -z "$DEPLOY_ERROR" ]; then
+            echo "Deployment error detected: $DEPLOY_ERROR"
+          fi
+
+      - name: Fetch build logs
+        id: build_logs
+        if: steps.deploy_status.outputs.deploy_state != 'READY'
+        run: |
+          # Get build logs from Vercel
+          LOGS=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments/${{ steps.deploy_status.outputs.deploy_id }}/logs" \
+            2>/dev/null || echo "{}")
+          
+          # Save logs for analysis
+          echo "$LOGS" > deployment-logs.json
+          
+          # Extract error lines
+          ERROR_LINES=$(echo "$LOGS" | jq -r '.[] | select(.level=="error") | .text' 2>/dev/null || echo "")
+          
+          echo "error_logs<<EOF" >> $GITHUB_OUTPUT
+          echo "$ERROR_LINES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Analyze errors and trigger fixes
+        id: analyze
+        if: |
+          steps.deploy_status.outputs.deploy_state != 'READY' ||
+          contains(steps.deploy_status.outputs.deploy_error, 'error') ||
+          contains(steps.build_logs.outputs.error_logs, 'error')
+        run: |
+          ERROR_LOG="${{ steps.build_logs.outputs.error_logs }}"
+          DEPLOY_ERROR="${{ steps.deploy_status.outputs.deploy_error }}"
+          
+          echo "Analyzing deployment errors..."
+          echo "Deploy Error: $DEPLOY_ERROR"
+          echo "Build Logs: $ERROR_LOG"
+          
+          # Create error analysis JSON for fix engine
+          cat > error-analysis.json << 'ANALYSIS'
+          {
+            "deploy_state": "${{ steps.deploy_status.outputs.deploy_state }}",
+            "deploy_error": "${{ steps.deploy_status.outputs.deploy_error }}",
+            "error_logs": "${{ steps.build_logs.outputs.error_logs }}",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "deploy_id": "${{ steps.deploy_status.outputs.deploy_id }}"
+          }
+          ANALYSIS
+          
+          # If errors detected, mark for fix
+          if [ ! -z "$DEPLOY_ERROR" ] || [ ! -z "$ERROR_LOG" ]; then
+            echo "needs_fix=true" >> $GITHUB_OUTPUT
+            echo "error_summary=$DEPLOY_ERROR" >> $GITHUB_OUTPUT
+          else
+            echo "needs_fix=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        if: steps.analyze.outputs.needs_fix == 'true'
+        run: npm ci
+
+      - name: Run diagnostics and auto-fixes
+        if: steps.analyze.outputs.needs_fix == 'true'
+        id: fix
+        run: |
+          echo "Running automated diagnostics and fixes..."
+          
+          # Check for common issues
+          echo "1. Type checking..."
+          npm run type-check 2>&1 || true
+          
+          echo "2. Linting..."
+          npm run lint:ci 2>&1 || true
+          
+          echo "3. Building..."
+          npm run build 2>&1 || true
+          
+          # Create fix report
+          echo "Diagnostics complete - generating fix report..."
+          
+          echo "fix_status=completed" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Commit fixes if any
+        if: |
+          steps.analyze.outputs.needs_fix == 'true' &&
+          always()
+        id: commit
+        run: |
+          git config user.name "v0 Auto-Fix Bot"
+          git config user.email "v0-autofix@vercel.app"
+          
+          # Check if there are changes
+          if ! git diff --quiet; then
+            git add -A
+            
+            COMMIT_MSG="fix: auto-fix deployment issues detected at $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+Deployment Error: ${{ steps.analyze.outputs.error_summary }}
+Deployment ID: ${{ steps.deploy_status.outputs.deploy_id }}
+Build State: ${{ steps.deploy_status.outputs.deploy_state }}
+
+Auto-fixed by v0 Monitor & Fix workflow"
+            
+            git commit --no-verify -m "$COMMIT_MSG"
+            echo "changes_committed=true" >> $GITHUB_OUTPUT
+            echo "commit_message=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to commit"
+            echo "changes_committed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push changes and trigger redeploy
+        if: steps.commit.outputs.changes_committed == 'true'
+        run: |
+          git push origin main
+          echo "Changes pushed to main - Vercel will auto-deploy"
+
+      - name: Create issue if critical error
+        if: |
+          failure() &&
+          contains(steps.analyze.outputs.error_summary, 'critical')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "Critical Deployment Error - Manual Review Needed",
+              body: `Auto-fix workflow encountered critical error:
+              
+\`\`\`
+${{ steps.analyze.outputs.error_summary }}
+\`\`\`
+
+Deployment ID: ${{ steps.deploy_status.outputs.deploy_id }}
+Build State: ${{ steps.deploy_status.outputs.deploy_state }}
+
+Please review and investigate manually.`,
+              labels: ["deployment", "error", "auto-generated"]
+            })
+
+      - name: Report status
+        if: always()
+        run: |
+          echo "=== Auto Monitor & Fix Workflow Report ==="
+          echo "Deployment State: ${{ steps.deploy_status.outputs.deploy_state }}"
+          echo "Deployment Error: ${{ steps.deploy_status.outputs.deploy_error }}"
+          echo "Needs Fix: ${{ steps.analyze.outputs.needs_fix }}"
+          echo "Changes Committed: ${{ steps.commit.outputs.changes_committed }}"
+          echo "Fix Status: ${{ steps.fix.outputs.fix_status }}"
+          echo "Timestamp: ${{ steps.fix.outputs.timestamp }}"

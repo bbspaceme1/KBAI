@@ -36,7 +36,13 @@
     "watch:sync": "./watch-sync.sh",
     "install:git-hooks": "git config core.hooksPath .githooks",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "type-check": "tsc --noEmit",
+    "auto-fix": "node scripts/auto-fix-engine.js --fix-all",
+    "auto-fix:check": "node scripts/auto-fix-engine.js --check-only",
+    "monitor:vercel": "node scripts/vercel-monitor.js --watch",
+    "monitor:check": "node scripts/vercel-monitor.js --check-latest",
+    "monitor:report": "node scripts/vercel-monitor.js --get-logs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md}": [
