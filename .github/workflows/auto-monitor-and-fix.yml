@@ -15,6 +15,11 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   VERCEL_PERSONAL_ACCESS_TOKEN: ${{ secrets.VERCEL_PERSONAL_ACCESS_TOKEN }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  JWT: ${{ secrets.JWT }}
+  JWT_2: ${{ secrets.JWT_2 }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -35,6 +40,21 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Initialize Supabase (first run only)
+        id: supabase_init
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            echo "⏭️  Supabase not configured - skipping initialization"
+          else
+            echo "status=initialized" >> $GITHUB_OUTPUT
+            echo "✓ Supabase configured and ready for error tracking"
+            node scripts/init-supabase.js || true
+          fi
 
       - name: Get latest deployment status from Vercel
         id: deploy_status
