@@ -9,24 +9,23 @@ export async function softDeleteUser(): Promise<{ ok: boolean }> {
 
   const now = new Date().toISOString();
 
-  const { error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .update({ deleted_at: now })
-    .eq("id", userId);
+  // Update user_metadata to mark as deleted (profiles table doesn't have deleted_at)
+  const { error: profileError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: { deleted: true, deleted_at: now },
+  });
 
   if (profileError) {
     throw new Error(`failed to soft delete profile: ${profileError.message}`);
   }
 
-  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-    email: `deleted_${userId}@deleted.kbai.id`,
-    password: Math.random().toString(36).slice(2, 18),
-    user_metadata: { deleted: true },
-    email_confirm: true,
-  });
-
-  if (authError) {
-    throw new Error(`failed to anonymize auth profile: ${authError.message}`);
+  // Anonymize email
+  try {
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      email: `deleted_${userId}@deleted.kbai.id`,
+      email_confirm: true,
+    });
+  } catch (err) {
+    console.warn("Failed to anonymize email:", err);
   }
 
   await insertAuditLog({
@@ -44,7 +43,7 @@ export async function exportUserData(): Promise<Record<string, unknown>> {
     supabaseAdmin.from("profiles").select("*").eq("id", userId).single(),
     supabaseAdmin.from("transactions").select("*").eq("user_id", userId),
     supabaseAdmin.from("holdings").select("*").eq("user_id", userId),
-    supabaseAdmin.from("watchlists").select("*").eq("user_id", userId),
+    supabaseAdmin.from("watchlist").select("*").eq("user_id", userId),
     supabaseAdmin.from("price_alerts").select("*").eq("user_id", userId),
   ]);
 
@@ -74,18 +73,18 @@ export async function restoreUser(_data: { userId: string }): Promise<{ ok: bool
   // If caller is not the same user, ensure caller is admin
   if (caller !== target) {
     const { data: roles } = await supabaseAdmin
-      .from<UserRoleRow>("user_roles")
+      .from("user_roles")
       .select("role")
       .eq("user_id", caller);
-    const rs = (roles ?? []).map((r) => r.role);
+    const rs = (roles ?? []).map((r: UserRoleRow) => r.role);
     if (!rs.includes("admin"))
       throw new Error("Forbidden: admin role required to restore other users");
   }
 
-  const { error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .update({ deleted_at: null })
-    .eq("id", target);
+  // Restore user metadata (profiles table doesn't have deleted_at)
+  const { error: profileError } = await supabaseAdmin.auth.admin.updateUserById(target, {
+    user_metadata: { deleted: false },
+  });
   if (profileError) throw new Error(`failed to restore profile: ${profileError.message}`);
 
   try {

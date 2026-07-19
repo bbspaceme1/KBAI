@@ -289,16 +289,14 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
 
       // Prefer DB-side atomic reservation when available
       try {
-        const { data, error } = await supabaseAdmin.rpc("try_consume_ai_quota", {
-          p_user: userId,
-          p_tokens: estimatedInputTokens,
-        });
+        const { data: quotaResult, error } = await supabaseAdmin.rpc("check_ai_quota", {
+          p_user_id: userId,
+          p_tokens_needed: estimatedInputTokens,
+        } as Record<string, unknown>);
+
         if (error) {
-          console.warn(
-            "try_consume_ai_quota rpc error, falling back to app-side check:",
-            error.message,
-          );
-        } else if (data === false) {
+          console.warn("check_ai_quota rpc error, falling back to app-side check:", error.message);
+        } else if (quotaResult === false) {
           throw new Error(
             "daily_limit_exceeded\n\nUpgrade to Premium untuk lebih banyak AI operations.",
           );

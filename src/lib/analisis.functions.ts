@@ -33,9 +33,15 @@ async function callAiTool<T>(opts: {
     tool_choice: { type: "function", function: { name: opts.toolName } },
   });
 
-  const args =
-    json.data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ??
-    json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+  const choices = Array.isArray(json.data?.choices)
+    ? json.data.choices
+    : Array.isArray(json.choices)
+      ? json.choices
+      : [];
+
+  const toolCall = choices[0]?.message?.tool_calls?.[0];
+  const args = toolCall?.function?.arguments;
+
   if (!args) throw new Error("AI tidak mengembalikan output terstruktur.");
   return JSON.parse(args) as T;
 }

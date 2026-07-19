@@ -204,7 +204,7 @@ export async function backfillEodFromApril(data: unknown = {}) {
   await requireAdmin();
 
   const db = getAdminDatabaseClient();
-  const fromDate = (data as { from_date?: string }).from_date;
+  const fromDate = (data as { from_date?: string }).from_date ?? "2020-04-01";
   const toDate = (data as { to_date?: string }).to_date ?? new Date().toISOString().slice(0, 10);
   const fromUnix = Math.floor(new Date(fromDate + "T00:00:00Z").getTime() / 1000);
   const toUnix = Math.floor(new Date(toDate + "T23:59:59Z").getTime() / 1000);

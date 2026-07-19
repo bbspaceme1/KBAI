@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callAI } from "@/lib/ai-gateway";
+import { callLovableAi } from "@/lib/ai-client";
 import { rateLimitMiddleware } from "@/lib/rate-limiter";
 
 async function requireAdvisor() {
