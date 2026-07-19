@@ -44,6 +44,7 @@ import { Route as AppAdminTransactionsRouteImport } from './routes/_app.admin.tr
 import { Route as AppAdminSettingsRouteImport } from './routes/_app.admin.settings'
 import { Route as AppAdminSecurityRouteImport } from './routes/_app.admin.security'
 import { Route as AppAdminPricesRouteImport } from './routes/_app.admin.prices'
+import { Route as AppAdminOrchestrationRouteImport } from './routes/_app.admin.orchestration'
 import { Route as AppAdminInsightAiRouteImport } from './routes/_app.admin.insight-ai'
 import { Route as AppAdminInsightRouteImport } from './routes/_app.admin.insight'
 import { Route as AppAdminHoldingsRouteImport } from './routes/_app.admin.holdings'
@@ -224,6 +225,11 @@ const AppAdminPricesRoute = AppAdminPricesRouteImport.update({
   path: '/prices',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminOrchestrationRoute = AppAdminOrchestrationRouteImport.update({
+  id: '/orchestration',
+  path: '/orchestration',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminInsightAiRoute = AppAdminInsightAiRouteImport.update({
   id: '/insight-ai',
   path: '/insight-ai',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/admin/holdings': typeof AppAdminHoldingsRoute
   '/admin/insight': typeof AppAdminInsightRoute
   '/admin/insight-ai': typeof AppAdminInsightAiRoute
+  '/admin/orchestration': typeof AppAdminOrchestrationRoute
   '/admin/prices': typeof AppAdminPricesRoute
   '/admin/security': typeof AppAdminSecurityRoute
   '/admin/settings': typeof AppAdminSettingsRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/admin/holdings': typeof AppAdminHoldingsRoute
   '/admin/insight': typeof AppAdminInsightRoute
   '/admin/insight-ai': typeof AppAdminInsightAiRoute
+  '/admin/orchestration': typeof AppAdminOrchestrationRoute
   '/admin/prices': typeof AppAdminPricesRoute
   '/admin/security': typeof AppAdminSecurityRoute
   '/admin/settings': typeof AppAdminSettingsRoute
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/_app/admin/holdings': typeof AppAdminHoldingsRoute
   '/_app/admin/insight': typeof AppAdminInsightRoute
   '/_app/admin/insight-ai': typeof AppAdminInsightAiRoute
+  '/_app/admin/orchestration': typeof AppAdminOrchestrationRoute
   '/_app/admin/prices': typeof AppAdminPricesRoute
   '/_app/admin/security': typeof AppAdminSecurityRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/admin/holdings'
     | '/admin/insight'
     | '/admin/insight-ai'
+    | '/admin/orchestration'
     | '/admin/prices'
     | '/admin/security'
     | '/admin/settings'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/admin/holdings'
     | '/admin/insight'
     | '/admin/insight-ai'
+    | '/admin/orchestration'
     | '/admin/prices'
     | '/admin/security'
     | '/admin/settings'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/_app/admin/holdings'
     | '/_app/admin/insight'
     | '/_app/admin/insight-ai'
+    | '/_app/admin/orchestration'
     | '/_app/admin/prices'
     | '/_app/admin/security'
     | '/_app/admin/settings'
@@ -756,6 +768,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminPricesRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/orchestration': {
+      id: '/_app/admin/orchestration'
+      path: '/orchestration'
+      fullPath: '/admin/orchestration'
+      preLoaderRoute: typeof AppAdminOrchestrationRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/insight-ai': {
       id: '/_app/admin/insight-ai'
       path: '/insight-ai'
@@ -800,6 +819,7 @@ interface AppAdminRouteChildren {
   AppAdminHoldingsRoute: typeof AppAdminHoldingsRoute
   AppAdminInsightRoute: typeof AppAdminInsightRoute
   AppAdminInsightAiRoute: typeof AppAdminInsightAiRoute
+  AppAdminOrchestrationRoute: typeof AppAdminOrchestrationRoute
   AppAdminPricesRoute: typeof AppAdminPricesRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
@@ -814,6 +834,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminHoldingsRoute: AppAdminHoldingsRoute,
   AppAdminInsightRoute: AppAdminInsightRoute,
   AppAdminInsightAiRoute: AppAdminInsightAiRoute,
+  AppAdminOrchestrationRoute: AppAdminOrchestrationRoute,
   AppAdminPricesRoute: AppAdminPricesRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,

@@ -110,18 +110,14 @@ class ErrorTracker {
 
       // Update error log with fix status
       if (success) {
-        await this.client
-          .from("error_logs")
-          .update({ is_fixed: true })
-          .eq("id", errorLogId);
+        await this.client.from("error_logs").update({ is_fixed: true }).eq("id", errorLogId);
       }
 
       // Increment fix attempt count
       await this.client
         .from("error_logs")
         .update({
-          fix_attempt_count: this.client
-            .rpc("increment_fix_attempts", { error_id: errorLogId }),
+          fix_attempt_count: this.client.rpc("increment_fix_attempts", { error_id: errorLogId }),
         })
         .eq("id", errorLogId)
         .catch(() => {}); // Silent fail if RPC not available
@@ -192,20 +188,18 @@ class ErrorTracker {
     if (!this.client) return null;
 
     try {
-      const { data, error } = await this.client
-        .from("autonomous_actions")
-        .insert({
-          action_type: actionType,
-          action_status: success ? "SUCCESS" : "FAILED",
-          deployment_id: deploymentId,
-          error_log_id: errorLogId,
-          fix_history_id: fixHistoryId,
-          command_executed: commandExecuted,
-          execution_result: executionResult,
-          execution_time_ms: executionTimeMs,
-          confidence_score: confidenceScore,
-          risk_assessment: riskAssessment,
-        });
+      const { data, error } = await this.client.from("autonomous_actions").insert({
+        action_type: actionType,
+        action_status: success ? "SUCCESS" : "FAILED",
+        deployment_id: deploymentId,
+        error_log_id: errorLogId,
+        fix_history_id: fixHistoryId,
+        command_executed: commandExecuted,
+        execution_result: executionResult,
+        execution_time_ms: executionTimeMs,
+        confidence_score: confidenceScore,
+        risk_assessment: riskAssessment,
+      });
 
       if (error) throw error;
       return data[0];
@@ -222,9 +216,7 @@ class ErrorTracker {
     if (!this.client) return null;
 
     try {
-      const { data, error } = await this.client
-        .from("v_error_summary")
-        .select("*");
+      const { data, error } = await this.client.from("v_error_summary").select("*");
 
       if (error) throw error;
       return data;
@@ -241,10 +233,7 @@ class ErrorTracker {
     if (!this.client) return null;
 
     try {
-      const { data, error } = await this.client
-        .from("v_recent_errors")
-        .select("*")
-        .limit(10);
+      const { data, error } = await this.client.from("v_recent_errors").select("*").limit(10);
 
       if (error) throw error;
       return data;
@@ -269,9 +258,8 @@ class ErrorTracker {
       return {
         totalErrors: summary.reduce((sum, s) => sum + s.total_errors, 0),
         fixedErrors: summary.reduce((sum, s) => sum + s.fixed_count, 0),
-        criticalErrorsUnfixed: recentErrors.filter(
-          (e) => e.severity === "CRITICAL" && !e.is_fixed
-        ).length,
+        criticalErrorsUnfixed: recentErrors.filter((e) => e.severity === "CRITICAL" && !e.is_fixed)
+          .length,
         patterns: summary,
         recentIssues: recentErrors.slice(0, 5),
       };

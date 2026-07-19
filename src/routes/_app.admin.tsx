@@ -42,6 +42,7 @@ export const Route = createFileRoute("/_app/admin")({
       "/admin/audit",
       "/admin/security",
       "/admin/settings",
+      "/admin/orchestration",
     ];
     const advisorOnly = [
       "/admin/holdings",

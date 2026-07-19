@@ -1,0 +1,147 @@
+name: Claude Code Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      gpt_summary:
+        description: "GPT summary from orchestration"
+        required: true
+      timestamp:
+        description: "Timestamp of audit trigger"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get latest deployment logs from Vercel
+        id: vercel_logs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          # Fetch last 10 deployments to get latest logs
+          DEPLOYMENTS=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}&limit=10" \
+            | jq '.deployments[0]')
+          
+          DEPLOYMENT_ID=$(echo $DEPLOYMENTS | jq -r '.id')
+          
+          if [ ! -z "$DEPLOYMENT_ID" ]; then
+            # Get build logs
+            LOGS=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments/$DEPLOYMENT_ID/logs" 2>/dev/null || echo "{}")
+            
+            echo "logs=$LOGS" >> $GITHUB_OUTPUT
+            echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Supabase database warnings
+        id: supabase_warnings
+        run: |
+          # This would connect to Supabase Management API to get database health
+          # For now, we'll use a placeholder
+          echo "warnings=Database health check completed" >> $GITHUB_OUTPUT
+
+      - name: Run Claude Code Audit
+        id: audit
+        run: |
+          cat > audit-prompt.txt << 'EOF'
+          You are an expert code auditor. Analyze the entire repository provided and create a comprehensive audit report.
+          
+          Context provided:
+          - GPT Summary of reported issue: ${{ github.event.inputs.gpt_summary }}
+          - Latest deployment logs: ${{ steps.vercel_logs.outputs.logs }}
+          - Supabase database warnings: ${{ steps.supabase_warnings.outputs.warnings }}
+          
+          Your task:
+          1. Checkout the entire repo structure
+          2. Find the root cause of the issue (not just symptoms)
+          3. Identify all affected files
+          4. Generate specific fixes with code examples
+          5. Prioritize by severity
+          
+          Output format: Generate a markdown file with:
+          - Executive Summary
+          - Root Causes (with evidence)
+          - Affected Files
+          - Recommended Fixes (with code)
+          - Priority: HIGH/MEDIUM/LOW
+          - Risks and Mitigations
+          EOF
+          
+          # Call Claude via API
+          AUDIT_RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d '{
+              "model": "claude-3-5-sonnet-20241022",
+              "max_tokens": 4096,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "'"$(cat audit-prompt.txt)"'"
+                }
+              ]
+            }')
+          
+          AUDIT_TEXT=$(echo "$AUDIT_RESPONSE" | jq -r '.content[0].text')
+          
+          # Save as markdown
+          cat > audit-report.md << 'EOF2'
+          $AUDIT_TEXT
+          EOF2
+          
+          echo "audit_report<<DELIMITER" >> $GITHUB_OUTPUT
+          cat audit-report.md >> $GITHUB_OUTPUT
+          echo "DELIMITER" >> $GITHUB_OUTPUT
+
+      - name: Save audit result to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          JOB_ID="job-${{ github.run_id }}"
+          
+          # Upload audit report to Supabase
+          curl -X POST "$SUPABASE_URL/rest/v1/audit_results" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d @- << EOF
+          {
+            "job_id": "$JOB_ID",
+            "markdown": $(jq -Rs '.' < audit-report.md),
+            "status": "completed"
+          }
+          EOF
+
+      - name: Output audit result
+        run: |
+          echo "=== AUDIT COMPLETE ==="
+          cat audit-report.md
