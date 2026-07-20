@@ -90,9 +90,59 @@ export const verify2fa = limitVerify2fa(async function verify2fa(data: { code: s
   return { ok: true, recovery_codes: recoveryPlaintext };
 });
 
-export async function disable2fa() {
+export async function disable2fa(data: { password?: string; code?: string } = {}) {
   const { supabase, userId } = await requireSupabaseAuth();
-  await supabaseAdmin.from("user_2fa").delete().eq("user_id", userId);
+
+  // Require either password or 2FA code to disable 2FA (step-up authentication)
+  if (!data.password && !data.code) {
+    throw new Error("Password atau kode 2FA diperlukan untuk menonaktifkan 2FA");
+  }
+
+  // If password provided, verify it against auth
+  if (data.password) {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: (await supabase.auth.getUser()).data.user?.email || "",
+        password: data.password,
+      });
+      if (error) throw new Error("Password salah");
+    } catch (err) {
+      throw new Error("Password verification gagal");
+    }
+  }
+
+  // If 2FA code provided, verify it
+  if (data.code) {
+    const { data: row } = await supabaseAdmin
+      .from("user_2fa")
+      .select("secret, enabled")
+      .eq("user_id", userId)
+      .single();
+    if (!row || !row.enabled) {
+      throw new Error("2FA tidak aktif atau belum diatur");
+    }
+    const { data: userData } = await supabase.auth.getUser();
+    const email = userData.user?.email ?? userId;
+    const totp = buildTotp(row.secret, email);
+    const delta = totp.validate({ token: data.code, window: 1 });
+    if (delta === null) {
+      throw new Error("Kode 2FA salah atau kadaluarsa");
+    }
+  }
+
+  // Only delete 2FA after verification passes
+  const { error } = await supabaseAdmin.from("user_2fa").delete().eq("user_id", userId);
+  if (error) throw new Error(error.message);
+
+  // Audit log step-up auth event
+  await insertAuditLog({
+    action: "user.disable_2fa",
+    user_id: userId,
+    entity: "user_2fa",
+    entity_id: userId,
+    metadata: { method: data.password ? "password" : "totp" },
+  });
+
   return { ok: true };
 }
 

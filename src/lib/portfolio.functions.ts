@@ -497,6 +497,74 @@ export const adminCreateUser = createUserAccount;
 export const adminGrantRole = grantUserRole;
 export const adminDeleteUser = deleteUser;
 export const adminListUsers = listAllUsers;
-export async function adminUpdateUser(_data: unknown): Promise<never> {
-  throw new Error("adminUpdateUser not implemented");
+
+export async function adminUpdateUser(data: {
+  user_id: string;
+  username?: string;
+  email?: string;
+  display_name?: string;
+  password?: string;
+}) {
+  const { userId } = await requireSupabaseAuth();
+  await requireAdminAccess(userId);
+
+  // Validate input
+  if (!data.user_id) throw new Error("user_id is required");
+  if (data.user_id === userId && data.password) {
+    throw new Error("Tidak bisa ubah password admin sendiri lewat endpoint ini");
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (data.username !== undefined) updates.username = data.username;
+  if (data.display_name !== undefined) updates.display_name = data.display_name;
+
+  // Update profile fields via supabaseAdmin
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabaseAdmin.from("profiles").update(updates).eq("id", data.user_id);
+    if (error) throw new Error(`Failed to update profile: ${error.message}`);
+  }
+
+  // Update email via auth if provided
+  if (data.email) {
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+        email: data.email,
+        email_confirm: true,
+      });
+    } catch (err) {
+      throw new Error(
+        `Failed to update email: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  // Update password via auth if provided
+  if (data.password) {
+    if (data.password.length < 8) {
+      throw new Error("Password minimal 8 karakter");
+    }
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+        password: data.password,
+      });
+    } catch (err) {
+      throw new Error(
+        `Failed to update password: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  await insertAuditLog({
+    action: "admin.update_user",
+    user_id: userId,
+    entity: "profile",
+    entity_id: data.user_id,
+    metadata: {
+      updated_fields: Object.keys(updates)
+        .concat(data.email ? ["email"] : [])
+        .concat(data.password ? ["password"] : []),
+    },
+  });
+
+  return { ok: true };
 }

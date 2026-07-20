@@ -42,20 +42,40 @@ function RequestAccessPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation
+    if (!formData.fullName.trim() || !formData.email.trim()) {
+      toast.error("Nama dan email harus diisi");
+      return;
+    }
+    if (formData.fullName.length > 100) {
+      toast.error("Nama terlalu panjang (max 100 karakter)");
+      return;
+    }
+    if (formData.additionalInfo.length > 1000) {
+      toast.error("Informasi tambahan terlalu panjang (max 1000 karakter)");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // Insert into access_requests table (create this in Supabase)
-      const { error } = await supabase.from("access_requests" as never).insert({
-        full_name: formData.fullName,
-        email: formData.email,
-        investment_background: formData.investmentBackground,
-        source_referral: formData.sourceReferral,
-        additional_info: formData.additionalInfo,
-        status: "pending",
-        created_at: new Date().toISOString(),
+      // Server-side endpoint that will perform additional validation & rate-limiting
+      const response = await fetch("/api/access-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          investment_background: formData.investmentBackground,
+          source_referral: formData.sourceReferral,
+          additional_info: formData.additionalInfo.trim(),
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal mengirim permintaan");
+      }
 
       setSubmitted(true);
       toast.success("Permintaan akses terkirim!");
@@ -208,7 +228,11 @@ function RequestAccessPage() {
                     }
                     disabled={submitting}
                     className="text-[13px] min-h-[80px]"
+                    maxLength={1000}
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    {formData.additionalInfo.length}/1000 karakter
+                  </p>
                 </div>
 
                 <Button type="submit" disabled={submitting} className="w-full text-[13px]">
