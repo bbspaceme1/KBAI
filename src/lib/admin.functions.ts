@@ -107,12 +107,50 @@ export async function adminRevokeSession(data: { session_id: string }) {
   const { userId } = await requireSupabaseAuth();
   await requireAdminAccess(userId);
 
-  const { error } = await supabaseAdmin
+  // First, get the session to find the target user
+  const { data: session, error: fetchError } = await supabaseAdmin
+    .from("user_sessions")
+    .select("user_id, id")
+    .eq("id", data.session_id)
+    .single();
+  if (fetchError || !session) throw new Error("Session not found");
+
+  const targetUserId = session.user_id;
+
+  // Mark session as revoked in tracking table
+  const { error: updateError } = await supabaseAdmin
     .from("user_sessions")
     .update({ is_active: false, ended_at: new Date().toISOString() })
     .eq("id", data.session_id);
-  if (error) throw new Error(error.message);
-  // Note: cannot force-logout the browser remotely, but session is marked revoked
+  if (updateError) throw new Error(updateError.message);
+
+  // Attempt to sign out user globally via Supabase Admin API
+  // This invalidates all refresh tokens for the user, forcing re-authentication
+  try {
+    await supabaseAdmin.auth.admin.signOut(targetUserId);
+    await insertAuditLog({
+      action: "admin.revoke_session",
+      user_id: userId,
+      entity: "user_session",
+      entity_id: data.session_id,
+      metadata: { target_user_id: targetUserId, method: "auth_admin_signout" },
+    });
+  } catch (err) {
+    // Log error but don't fail the operation — session is already marked revoked
+    console.warn("[admin] Failed to sign out user via Supabase Admin API:", err);
+    await insertAuditLog({
+      action: "admin.revoke_session",
+      user_id: userId,
+      entity: "user_session",
+      entity_id: data.session_id,
+      metadata: {
+        target_user_id: targetUserId,
+        method: "tracking_only",
+        warning: "auth_signout_failed",
+      },
+    });
+  }
+
   return { ok: true };
 }
 

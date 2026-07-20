@@ -39,8 +39,8 @@ function ResetPasswordPage() {
       toast.error("Password tidak cocok");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Password minimal 6 karakter");
+    if (newPassword.length < 8) {
+      toast.error("Password minimal 8 karakter");
       return;
     }
 
@@ -99,6 +99,7 @@ function ResetPasswordPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
+                minLength={8}
                 autoComplete="new-password"
                 className="h-9 rounded-sm border-border bg-background text-[13px]"
               />

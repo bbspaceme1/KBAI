@@ -8,6 +8,7 @@ interface PortfolioMetricsProps {
   cashBalance: number;
   totalPL: number;
   totalPLPct: number;
+  positionCount?: number;
 }
 
 export function PortfolioMetrics({
@@ -16,6 +17,7 @@ export function PortfolioMetrics({
   cashBalance,
   totalPL,
   totalPLPct,
+  positionCount = 0,
 }: PortfolioMetricsProps) {
   return (
     <section className="grid grid-cols-1 gap-px overflow-hidden rounded-sm border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
@@ -28,7 +30,7 @@ export function PortfolioMetrics({
       <Stat
         label="Market Value"
         value={fmtIDR(totalValue)}
-        sub={`${0} positions`} // TODO: pass actual count
+        sub={`${positionCount} ${positionCount === 1 ? "position" : "positions"}`}
         tooltip="Lot × harga EOD × 100 saham per lot."
       />
       <Stat

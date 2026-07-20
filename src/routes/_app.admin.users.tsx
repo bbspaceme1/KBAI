@@ -281,7 +281,7 @@ function CreateUserDialog({ adminId, onDone }: { adminId: string; onDone: () => 
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
+            minLength={8}
             required
           />
         </div>
@@ -370,7 +370,7 @@ function EditUserDialog({
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
+              minLength={8}
               placeholder="Kosongkan jika tidak diubah"
             />
           </div>
