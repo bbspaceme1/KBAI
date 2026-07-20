@@ -199,12 +199,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     } catch (e) {
       console.warn("midtrans webhook handler error", e);
     }
-    // Rate limiting: identify by user header, authorization, or IP
+    // Rate limiting: identify only by IP address (cannot be spoofed by headers)
+    // Headers like x-user-id/x-uid are client-controlled and can be rotated for bypass attacks
     const forwarded = req.headers["x-forwarded-for"] as string | undefined;
     const ip = forwarded ? forwarded.split(",")[0].trim() : req.socket?.remoteAddress || "unknown";
-    const userIdHeader = (req.headers["x-user-id"] as string) || (req.headers["x-uid"] as string);
-    const auth = (req.headers["authorization"] as string) || undefined;
-    const identifier = userIdHeader || auth || ip || "anonymous";
+    const identifier = ip; // Use IP only, never trust client-provided user ID headers for rate limiting
 
     const rl = checkRateLimitNode(identifier);
     if (!rl.allowed) {

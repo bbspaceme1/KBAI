@@ -6,6 +6,7 @@ import { requireAdminAccess } from "@/lib/rbac";
 import { fetchMarketQuotes } from "@/lib/market-data-provider";
 import { toYahoo, fromYahoo } from "@/lib/idx-tickers";
 import { insertAuditLog } from "@/lib/audit.functions";
+import { portfolioTransactionSchema } from "@/lib/validation";
 
 export type TxnInput = {
   ticker: string;
@@ -228,23 +229,32 @@ export async function submitTransaction(data: {
 }) {
   const { supabase, userId } = await requireSupabaseAuth();
 
+  // Validate input using Zod schema (ensures lot > 0, price > 0, ticker format, etc.)
+  const validated = portfolioTransactionSchema.parse({
+    ticker: data.ticker,
+    type: data.side,
+    lot: data.lot,
+    price: data.price,
+    date: new Date(data.transacted_at).toISOString(),
+  });
+
   const today = new Date().toISOString().slice(0, 10);
   if (data.transacted_at > today) {
     throw new Error("Tanggal tidak boleh lebih dari hari ini");
   }
-  const notional = data.lot * data.price * 100;
+  const notional = validated.lot * validated.price * 100;
 
-  if (data.side === "SELL") {
+  if (validated.type === "SELL") {
     const { data: h } = await supabaseAdmin
       .from("holdings")
       .select("total_lot")
       .eq("user_id", userId)
-      .eq("ticker", data.ticker)
+      .eq("ticker", validated.ticker)
       .maybeSingle();
     const owned = h?.total_lot ?? 0;
-    if (owned < data.lot) {
+    if (owned < validated.lot) {
       throw new Error(
-        `Tidak bisa jual ${data.lot} lot — kamu hanya punya ${owned} lot ${data.ticker}`,
+        `Tidak bisa jual ${validated.lot} lot — kamu hanya punya ${owned} lot ${validated.ticker}`,
       );
     }
   }
@@ -254,10 +264,10 @@ export async function submitTransaction(data: {
     .from("transactions")
     .insert({
       user_id: userId,
-      ticker: data.ticker,
-      side: data.side,
-      lot: data.lot,
-      price: data.price,
+      ticker: validated.ticker,
+      side: validated.type,
+      lot: validated.lot,
+      price: validated.price,
       transacted_at: data.transacted_at,
     })
     .select("id")
@@ -265,10 +275,10 @@ export async function submitTransaction(data: {
   if (txErr) throw new Error(txErr.message);
 
   // Cash movement: BUY → cash turun, SELL → cash naik
-  const delta = data.side === "BUY" ? -notional : notional;
+  const delta = validated.type === "BUY" ? -notional : notional;
   await supabaseAdmin.from("cash_movements").insert({
     user_id: userId,
-    movement_type: data.side,
+    movement_type: validated.type,
     amount: delta,
     ref_transaction_id: tx.id,
     occurred_at: data.transacted_at,
@@ -277,25 +287,25 @@ export async function submitTransaction(data: {
   const newBalance = await atomicAdjustCash(userId, delta);
 
   // IMP-02: Incremental holdings update via RPC instead of full recompute
-  if (data.side === "BUY") {
+  if (validated.type === "BUY") {
     await rpcCall<unknown>("upsert_holding_buy", {
       p_user_id: userId,
-      p_ticker: data.ticker,
-      p_lot: data.lot,
-      p_price: data.price,
+      p_ticker: validated.ticker,
+      p_lot: validated.lot,
+      p_price: validated.price,
     });
   } else {
     await rpcCall<unknown>("upsert_holding_sell", {
       p_user_id: userId,
-      p_ticker: data.ticker,
-      p_lot: data.lot,
+      p_ticker: validated.ticker,
+      p_lot: validated.lot,
     });
   }
 
   await insertAuditLog({
-    action: `tx.${data.side.toLowerCase()}`,
+    action: `tx.${validated.type.toLowerCase()}`,
     user_id: userId,
-    metadata: { ticker: data.ticker, lot: data.lot, price: data.price, notional },
+    metadata: { ticker: validated.ticker, lot: validated.lot, price: validated.price, notional },
     entity: "transaction",
     entity_id: tx.id,
   });

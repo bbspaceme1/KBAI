@@ -89,7 +89,7 @@ export function PortfolioChart({ holdings, prices, onRefresh, isRefreshing }: Po
                 <div className="flex items-center justify-between text-[12px]">
                   <span className="font-mono font-semibold">{item.ticker}</span>
                   <span className="text-muted-foreground">
-                    {item.weight.toFixed(1)}% · ${(item.value / 1000).toFixed(0)}k
+                    {item.weight.toFixed(1)}% · Rp{(item.value / 1000000).toFixed(0)}jt
                   </span>
                 </div>
                 <div className="relative h-2 bg-border/50 rounded-sm overflow-hidden">

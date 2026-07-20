@@ -274,12 +274,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     ) {
                       return false;
                     }
-                    if (
-                      item.to === "/community" &&
-                      !featureFlags.isEnabled(FeatureFlag.ENABLE_ONBOARDING)
-                    ) {
-                      return false;
-                    }
+                    // Dashboard should always be visible
                     return true;
                   })
                   .map((item) => (
