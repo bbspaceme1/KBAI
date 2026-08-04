@@ -46,6 +46,17 @@ export async function hashRecoveryCode(code: string): Promise<string> {
   return `${saltHex}$${hashHex}`;
 }
 
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return diff === 0;
+}
+
 /**
  * Verify a recovery code against a stored hash in constant time
  */
@@ -78,10 +89,12 @@ export async function verifyRecoveryCode(code: string, storedHash: string): Prom
   );
   if (computedHash.length !== expectedHashBytes.length) return false;
 
-  let diff = 0;
-  for (let i = 0; i < computedHash.length; i += 1) {
-    diff |= computedHash[i] ^ expectedHashBytes[i];
-  }
+  const hashHex = Array.from(computedHash)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const expectedHex = Array.from(expectedHashBytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 
-  return diff === 0;
+  return constantTimeEqual(hashHex, expectedHex);
 }

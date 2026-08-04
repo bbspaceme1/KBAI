@@ -5,7 +5,8 @@ export function toCsv<T extends Record<string, unknown>>(rows: T[], columns?: (k
   const esc = (v: unknown) => {
     if (v == null) return "";
     const s = typeof v === "object" ? JSON.stringify(v) : String(v);
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    const neutralized = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\n\r]/.test(neutralized) ? `"${neutralized.replace(/"/g, '""')}"` : neutralized;
   };
   const head = cols.join(",");
   const body = rows

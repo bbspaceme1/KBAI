@@ -317,13 +317,11 @@ function EditUserDialog({
     setSubmitting(true);
     try {
       await adminUpdateUser({
-        data: {
-          target_user_id: user.id,
-          email: email.trim(),
-          username: username.trim(),
-          display_name: displayName.trim() || undefined,
-          ...(password ? { password } : {}),
-        },
+        user_id: user.id,
+        email: email.trim(),
+        username: username.trim(),
+        display_name: displayName.trim() || undefined,
+        ...(password ? { password } : {}),
       });
       toast.success("User diperbarui");
       onDone();

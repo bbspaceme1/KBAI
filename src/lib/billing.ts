@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { constantTimeEqual } from "@/lib/crypto.functions";
 
 type MidtransNotificationPayload = Record<string, unknown>;
 
@@ -122,7 +123,7 @@ export function verifyMidtransSignature(body: string, signatureHeader?: string) 
       .createHash("sha512")
       .update(`${orderId}${statusCode}${grossAmount}${key}`)
       .digest("hex");
-    return hash === signature;
+    return constantTimeEqual(hash, signature);
   } catch (err) {
     console.warn("billing: signature verification failed", err);
     return false;

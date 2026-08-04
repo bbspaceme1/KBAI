@@ -227,7 +227,7 @@ export async function submitTransaction(data: {
   price: number;
   transacted_at: string;
 }) {
-  const { supabase, userId } = await requireSupabaseAuth();
+  const { userId } = await requireSupabaseAuth();
 
   // Validate input using Zod schema (ensures lot > 0, price > 0, ticker format, etc.)
   const validated = portfolioTransactionSchema.parse({
@@ -497,17 +497,25 @@ export const adminCreateUser = createUserAccount;
 export const adminGrantRole = grantUserRole;
 export const adminDeleteUser = deleteUser;
 export const adminListUsers = listAllUsers;
+<<<<<<< HEAD
 
 export async function adminUpdateUser(data: {
   user_id: string;
   username?: string;
   email?: string;
+=======
+export async function adminUpdateUser(data: {
+  user_id: string;
+  email: string;
+  username: string;
+>>>>>>> f3375f4 (sync update)
   display_name?: string;
   password?: string;
 }) {
   const { userId } = await requireSupabaseAuth();
   await requireAdminAccess(userId);
 
+<<<<<<< HEAD
   // Validate input
   if (!data.user_id) throw new Error("user_id is required");
   if (data.user_id === userId && data.password) {
@@ -565,6 +573,27 @@ export async function adminUpdateUser(data: {
         .concat(data.password ? ["password"] : []),
     },
   });
+=======
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+    email: data.email,
+    password: data.password,
+    user_metadata: {
+      username: data.username,
+      display_name: data.display_name ?? data.username,
+    },
+  });
+  if (authError) throw new Error(authError.message);
+
+  const { error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .update({
+      username: data.username,
+      display_name: data.display_name ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", data.user_id);
+  if (profileError) throw new Error(profileError.message);
+>>>>>>> f3375f4 (sync update)
 
   return { ok: true };
 }
