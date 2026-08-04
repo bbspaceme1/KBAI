@@ -38,7 +38,6 @@
     "install:git-hooks": "git config core.hooksPath .githooks",
     "format": "prettier --write .",
     "prepare": "husky",
-    "type-check": "tsc --noEmit",
     "auto-fix": "node scripts/auto-fix-engine.js --fix-all",
     "auto-fix:check": "node scripts/auto-fix-engine.js --check-only",
     "monitor:vercel": "node scripts/vercel-monitor.js --watch",
