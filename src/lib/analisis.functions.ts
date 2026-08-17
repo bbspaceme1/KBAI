@@ -33,11 +33,13 @@ async function callAiTool<T>(opts: {
     tool_choice: { type: "function", function: { name: opts.toolName } },
   });
 
-  const choices = Array.isArray(json.data?.choices)
-    ? json.data.choices
-    : Array.isArray(json.choices)
-      ? json.choices
+  // Extract choices from response, handling both nested and root-level formats
+  const choicesArray = Array.isArray((json.data as Record<string, unknown>)?.choices)
+    ? (json.data as Record<string, unknown>).choices
+    : Array.isArray((json as Record<string, unknown>).choices)
+      ? (json as Record<string, unknown>).choices
       : [];
+  const choices = choicesArray as { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
 
   const toolCall = choices[0]?.message?.tool_calls?.[0];
   const args = toolCall?.function?.arguments;

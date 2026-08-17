@@ -105,11 +105,11 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
   if (!target) throw new Error("target userId required");
 
   if (caller !== target) {
-    const { data: roles } = await supabaseAdmin
-      .from<UserRoleRow>("user_roles")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: roles } = await (supabaseAdmin.from("user_roles") as any)
       .select("role")
       .eq("user_id", caller);
-    const rs = (roles ?? []).map((r) => r.role);
+    const rs = (roles ?? []).map((r: Record<string, unknown>) => r.role);
     if (!rs.includes("admin"))
       throw new Error("Forbidden: admin role required to permanently delete other users");
   }
@@ -150,11 +150,11 @@ export async function archiveOldData(
   _data: { daysOld?: number } = {},
 ): Promise<{ ok: boolean; deleted: Record<string, number> }> {
   const { userId } = await requireSupabaseAuth();
-  const { data: roles } = await supabaseAdmin
-    .from<UserRoleRow>("user_roles")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: roles } = await (supabaseAdmin.from("user_roles") as any)
     .select("role")
     .eq("user_id", userId);
-  const rs = (roles ?? []).map((r) => r.role);
+  const rs = (roles ?? []).map((r: Record<string, unknown>) => r.role);
   if (!rs.includes("admin")) throw new Error("Forbidden: admin role required");
 
   const daysOld = Number(_data.daysOld ?? 90);
@@ -169,8 +169,8 @@ export async function archiveOldData(
 
   const deleted: Record<string, number> = {};
   for (const { name, column } of tables) {
-    const resp = await supabaseAdmin
-      .from(name)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resp = await (supabaseAdmin.from(name as never) as any)
       .delete()
       .lt(column, threshold)
       .select("id", { count: "exact" });
