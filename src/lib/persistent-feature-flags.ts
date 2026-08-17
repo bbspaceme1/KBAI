@@ -84,8 +84,8 @@ export class PersistentFeatureFlagManager {
     }
 
     // Fetch from database
-    const { data, error } = await supabaseAdmin
-      .from("feature_flags")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabaseAdmin.from("feature_flags" as never) as any)
       .select("*")
       .eq("key", featureKey)
       .single();
@@ -105,8 +105,8 @@ export class PersistentFeatureFlagManager {
    */
   async refreshCache(): Promise<void> {
     try {
-      const { data, error } = await supabaseAdmin
-        .from("feature_flags")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabaseAdmin.from("feature_flags" as never) as any)
         .select("*")
         .eq("enabled", true)
         .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
@@ -114,18 +114,20 @@ export class PersistentFeatureFlagManager {
       if (error) throw error;
 
       const flagMap = new Map<string, FeatureFlag>();
-      for (const flag of data || []) {
-        flagMap.set(flag.key, {
-          id: flag.id,
-          key: flag.key,
-          enabled: flag.enabled,
-          description: flag.description,
-          createdAt: flag.created_at,
-          updatedAt: flag.updated_at,
-          expiresAt: flag.expires_at,
-          rolloutPercentage: flag.rollout_percentage,
-          targetRoles: flag.target_roles,
-          targetUserIds: flag.target_user_ids,
+      for (const flag of (data || []) as Array<Record<string, unknown>>) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const normalizedFlag = flag as any;
+        flagMap.set(normalizedFlag.key, {
+          id: normalizedFlag.id,
+          key: normalizedFlag.key,
+          enabled: normalizedFlag.enabled,
+          description: normalizedFlag.description,
+          createdAt: normalizedFlag.created_at,
+          updatedAt: normalizedFlag.updated_at,
+          expiresAt: normalizedFlag.expires_at,
+          rolloutPercentage: normalizedFlag.rollout_percentage,
+          targetRoles: normalizedFlag.target_roles,
+          targetUserIds: normalizedFlag.target_user_ids,
         });
       }
 
@@ -147,8 +149,8 @@ export class PersistentFeatureFlagManager {
 
     if (!key) throw new Error("Feature key is required");
 
-    const { data, error } = await supabaseAdmin
-      .from("feature_flags")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabaseAdmin.from("feature_flags" as never) as any)
       .upsert(
         {
           key,
@@ -176,8 +178,8 @@ export class PersistentFeatureFlagManager {
    * Disable a feature flag
    */
   async disableFlag(featureKey: string): Promise<void> {
-    const { error } = await supabaseAdmin
-      .from("feature_flags")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabaseAdmin.from("feature_flags" as never) as any)
       .update({ enabled: false })
       .eq("key", featureKey);
 
@@ -190,25 +192,29 @@ export class PersistentFeatureFlagManager {
    * Get all flags for dashboard
    */
   async getAllFlags(): Promise<FeatureFlag[]> {
-    const { data, error } = await supabaseAdmin
-      .from("feature_flags")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabaseAdmin.from("feature_flags" as never) as any)
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return (data || []).map((flag) => ({
-      id: flag.id,
-      key: flag.key,
-      enabled: flag.enabled,
-      description: flag.description,
-      createdAt: flag.created_at,
-      updatedAt: flag.updated_at,
-      expiresAt: flag.expires_at,
-      rolloutPercentage: flag.rollout_percentage,
-      targetRoles: flag.target_roles,
-      targetUserIds: flag.target_user_ids,
-    }));
+    return ((data || []) as Array<Record<string, unknown>>).map((flag) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const normalizedFlag = flag as any;
+      return {
+        id: normalizedFlag.id,
+        key: normalizedFlag.key,
+        enabled: normalizedFlag.enabled,
+        description: normalizedFlag.description,
+        createdAt: normalizedFlag.created_at,
+        updatedAt: normalizedFlag.updated_at,
+        expiresAt: normalizedFlag.expires_at,
+        rolloutPercentage: normalizedFlag.rollout_percentage,
+        targetRoles: normalizedFlag.target_roles,
+        targetUserIds: normalizedFlag.target_user_ids,
+      };
+    });
   }
 
   /**
@@ -229,26 +235,6 @@ export class PersistentFeatureFlagManager {
 
 // Singleton instance
 export const featureFlagManager = new PersistentFeatureFlagManager();
-
-/**
- * React hook for feature flags
- * Usage: const isEnabled = useFeatureFlag('NEW_PORTFOLIO_UI')
- */
-export function useFeatureFlag(featureKey: string) {
-  const { userId, userRole } = useAuth(); // Assuming useAuth hook exists
-  const [isEnabled, setIsEnabled] = React.useState(false);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    (async () => {
-      const enabled = await featureFlagManager.isEnabled(featureKey, userId, userRole);
-      setIsEnabled(enabled);
-      setLoading(false);
-    })();
-  }, [featureKey, userId, userRole]);
-
-  return { isEnabled, loading };
-}
 
 /**
  * Common feature flags

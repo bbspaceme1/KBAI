@@ -289,7 +289,12 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
 
       // Prefer DB-side atomic reservation when available
       try {
-        const { data: quotaResult, error } = await supabaseAdmin.rpc("check_ai_quota", {
+        const rpcCall = supabaseAdmin.rpc as unknown as (
+          functionName: string,
+          params: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+
+        const { data: quotaResult, error } = await rpcCall("check_ai_quota", {
           p_user_id: userId,
           p_tokens_needed: estimatedInputTokens,
         } as Record<string, unknown>);
