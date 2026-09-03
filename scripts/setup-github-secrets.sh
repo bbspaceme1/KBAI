@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup GitHub Secrets for Autonomous Loop
 
-echo "Setting up GitHub Secrets for v0 Autonomous Loop..."
+echo "Setting up GitHub Secrets for KBAI automated remediation..."
 echo ""
 echo "These secrets need to be added to: https://github.com/bbspaceme1/KBAI/settings/secrets/actions"
 echo ""

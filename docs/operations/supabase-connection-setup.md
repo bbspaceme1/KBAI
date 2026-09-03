@@ -1,4 +1,4 @@
-# Supabase Connection - Token Requirements for v0 Autonomous Loop
+# Supabase Connection - Token Requirements for KBAI Automated Remediation
 
 ## Required Tokens (3 Total)
 

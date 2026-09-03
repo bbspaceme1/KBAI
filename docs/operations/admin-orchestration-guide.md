@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard for managing code audits, executing fixes, and deploying changes—all from a single web interface using 5 integrated tools: Vercel, Supabase, GitHub, v0, and Copilot.
+The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard for managing code audits, executing fixes, and deploying changes—all from a single web interface using 5 integrated tools: Vercel, Supabase, GitHub, an automated code execution service, and Copilot.
 
 **Key Principle**: This is a **manual-trigger system** with no automation loops. All execution requires explicit user clicks.
 
@@ -80,11 +80,11 @@ If prompt mentions any of these, **both buttons are disabled**:
 
 Message displayed: `"file ini butuh review manual langsung, tidak lewat tombol eksekusi"`
 
-**"Eksekusi via v0" Button:**
-1. Sends prompt to v0 Platform API
-2. v0 creates new chat from prompt
-3. v0 generates code changes
-4. v0 creates **new branch + Pull Request** (never commits to main)
+**"Eksekusi via automation service" Button:**
+1. Sends prompt to the automation service API
+2. The automation service creates a new chat from the prompt
+3. The automation service generates code changes
+4. The automation service creates **new branch + Pull Request** (never commits to main)
 5. PR URL returned and displayed in Section 4
 
 **"Eksekusi via Copilot" Button:**
@@ -134,7 +134,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 | `GITHUB_TOKEN` | All sections | Trigger workflows, create/merge PRs |
 | `VERCEL_PERSONAL_ACCESS_TOKEN` | Claude audit | Fetch deployment logs |
 | `ANTHROPIC_API_KEY` | Claude audit | Claude Code headless |
-| `V0_API_KEY` | Execute v0 | Create chat + changes |
+| `V0_API_KEY` | Execute automation service | Create chat + changes |
 | `COPILOT_API_KEY` | Execute Copilot | Agent Tasks API |
 | `SUPABASE_URL` | All sections | Database access |
 | `SUPABASE_SERVICE_ROLE_KEY` | All sections | Admin database ops |
@@ -176,7 +176,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 2. Red alert shows: `"Sensitive files detected: [list]. Execution disabled."`
 3. User must:
    - Either edit prompt to remove those files, OR
-   - Remove those files from the code change in v0/Copilot manually, OR
+   - Remove those files from the code change in the automation service/Copilot manually, OR
    - Perform manual code review and merge via GitHub directly (bypass this panel)
 
 ---
@@ -225,8 +225,8 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
    - Optional: User edits prompt
    - Checks for sensitive files (auto-detected)
 
-4. **User clicks "Eksekusi via v0" (or Copilot)**
-   - v0 creates branch + applies changes
+4. **User clicks "Eksekusi via automation service" (or Copilot)**
+   - The automation service creates a branch and applies changes
    - PR created automatically
    - PR URL shows in Section 4
 
@@ -312,7 +312,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 - Model: `claude-3-5-sonnet-20241022`
 - Auth: `ANTHROPIC_API_KEY`
 
-### 5. v0 Platform API (Section 3)
+### 5. Automation Service API (Section 3)
 - Endpoint: `POST https://api.v0.dev/chats`
 - Auth: `V0_API_KEY`
 - Returns: chat ID + generated code
@@ -345,7 +345,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 - Check: `ANTHROPIC_API_KEY` is configured
 
 ### PR creation fails
-- Check: v0 or Copilot API keys are valid
+- Check: automation service or Copilot API keys are valid
 - Check: GitHub user has write access to repo
 - Check: Prompt doesn't trigger sensitive file detection
 

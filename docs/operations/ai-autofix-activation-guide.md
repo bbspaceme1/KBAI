@@ -1,4 +1,4 @@
-# v0 Autonomous Loop - Activation Guide
+# KBAI Automated Remediation Loop - Activation Guide
 
 ## Status: 95% Complete ✅
 

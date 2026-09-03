@@ -166,8 +166,8 @@ jobs:
           always()
         id: commit
         run: |
-          git config user.name "v0 Auto-Fix Bot"
-          git config user.email "v0-autofix@vercel.app"
+          git config user.name "KBAI Automated Fix Bot"
+          git config user.email "kbai-automated-fix@users.noreply.github.com"
           
           # Check if there are changes
           if ! git diff --quiet; then
@@ -179,7 +179,7 @@ Deployment Error: ${{ steps.analyze.outputs.error_summary }}
 Deployment ID: ${{ steps.deploy_status.outputs.deploy_id }}
 Build State: ${{ steps.deploy_status.outputs.deploy_state }}
 
-Auto-fixed by v0 Monitor & Fix workflow"
+Auto-fixed by KBAI Monitor & Fix workflow"
             
             git commit --no-verify -m "$COMMIT_MSG"
             echo "changes_committed=true" >> $GITHUB_OUTPUT

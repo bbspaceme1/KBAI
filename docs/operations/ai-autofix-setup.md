@@ -1,6 +1,6 @@
-# v0 Autonomous Error Detection & Auto-Fix System
+# KBAI Automated Error Detection & Remediation System
 
-This document explains how to setup and use the autonomous error detection and auto-fix system that allows v0 to loop through errors and execute fixes automatically.
+This document explains how to set up and use the autonomous error detection and remediation system that loops through errors and executes fixes automatically.
 
 ## System Overview
 
@@ -250,30 +250,30 @@ if (consecutiveErrors >= 3) {
 - Increase workflow interval (e.g., every 30 minutes instead of 10)
 - Implement fix batching to combine multiple issues
 
-## Integrating with v0
+## Integrating with the Automation Service
 
-To make v0 aware of this system:
+To make the automation service aware of this system:
 
-1. **v0 can check deployment status:**
+1. **The automation service can check deployment status:**
 
    ```bash
    npm run monitor:check
    ```
 
-2. **v0 can run diagnostics:**
+2. **The automation service can run diagnostics:**
 
    ```bash
    npm run auto-fix:check
    ```
 
-3. **v0 can execute fixes and deploy:**
+3. **The automation service can execute fixes and deploy:**
 
    ```bash
    npm run auto-fix
    # This will auto-commit and push if changes exist
    ```
 
-4. **v0 can poll for issues:**
+4. **The automation service can poll for issues:**
    ```bash
    npm run monitor:report
    # Provides detailed deployment report for analysis

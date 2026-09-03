@@ -1,4 +1,4 @@
-# v0 Autonomous Loop - What's Still Needed
+# KBAI Automated Remediation Loop - What's Still Needed
 
 ## Current Status (4/7 Critical Requirements Met)
 
@@ -92,7 +92,7 @@ Need: Monitor all 4 services
 - Vercel: Deployment + Build status
 - GitHub: Workflow runs, API rate limits
 - Supabase: Connection health, query performance
-- v0 (me): Memory usage, execution timeout
+- Automation service: Memory usage, execution timeout
 - **Why**: Cascading failures across services
 - **Impact**: Can't detect if GitHub API is down
 - **Solution**: Create health check dashboard

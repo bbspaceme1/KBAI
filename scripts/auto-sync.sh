@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Auto-sync script for bb-space-website
+# Auto-sync script for KBAI Terminal
 # Automatically commits and pushes changes to GitHub
 
 set -e  # Exit on any error

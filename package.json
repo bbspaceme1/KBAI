@@ -1,10 +1,10 @@
 {
-  "name": "bb-space-website",
+  "name": "kbai-terminal",
   "private": true,
-  "description": "BB Space website: investment analytics and portfolio dashboard built with React Start and Vercel.",
+  "description": "KBAI Terminal: investment analytics and portfolio dashboard built with React Start and Vercel.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bbspaceme/bb-space-website.git"
+    "url": "https://github.com/bbspaceme1/KBAI.git"
   },
   "engines": {
     "node": "22.x"

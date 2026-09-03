@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Watch and auto-sync script for bb-space-website
+# Watch and auto-sync script for KBAI Terminal
 # Monitors file changes and automatically syncs to GitHub
 
-WATCH_DIR="/workspaces/bb-space-website"
+WATCH_DIR="/workspaces/KBAI"
 SYNC_INTERVAL=300  # 5 minutes
 
 echo "👀 Starting file watcher for auto-sync..."
@@ -14,7 +14,7 @@ echo "Press Ctrl+C to stop"
 # Function to sync
 sync_changes() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Running auto-sync..."
-    /workspaces/bb-space-website/auto-sync.sh 2>&1 | tee -a /workspaces/bb-space-website/auto-sync.log
+    /workspaces/KBAI/scripts/auto-sync.sh 2>&1 | tee -a /workspaces/KBAI/auto-sync.log
 }
 
 # Initial sync

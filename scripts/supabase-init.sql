@@ -1,4 +1,4 @@
--- v0 Autonomous Error Tracking System
+-- KBAI Autonomous Error Tracking System
 -- Supabase Schema for error history, patterns, and autonomous fixes
 
 -- Create error_logs table
