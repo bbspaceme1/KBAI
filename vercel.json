@@ -2,7 +2,6 @@
   "buildCommand": "npm run lint:ci && npm run type-check && npm run build",
   "outputDirectory": "dist/client",
   "installCommand": "npm ci --include=dev",
-  "ignoreCommand": "if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then git diff --quiet HEAD~1 HEAD -- --exclude=.github; else exit 0; fi",
   "framework": null,
   "rewrites": [
     {
