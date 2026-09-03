@@ -303,7 +303,7 @@ async function main() {
       await monitor.getFullReport();
     } else {
       console.log(`
-v0 Vercel Monitor - Real-time deployment monitoring
+KBAI Vercel Monitor - Real-time deployment monitoring
 
 Usage:
   --watch        Watch deployments every 30 seconds

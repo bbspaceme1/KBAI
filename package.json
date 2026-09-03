@@ -1,10 +1,10 @@
 {
-  "name": "bb-space-website",
+  "name": "kbai-terminal",
   "private": true,
-  "description": "BB Space website: investment analytics and portfolio dashboard built with React Start and Vercel.",
+  "description": "KBAI Terminal: investment analytics and portfolio dashboard built with React Start and Vercel.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bbspaceme/bb-space-website.git"
+    "url": "https://github.com/bbspaceme1/KBAI.git"
   },
   "engines": {
     "node": "22.x"
@@ -18,6 +18,7 @@
     "build:staging": "vite build --mode staging",
     "build:prod": "vite build --mode production",
     "preview": "vite preview",
+    "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "lint:ci": "eslint . --max-warnings 0",
     "test": "vitest",
@@ -29,6 +30,7 @@
     "deploy": "vercel --prod",
     "deploy:preview": "vercel",
     "db:migrate": "supabase db push",
+    "db:check-drift": "supabase migration list",
     "db:reset": "supabase db reset",
     "db:seed": "supabase db seed",
     "seed:users": "node scripts/seed-users.js",
@@ -37,7 +39,6 @@
     "install:git-hooks": "git config core.hooksPath .githooks",
     "format": "prettier --write .",
     "prepare": "husky",
-    "type-check": "tsc --noEmit",
     "auto-fix": "node scripts/auto-fix-engine.js --fix-all",
     "auto-fix:check": "node scripts/auto-fix-engine.js --check-only",
     "monitor:vercel": "node scripts/vercel-monitor.js --watch",

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The v0 autonomous error detection and auto-fix system now fully integrated with Vercel via `VERCEL_PERSONAL_ACCESS_TOKEN`.
+The KBAI autonomous error detection and remediation system is fully integrated with Vercel via `VERCEL_PERSONAL_ACCESS_TOKEN`.
 
 ## Token Setup
 
@@ -10,7 +10,7 @@ The v0 autonomous error detection and auto-fix system now fully integrated with 
 
 1. Go to https://vercel.com/account/tokens
 2. Click "Create Token"
-3. Give it a name: `v0-auto-fix-system`
+3. Give it a name: `kbai-automated-remediation`
 4. Select expiration (recommended: 90 days)
 5. Copy the token immediately (you won't see it again)
 
@@ -88,12 +88,12 @@ The token is **read-only** for deployment and build information.
 
 ## Environment Variables Used
 
-| Variable | Source | Used In |
-|----------|--------|---------|
-| `VERCEL_PERSONAL_ACCESS_TOKEN` | GitHub Secrets | All Vercel API calls |
-| `VERCEL_ORG_ID` | GitHub Secrets | Optional org context |
-| `VERCEL_PROJECT_ID` | GitHub Secrets | Required for fetching deployments |
-| `GH_TOKEN` | GitHub auto | GitHub API calls (comments, issues) |
+| Variable                       | Source         | Used In                             |
+| ------------------------------ | -------------- | ----------------------------------- |
+| `VERCEL_PERSONAL_ACCESS_TOKEN` | GitHub Secrets | All Vercel API calls                |
+| `VERCEL_ORG_ID`                | GitHub Secrets | Optional org context                |
+| `VERCEL_PROJECT_ID`            | GitHub Secrets | Required for fetching deployments   |
+| `GH_TOKEN`                     | GitHub auto    | GitHub API calls (comments, issues) |
 
 ## Troubleshooting
 

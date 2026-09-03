@@ -41,6 +41,7 @@ import { Route as AppAnalisisDividendRouteImport } from './routes/_app.analisis.
 import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
 import { Route as AppAdminUserPortfoliosRouteImport } from './routes/_app.admin.user-portfolios'
 import { Route as AppAdminTransactionsRouteImport } from './routes/_app.admin.transactions'
+import { Route as AppAdminSystemHealthRouteImport } from './routes/_app.admin.system-health'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app.admin.settings'
 import { Route as AppAdminSecurityRouteImport } from './routes/_app.admin.security'
 import { Route as AppAdminPricesRouteImport } from './routes/_app.admin.prices'
@@ -209,6 +210,11 @@ const AppAdminTransactionsRoute = AppAdminTransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminSystemHealthRoute = AppAdminSystemHealthRouteImport.update({
+  id: '/system-health',
+  path: '/system-health',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/admin/prices': typeof AppAdminPricesRoute
   '/admin/security': typeof AppAdminSecurityRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/system-health': typeof AppAdminSystemHealthRoute
   '/admin/transactions': typeof AppAdminTransactionsRoute
   '/admin/user-portfolios': typeof AppAdminUserPortfoliosRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -313,6 +320,7 @@ export interface FileRoutesByTo {
   '/admin/prices': typeof AppAdminPricesRoute
   '/admin/security': typeof AppAdminSecurityRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/system-health': typeof AppAdminSystemHealthRoute
   '/admin/transactions': typeof AppAdminTransactionsRoute
   '/admin/user-portfolios': typeof AppAdminUserPortfoliosRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -356,6 +364,7 @@ export interface FileRoutesById {
   '/_app/admin/prices': typeof AppAdminPricesRoute
   '/_app/admin/security': typeof AppAdminSecurityRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
+  '/_app/admin/system-health': typeof AppAdminSystemHealthRoute
   '/_app/admin/transactions': typeof AppAdminTransactionsRoute
   '/_app/admin/user-portfolios': typeof AppAdminUserPortfoliosRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
@@ -399,6 +408,7 @@ export interface FileRouteTypes {
     | '/admin/prices'
     | '/admin/security'
     | '/admin/settings'
+    | '/admin/system-health'
     | '/admin/transactions'
     | '/admin/user-portfolios'
     | '/admin/users'
@@ -439,6 +449,7 @@ export interface FileRouteTypes {
     | '/admin/prices'
     | '/admin/security'
     | '/admin/settings'
+    | '/admin/system-health'
     | '/admin/transactions'
     | '/admin/user-portfolios'
     | '/admin/users'
@@ -481,6 +492,7 @@ export interface FileRouteTypes {
     | '/_app/admin/prices'
     | '/_app/admin/security'
     | '/_app/admin/settings'
+    | '/_app/admin/system-health'
     | '/_app/admin/transactions'
     | '/_app/admin/user-portfolios'
     | '/_app/admin/users'
@@ -735,6 +747,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminTransactionsRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/system-health': {
+      id: '/_app/admin/system-health'
+      path: '/system-health'
+      fullPath: '/admin/system-health'
+      preLoaderRoute: typeof AppAdminSystemHealthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
     '/_app/admin/settings': {
       id: '/_app/admin/settings'
       path: '/settings'
@@ -803,6 +822,7 @@ interface AppAdminRouteChildren {
   AppAdminPricesRoute: typeof AppAdminPricesRoute
   AppAdminSecurityRoute: typeof AppAdminSecurityRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminSystemHealthRoute: typeof AppAdminSystemHealthRoute
   AppAdminTransactionsRoute: typeof AppAdminTransactionsRoute
   AppAdminUserPortfoliosRoute: typeof AppAdminUserPortfoliosRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
@@ -817,6 +837,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminPricesRoute: AppAdminPricesRoute,
   AppAdminSecurityRoute: AppAdminSecurityRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminSystemHealthRoute: AppAdminSystemHealthRoute,
   AppAdminTransactionsRoute: AppAdminTransactionsRoute,
   AppAdminUserPortfoliosRoute: AppAdminUserPortfoliosRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,

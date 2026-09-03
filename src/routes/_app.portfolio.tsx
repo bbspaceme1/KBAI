@@ -232,6 +232,7 @@ function PortfolioPage() {
           cashBalance={cashBalance}
           totalPL={totalPL}
           totalPLPct={totalPLPct}
+          positionCount={holdingsQ.data?.length ?? 0}
         />
 
         {/* Holdings table */}

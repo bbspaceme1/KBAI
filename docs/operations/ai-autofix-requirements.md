@@ -1,8 +1,9 @@
-# v0 Autonomous Loop - What's Still Needed
+# KBAI Automated Remediation Loop - What's Still Needed
 
 ## Current Status (4/7 Critical Requirements Met)
 
 ### ✅ Already Implemented
+
 1. **GitHub Integration** - Full access via GitHub Actions + git commands
    - Can read repo, commit, push, create issues
    - Status: READY
@@ -22,16 +23,20 @@
 ### ❌ Still Missing (For TRUE Autonomous Loop)
 
 #### 1. **Real-Time Webhook Trigger** (CRITICAL)
+
 Currently: Polling every 10 minutes via GitHub Actions schedule
 Need: Instant webhook from Vercel → GitHub Actions
+
 - **Why**: 10 min delay too slow for production
 - **Impact**: Currently can fix errors but with 10 min lag
 - **Solution**: Setup Vercel → GitHub webhook dispatcher
 - **User Action**: None needed - I can setup webhook receiver
 
 #### 2. **Supabase Database Integration** (HIGH)
+
 Currently: No issue tracking/history
 Need: Connect to Supabase to store:
+
 - Error history & patterns
 - Fix attempts & results
 - Rollback triggers if fix fails
@@ -42,8 +47,10 @@ Need: Connect to Supabase to store:
 - **User Action**: Provide Supabase connection string
 
 #### 3. **Error Pattern Recognition** (HIGH)
+
 Currently: Reactive fixes only
 Need: AI-powered pattern analysis
+
 - Detect error categories (build, runtime, type, lint, perf)
 - Map errors to known fixes
 - Predict fixes with confidence scores
@@ -53,8 +60,10 @@ Need: AI-powered pattern analysis
 - **User Action**: None - I'll build the system
 
 #### 4. **Intelligent Rollback System** (HIGH)
+
 Currently: Only forward-fixes, no rollback
 Need: Auto-rollback mechanism
+
 - If fix doesn't resolve error: `git revert` → redeploy
 - If new errors introduced: automatic rollback
 - Track rollback reasons
@@ -64,8 +73,10 @@ Need: Auto-rollback mechanism
 - **User Action**: None - I'll implement
 
 #### 5. **Environment Variable Auto-Management** (MEDIUM)
+
 Currently: Manual GitHub Secrets setup
 Need: Automatic detection & management
+
 - Detect missing env vars from error logs
 - Auto-create placeholders in GitHub Secrets
 - Flag for user review
@@ -75,8 +86,10 @@ Need: Automatic detection & management
 - **User Action**: Approve missing secrets in GitHub UI
 
 #### 6. **Incident Severity Classification** (MEDIUM)
+
 Currently: All errors treated equally
 Need: Severity-based response tiers
+
 - **CRITICAL**: Auto-fix + auto-rollback if fails
 - **HIGH**: Fix + human review required
 - **MEDIUM**: Batch fixes daily
@@ -87,12 +100,14 @@ Need: Severity-based response tiers
 - **User Action**: None - I'll classify
 
 #### 7. **Cross-Service Health Monitoring** (MEDIUM)
+
 Currently: Only monitors Vercel
 Need: Monitor all 4 services
+
 - Vercel: Deployment + Build status
 - GitHub: Workflow runs, API rate limits
 - Supabase: Connection health, query performance
-- v0 (me): Memory usage, execution timeout
+- Automation service: Memory usage, execution timeout
 - **Why**: Cascading failures across services
 - **Impact**: Can't detect if GitHub API is down
 - **Solution**: Create health check dashboard
@@ -114,6 +129,7 @@ Need: Monitor all 4 services
 ## What Needs User Action
 
 1. **Provide Supabase Connection String**
+
    ```
    Type in: "supabase_url|supabase_key"
    I'll do: Setup tables, queries, RLS policies
@@ -130,17 +146,20 @@ Need: Monitor all 4 services
 ## My Recommendation - Phased Approach
 
 ### Phase 1 (NOW - 30 min)
+
 - Setup Supabase integration
 - Deploy error pattern DB
 - Implement rollback system
 - **Result**: Autonomous loop with safety nets
 
-### Phase 2 (Optional - 15 min)  
+### Phase 2 (Optional - 15 min)
+
 - Setup webhook receiver for instant triggers
 - Replace 10-min polling with real-time
 - **Result**: Sub-second error response time
 
 ### Phase 3 (Optional - Future)
+
 - Environment variable auto-management
 - Incident severity classification
 - Cross-service health monitoring
@@ -151,6 +170,7 @@ Need: Monitor all 4 services
 ## Bottom Line
 
 **RIGHT NOW with just `supabase_url|supabase_key`:**
+
 - I become 80% autonomous
 - Can detect + fix + rollback errors
 - Learn from patterns to avoid mistakes

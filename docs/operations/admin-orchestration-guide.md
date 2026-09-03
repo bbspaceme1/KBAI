@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard for managing code audits, executing fixes, and deploying changes—all from a single web interface using 5 integrated tools: Vercel, Supabase, GitHub, v0, and Copilot.
+The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard for managing code audits, executing fixes, and deploying changes—all from a single web interface using 5 integrated tools: Vercel, Supabase, GitHub, an automated code execution service, and Copilot.
 
 **Key Principle**: This is a **manual-trigger system** with no automation loops. All execution requires explicit user clicks.
 
@@ -20,17 +20,20 @@ The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard fo
 ### Section 1: Bug Report from Users
 
 **What it does:**
+
 - Displays all bug reports stored in Supabase `bug_reports` table
 - Shows: title, description, severity, status, timestamp
 - Each report can be selected for deeper investigation
 
 **"Ringkas dengan GPT" Button:**
+
 1. Calls OpenAI API with bug details
 2. GPT generates concise summary (3-5 key points)
 3. Summary saved back to `bug_reports.gpt_summary`
 4. Preview displayed in the panel
 
 **Output for Next Section:**
+
 - GPT summary becomes input to Claude audit
 
 ---
@@ -38,6 +41,7 @@ The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard fo
 ### Section 2: Full Audit by Claude Code
 
 **What it does:**
+
 - Triggers GitHub Actions workflow (`claude-audit.yml`) headless
 - Workflow fetches:
   - Complete repo code (via `actions/checkout`)
@@ -54,11 +58,13 @@ The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard fo
   - Risk assessments
 
 **Status Polling:**
+
 - Real-time status display: queued → running → completed
 - Polls GitHub Actions API every 5 seconds
 - Auto-saves result to Supabase `audit_results` table
 
 **Output for Next Section:**
+
 - Markdown audit prompt is auto-populated in Section 3
 
 ---
@@ -66,12 +72,14 @@ The Admin Orchestration Panel (`/admin/orchestration`) is a unified dashboard fo
 ### Section 3: Review & Execute
 
 **What it does:**
+
 - Shows markdown audit result in editable textarea
 - **User can customize the prompt before execution**
 - Checks for sensitive files (see Guardrails below)
 
 **Sensitive File Detection:**
 If prompt mentions any of these, **both buttons are disabled**:
+
 - `api/entry.ts` (Midtrans webhook)
 - `supabase/migrations/` (database migrations)
 - `src/lib/rbac.ts` (role-based access control)
@@ -80,14 +88,16 @@ If prompt mentions any of these, **both buttons are disabled**:
 
 Message displayed: `"file ini butuh review manual langsung, tidak lewat tombol eksekusi"`
 
-**"Eksekusi via v0" Button:**
-1. Sends prompt to v0 Platform API
-2. v0 creates new chat from prompt
-3. v0 generates code changes
-4. v0 creates **new branch + Pull Request** (never commits to main)
+**"Eksekusi via automation service" Button:**
+
+1. Sends prompt to the automation service API
+2. The automation service creates a new chat from the prompt
+3. The automation service generates code changes
+4. The automation service creates **new branch + Pull Request** (never commits to main)
 5. PR URL returned and displayed in Section 4
 
 **"Eksekusi via Copilot" Button:**
+
 1. Sends prompt to Copilot Agent Tasks API
 2. Copilot generates code changes
 3. Copilot creates **new branch + Pull Request** (never commits to main)
@@ -100,10 +110,12 @@ Message displayed: `"file ini butuh review manual langsung, tidak lewat tombol e
 ### Section 4: Commit Sync
 
 **What it does:**
+
 - Shows PR URL (clickable link to GitHub)
 - Shows PR status: `pending` | `approved` | `merged`
 
 **"Approve & Merge" Button:**
+
 - **This is the only button that commits to main**
 - Approves PR via GitHub API
 - Merges to main via GitHub API (squash merge)
@@ -115,6 +127,7 @@ Message displayed: `"file ini butuh review manual langsung, tidak lewat tombol e
 ## Audit Log (Section 5)
 
 Every action is logged to `orchestration_audit_log` table:
+
 - Who performed the action
 - What action (summarize, audit, execute, merge)
 - When it happened
@@ -128,16 +141,16 @@ Last 10 logs displayed at bottom of page.
 
 These must be set as GitHub Secrets or Vercel environment variables. **Never exposed in UI or logs.**
 
-| Variable | Used By | Purpose |
-|----------|---------|---------|
-| `OPENAI_API_KEY` | GPT summarization | Call OpenAI API |
-| `GITHUB_TOKEN` | All sections | Trigger workflows, create/merge PRs |
-| `VERCEL_PERSONAL_ACCESS_TOKEN` | Claude audit | Fetch deployment logs |
-| `ANTHROPIC_API_KEY` | Claude audit | Claude Code headless |
-| `V0_API_KEY` | Execute v0 | Create chat + changes |
-| `COPILOT_API_KEY` | Execute Copilot | Agent Tasks API |
-| `SUPABASE_URL` | All sections | Database access |
-| `SUPABASE_SERVICE_ROLE_KEY` | All sections | Admin database ops |
+| Variable                       | Used By                    | Purpose                             |
+| ------------------------------ | -------------------------- | ----------------------------------- |
+| `OPENAI_API_KEY`               | GPT summarization          | Call OpenAI API                     |
+| `GITHUB_TOKEN`                 | All sections               | Trigger workflows, create/merge PRs |
+| `VERCEL_PERSONAL_ACCESS_TOKEN` | Claude audit               | Fetch deployment logs               |
+| `ANTHROPIC_API_KEY`            | Claude audit               | Claude Code headless                |
+| `V0_API_KEY`                   | Execute automation service | Create chat + changes               |
+| `COPILOT_API_KEY`              | Execute Copilot            | Agent Tasks API                     |
+| `SUPABASE_URL`                 | All sections               | Database access                     |
+| `SUPABASE_SERVICE_ROLE_KEY`    | All sections               | Admin database ops                  |
 
 ---
 
@@ -176,7 +189,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 2. Red alert shows: `"Sensitive files detected: [list]. Execution disabled."`
 3. User must:
    - Either edit prompt to remove those files, OR
-   - Remove those files from the code change in v0/Copilot manually, OR
+   - Remove those files from the code change in the automation service/Copilot manually, OR
    - Perform manual code review and merge via GitHub directly (bypass this panel)
 
 ---
@@ -184,22 +197,26 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ## Security & Audit Rules
 
 ### No Direct Main Commits
+
 - Every code change must go through PR + approval + merge
 - Protects against accidental deployments
 - Preserves audit trail
 
 ### Action Logging
+
 - Every button click logged to `orchestration_audit_log`
 - Includes: user ID, timestamp, action type, result
 - Immutable audit trail for compliance
 
 ### Credential Protection
+
 - All API keys/tokens stored in environment variables
 - Never returned in API responses
 - Never logged to browser console
 - Server-side functions only
 
 ### Manual-Trigger Only
+
 - No scheduled runs (no cron jobs)
 - No automatic loops
 - No AI auto-executes unless user clicks
@@ -225,8 +242,8 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
    - Optional: User edits prompt
    - Checks for sensitive files (auto-detected)
 
-4. **User clicks "Eksekusi via v0" (or Copilot)**
-   - v0 creates branch + applies changes
+4. **User clicks "Eksekusi via automation service" (or Copilot)**
+   - The automation service creates a branch and applies changes
    - PR created automatically
    - PR URL shows in Section 4
 
@@ -249,6 +266,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ## Database Schema
 
 ### bug_reports
+
 ```sql
 - id (uuid, PK)
 - title (text)
@@ -261,6 +279,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ```
 
 ### audit_results
+
 ```sql
 - id (uuid, PK)
 - job_id (text, unique) -- GitHub Actions run ID
@@ -270,6 +289,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ```
 
 ### orchestration_audit_log
+
 ```sql
 - id (uuid, PK)
 - performed_by (user_id) -- who clicked button
@@ -280,6 +300,7 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ```
 
 ### pull_requests
+
 ```sql
 - id (uuid, PK)
 - pr_url (text, unique)
@@ -294,35 +315,42 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ## API Integrations
 
 ### 1. OpenAI API (Section 1)
+
 - Endpoint: `POST https://api.openai.com/v1/chat/completions`
 - Model: `gpt-4-turbo-preview`
 - Auth: `OPENAI_API_KEY`
 
 ### 2. GitHub Actions (Section 2)
+
 - Endpoint: `POST /repos/{org}/{repo}/actions/workflows/claude-audit.yml/dispatches`
 - Also: `GET /repos/{org}/{repo}/actions/runs/{run_id}`
 - Auth: `GITHUB_TOKEN`
 
 ### 3. Vercel API (Section 2, Claude context)
+
 - Endpoints: `/v6/deployments`, `/v6/deployments/{id}/logs`
 - Auth: `VERCEL_PERSONAL_ACCESS_TOKEN`
 
 ### 4. Anthropic Claude (Section 2)
+
 - Endpoint: `POST https://api.anthropic.com/v1/messages`
 - Model: `claude-3-5-sonnet-20241022`
 - Auth: `ANTHROPIC_API_KEY`
 
-### 5. v0 Platform API (Section 3)
+### 5. Automation Service API (Section 3)
+
 - Endpoint: `POST https://api.v0.dev/chats`
 - Auth: `V0_API_KEY`
 - Returns: chat ID + generated code
 
 ### 6. Copilot Agent Tasks (Section 3)
+
 - Endpoint: `POST https://api.github.com/copilot/tasks`
 - Auth: `COPILOT_API_KEY`
 - Returns: task ID + PR URL
 
 ### 7. GitHub API (Section 4)
+
 - Endpoints: `/repos/{org}/{repo}/pulls/{number}/reviews`, `/repos/{org}/{repo}/pulls/{number}/merge`
 - Auth: `GITHUB_TOKEN`
 
@@ -331,25 +359,30 @@ These must be set as GitHub Secrets or Vercel environment variables. **Never exp
 ## Troubleshooting
 
 ### "File not found" when opening /admin/orchestration
+
 - Check: Do you have `admin` role?
 - Check: Is route registered in `_app.admin.tsx`?
 - Run: `npx tsc --noEmit` to verify TypeScript
 
 ### GPT summary fails with 401
+
 - Check: `OPENAI_API_KEY` is set in environment
 - Check: Key has access to GPT-4 models (not just text-davinci-003)
 
 ### Claude Audit job stuck in "queued"
+
 - Check: GitHub Actions workflow file exists (`.github/workflows/claude-audit.yml`)
 - Check: `GITHUB_TOKEN` has `actions:write` permission
 - Check: `ANTHROPIC_API_KEY` is configured
 
 ### PR creation fails
-- Check: v0 or Copilot API keys are valid
+
+- Check: automation service or Copilot API keys are valid
 - Check: GitHub user has write access to repo
 - Check: Prompt doesn't trigger sensitive file detection
 
 ### Merge button doesn't work
+
 - Check: PR is in "pending" state (not already merged)
 - Check: `GITHUB_TOKEN` has `pull-requests:write` permission
 - Check: Admin user logged in (check `user_roles` table)

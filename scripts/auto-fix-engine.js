@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * v0 Auto-Fix Engine
+ * KBAI Automated Fix Engine
  * Detects and fixes common deployment issues automatically
  *
  * Usage: node scripts/auto-fix-engine.js [--check-only] [--fix-all]
@@ -29,7 +29,7 @@ class AutoFixEngine {
     const checkOnly = options.checkOnly || false;
     const fixAll = options.fixAll || false;
 
-    console.log("\n=== v0 Auto-Fix Engine ===\n");
+    console.log("\n=== KBAI Automated Fix Engine ===\n");
 
     try {
       // 1. Check TypeScript types

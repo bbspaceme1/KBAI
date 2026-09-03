@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app/admin")({
     const { data: userData, error } = await supabase.auth.getUser();
     if (error || !userData.user) throw redirect({ to: "/login" });
 
-    const jwtRoles = getRolesFromUser(userData.user);
+    const jwtRoles = getRolesFromUser(userData.user as unknown as UserWithRoles);
     let isAdmin = jwtRoles.includes("admin");
     let isAdvisor = jwtRoles.includes("advisor");
 
@@ -42,6 +42,7 @@ export const Route = createFileRoute("/_app/admin")({
       "/admin/audit",
       "/admin/security",
       "/admin/settings",
+      "/admin/system-health",
     ];
     const advisorOnly = [
       "/admin/holdings",

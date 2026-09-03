@@ -42,3 +42,6 @@ dist-ssr
 playwright-report/
 test-results/
 .env*
+
+# Tooling lockfiles
+bun.lock

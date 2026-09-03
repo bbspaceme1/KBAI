@@ -1,4 +1,4 @@
-# v0 Auto-Fix System - Quick Start
+# KBAI Automated Fix System - Quick Start
 
 ## What You Now Have
 
@@ -150,7 +150,7 @@ Rename `.github/workflows/auto-monitor-and-fix.yml` to `.github/workflows/auto-m
 
 ## Full Documentation
 
-See `AUTO_FIX_SETUP.md` for complete setup and advanced options.
+See `ai-autofix-setup.md` for complete setup and advanced options.
 
 ## All Available Commands
 
