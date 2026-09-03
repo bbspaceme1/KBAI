@@ -14,7 +14,7 @@
 **What it is:** Public key untuk client-side operations
 **Where to find:** https://supabase.com/dashboard → Select Project → Settings → API → Anon public
 **Format:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` (long string)
-**Usage:** Used in error-tracker.js for reading error data
+**Usage:** Used by the application server and GitHub Actions workflows for authenticated database operations
 **Permissions:** Read-only by default (configurable via RLS)
 
 ### 3. SUPABASE_SERVICE_ROLE_KEY (Admin Key)
@@ -75,18 +75,17 @@ Or simply copy-paste the values separated by newlines.
 
 ### Immediately (Automated):
 
-1. Create Supabase database schema (error_logs, fix_history, error_patterns, etc)
-2. Setup Row Level Security (RLS) policies
-3. Create database views and indexes
-4. Test connection
+1. Run the versioned migrations from `supabase/migrations/`
+2. Apply Row Level Security (RLS) policies
+3. Validate the schema with the database drift workflow
+4. Test the application connection
 
-### Then (Autonomous Loop):
+### Then (Application Runtime):
 
-1. Log all detected errors to Supabase
-2. Query error patterns to find best fixes
-3. Track all fix attempts and results
-4. Auto-rollback if needed
-5. Learn from patterns to improve fixes
+1. Use server functions for database access
+2. Enforce RLS for user-scoped operations
+3. Use the service role only for trusted server-side operations
+4. Track application telemetry through the configured observability tools
 
 ### Security:
 

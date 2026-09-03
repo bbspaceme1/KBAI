@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup GitHub Secrets for Autonomous Loop
+# Setup GitHub Secrets for KBAI workflows
 
 echo "Setting up GitHub Secrets for KBAI automated remediation..."
 echo ""
@@ -7,7 +7,7 @@ echo "These secrets need to be added to: https://github.com/bbspaceme1/KBAI/sett
 echo ""
 echo "Copy and paste each one:"
 echo ""
-echo "1. VERCEL_PERSONAL_ACCESS_TOKEN"
+echo "1. VERCEL_TOKEN"
 echo "   (Get from https://vercel.com/account/tokens)"
 echo ""
 echo "2. VERCEL_ORG_ID"
@@ -25,10 +25,7 @@ echo ""
 echo "6. SUPABASE_SERVICE_ROLE_KEY"
 echo "   (Get from https://supabase.com/dashboard → Settings → API)"
 echo ""
-echo "7. JWT (if needed)"
-echo "   (Your JWT token if applicable)"
+echo "7. SUPABASE_ACCESS_TOKEN"
+echo "   (Get from Supabase Account Settings > Access Tokens)"
 echo ""
-echo "8. JWT_2 (if needed)"
-echo "   (Your JWT token if applicable)"
-echo ""
-echo "Once secrets are added, the autonomous loop will start automatically!"
+echo "See docs/GITHUB_SECRETS_REQUIRED.md for the complete secret checklist."
