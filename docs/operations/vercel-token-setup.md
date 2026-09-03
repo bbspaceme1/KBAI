@@ -88,12 +88,12 @@ The token is **read-only** for deployment and build information.
 
 ## Environment Variables Used
 
-| Variable | Source | Used In |
-|----------|--------|---------|
-| `VERCEL_PERSONAL_ACCESS_TOKEN` | GitHub Secrets | All Vercel API calls |
-| `VERCEL_ORG_ID` | GitHub Secrets | Optional org context |
-| `VERCEL_PROJECT_ID` | GitHub Secrets | Required for fetching deployments |
-| `GH_TOKEN` | GitHub auto | GitHub API calls (comments, issues) |
+| Variable                       | Source         | Used In                             |
+| ------------------------------ | -------------- | ----------------------------------- |
+| `VERCEL_PERSONAL_ACCESS_TOKEN` | GitHub Secrets | All Vercel API calls                |
+| `VERCEL_ORG_ID`                | GitHub Secrets | Optional org context                |
+| `VERCEL_PROJECT_ID`            | GitHub Secrets | Required for fetching deployments   |
+| `GH_TOKEN`                     | GitHub auto    | GitHub API calls (comments, issues) |
 
 ## Troubleshooting
 

@@ -11,6 +11,7 @@ All code is ready. You only need to add **8 GitHub Secrets** to activate the aut
 Once 8 secrets are added, I will:
 
 ✅ **Every 10 minutes (automatically):**
+
 - Check Vercel deployment status via API
 - Fetch build logs if errors detected
 - Log errors to Supabase database
@@ -22,12 +23,14 @@ Once 8 secrets are added, I will:
 - Track fix results in database
 
 ✅ **Learning System:**
+
 - Remember all past errors
 - Improve fix accuracy over time
 - Avoid repeating same fixes
 - Build pattern database
 
 ✅ **Safety Mechanisms:**
+
 - Automatic rollback if fix breaks build
 - Never commit if build fails
 - Confidence scoring for each fix
@@ -38,26 +41,28 @@ Once 8 secrets are added, I will:
 ## Activation Steps (5 Minutes)
 
 ### Step 1: Go to GitHub Secrets
+
 ```
 https://github.com/bbspaceme1/KBAI/settings/secrets/actions
 ```
 
 ### Step 2: Add These 8 Secrets
 
-| Secret Name | Where to Get | Format |
-|-------------|-------------|--------|
-| **VERCEL_PERSONAL_ACCESS_TOKEN** | https://vercel.com/account/tokens | `xxxxx` |
-| **VERCEL_ORG_ID** | Run: `npx vercel whoami` | `team_xxxxx` |
-| **VERCEL_PROJECT_ID** | Run: `npx vercel project list` | `prj_xxxxx` |
-| **SUPABASE_URL** | https://supabase.com/dashboard → Settings → API | `https://xxxxx.supabase.co` |
-| **SUPABASE_ANON_KEY** | https://supabase.com/dashboard → Settings → API | `sb_publishable_xxxxx` |
-| **SUPABASE_SERVICE_ROLE_KEY** | https://supabase.com/dashboard → Settings → API | `sb_secret_xxxxx` |
-| **JWT** | Your JWT token (if applicable) | `eyJ...` |
-| **JWT_2** | Your JWT token (if applicable) | `eyJ...` |
+| Secret Name                      | Where to Get                                    | Format                      |
+| -------------------------------- | ----------------------------------------------- | --------------------------- |
+| **VERCEL_PERSONAL_ACCESS_TOKEN** | https://vercel.com/account/tokens               | `xxxxx`                     |
+| **VERCEL_ORG_ID**                | Run: `npx vercel whoami`                        | `team_xxxxx`                |
+| **VERCEL_PROJECT_ID**            | Run: `npx vercel project list`                  | `prj_xxxxx`                 |
+| **SUPABASE_URL**                 | https://supabase.com/dashboard → Settings → API | `https://xxxxx.supabase.co` |
+| **SUPABASE_ANON_KEY**            | https://supabase.com/dashboard → Settings → API | `sb_publishable_xxxxx`      |
+| **SUPABASE_SERVICE_ROLE_KEY**    | https://supabase.com/dashboard → Settings → API | `sb_secret_xxxxx`           |
+| **JWT**                          | Your JWT token (if applicable)                  | `eyJ...`                    |
+| **JWT_2**                        | Your JWT token (if applicable)                  | `eyJ...`                    |
 
 ### Step 3: Click "Add Secret" for Each One
 
 For each secret:
+
 1. Click "New repository secret"
 2. Enter name (exactly as above)
 3. Paste value
@@ -66,6 +71,7 @@ For each secret:
 ### Step 4: Done!
 
 The autonomous loop starts automatically:
+
 - First run: Initializes Supabase database
 - Subsequent runs: Monitors + fixes errors
 
@@ -80,6 +86,7 @@ https://github.com/bbspaceme1/KBAI/actions
 ```
 
 You'll see workflow runs starting every 10 minutes:
+
 - `Auto Monitor & Fix Deployment Issues` workflow
 - Status: ✅ (success) or if initializing Supabase
 
@@ -93,7 +100,7 @@ You'll see workflow runs starting every 10 minutes:
 ✅ Error tracking module - built  
 ✅ Auto-fix engine - functional  
 ✅ Rollback system - implemented  
-✅ Pattern recognition - ready  
+✅ Pattern recognition - ready
 
 **Only 8 GitHub Secrets needed to activate!**
 
@@ -140,6 +147,7 @@ A: Go to Workflow file → disable schedule trigger (just comment out cron)
 ## Support
 
 If issues arise:
+
 1. Check GitHub Actions logs
 2. Check Supabase error_logs table
 3. Check Vercel deployment logs
