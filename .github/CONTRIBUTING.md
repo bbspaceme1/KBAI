@@ -2,8 +2,7 @@
 
 ## Branch Strategy
 
-- `main` — production branch, protected, require PR + CI pass.
-- `develop` — integration branch, require PR.
+- `main` — production and integration branch, protected, require PR + CI pass.
 - `feature/*` — new feature work.
 - `fix/*` — bug fixes.
 - `hotfix/*` — emergency production fixes.
@@ -17,10 +16,9 @@
 
 ## Workflow
 
-1. Branch from `develop` or `main` depending on urgency.
-2. Open a PR against `develop` for normal work.
-3. Open a PR against `main` only for hotfix or release.
-4. Ensure PR title is descriptive and includes the type of change.
+1. Branch from `main`.
+2. Open a PR against `main`.
+3. Ensure PR title is descriptive and includes the type of change.
 
 ## Coding Standards
 
