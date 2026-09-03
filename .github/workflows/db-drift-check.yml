@@ -26,7 +26,10 @@ jobs:
       - name: Link Supabase project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase link --project-ref ejiufnrqvkvqzxroustb
+        run: |
+          project_ref="$(awk -F'"' '/^project_id/ {print $2}' supabase/config.toml)"
+          test -n "$project_ref"
+          supabase link --project-ref "$project_ref"
 
       - name: Check migration drift
         shell: bash

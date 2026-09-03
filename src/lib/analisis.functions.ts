@@ -39,7 +39,9 @@ async function callAiTool<T>(opts: {
     : Array.isArray((json as Record<string, unknown>).choices)
       ? (json as Record<string, unknown>).choices
       : [];
-  const choices = choicesArray as { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
+  const choices = choicesArray as {
+    message?: { tool_calls?: { function?: { arguments?: string } }[] };
+  }[];
 
   const toolCall = choices[0]?.message?.tool_calls?.[0];
   const args = toolCall?.function?.arguments;

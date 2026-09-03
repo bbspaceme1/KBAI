@@ -12,6 +12,7 @@ import { Settings, Save, Database, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import type { Json } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_app/admin/settings")({
   component: AdminSettingsPage,
@@ -29,7 +30,7 @@ function AdminSettingsPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: (vars: { key: string; value: unknown }) =>
+    mutationFn: (vars: { key: string; value: Json }) =>
       adminUpdateSetting({ key: vars.key, value: vars.value }),
     onSuccess: () => {
       toast.success("Setting tersimpan");
@@ -59,7 +60,7 @@ function AdminSettingsPage() {
               k={s.key}
               initialValue={s.value}
               updatedAt={s.updated_at}
-              onSave={(value) => updateMut.mutate({ key: s.key, value })}
+              onSave={(value) => updateMut.mutate({ key: s.key, value: value as Json })}
               isSaving={updateMut.isPending}
             />
           ))}

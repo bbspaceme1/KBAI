@@ -127,7 +127,8 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
 
   for (const t of tables) {
     try {
-      await supabaseAdmin.from(t).delete().eq("user_id", target);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabaseAdmin as any).from(t).delete().eq("user_id", target);
     } catch (err) {
       console.warn(`permanentlyDeleteUser: error deleting from ${t}`, err);
     }

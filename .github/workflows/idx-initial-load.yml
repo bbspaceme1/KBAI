@@ -43,7 +43,7 @@ jobs:
       - name: Load 5-year historical data (NO RATIOS)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           cd scripts/etl
           echo "🚀 Starting 5-year historical data load..."
@@ -58,7 +58,7 @@ jobs:
       - name: Compute technical indicators for top 200 stocks
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           cd scripts/etl
           echo "📊 Computing technical indicators..."

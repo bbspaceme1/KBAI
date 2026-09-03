@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useAuth } from "@/auth";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserWithRoles = { app_metadata?: { roles?: Array<string | null> } } | null;
+type UserWithRoles = {
+  app_metadata?: { roles?: Array<string | null>; [key: string]: unknown };
+} | null;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

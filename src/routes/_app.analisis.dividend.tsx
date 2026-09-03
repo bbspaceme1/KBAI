@@ -23,11 +23,9 @@ function DividendPage() {
   const m = useMutation({
     mutationFn: () =>
       runDividendStrategy({
-        data: {
-          total_investment: total || undefined,
-          monthly_target: monthly || undefined,
-          tax_status: tax,
-        },
+        total_investment: total || undefined,
+        monthly_target: monthly || undefined,
+        tax_status: tax,
       }),
     onError: (e: Error) => toast.error(e.message),
   });

@@ -6,7 +6,7 @@ Use this procedure when a change adds or modifies files in `supabase/migrations/
 
 - Supabase CLI installed and authenticated with `SUPABASE_ACCESS_TOKEN`.
 - Repository checked out at the exact commit being released.
-- Access to the Supabase project ref `ejiufnrqvkvqzxroustb`.
+- Access to the Supabase project ref declared in `supabase/config.toml`.
 
 ## Procedure
 

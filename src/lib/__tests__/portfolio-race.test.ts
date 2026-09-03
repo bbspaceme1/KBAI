@@ -45,6 +45,18 @@ describe("submitTransaction SELL race regression", () => {
     });
 
     fromMock.mockImplementation((table: string) => {
+      if (table === "holdings") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: { total_lot: 1 }, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
       if (table === "transactions") {
         return {
           insert: () => ({

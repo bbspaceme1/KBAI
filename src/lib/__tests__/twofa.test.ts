@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { verifyRecoveryCodeForLogin } from "@/lib/twofa.functions";
 import { getStartContext } from "@tanstack/start-storage-context";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { insertAuditLog } from "@/lib/audit.functions";
-import { checkRateLimit } from "@/lib/rate-limiter";
-import { verifyRecoveryCode } from "@/lib/crypto.functions";
+import { insertAuditLog } from "../audit.functions";
+import { checkRateLimit } from "../rate-limiter";
+import { verifyRecoveryCode } from "../crypto.functions";
 
 vi.mock("@/integrations/supabase/client.server", async () => {
   const actual = await vi.importActual<typeof import("@/integrations/supabase/client.server")>(
@@ -36,11 +36,11 @@ vi.mock("@tanstack/start-storage-context", async () => {
   };
 });
 
-vi.mock("./audit.functions", async () => ({
+vi.mock("../audit.functions", async () => ({
   insertAuditLog: vi.fn(),
 }));
 
-vi.mock("./crypto.functions", async () => ({
+vi.mock("../crypto.functions", async () => ({
   hashRecoveryCode: vi.fn(),
   verifyRecoveryCode: vi.fn(),
 }));
@@ -150,6 +150,6 @@ describe("verifyRecoveryCodeForLogin", () => {
 
     await expect(
       verifyRecoveryCodeForLogin({ userId: "victim-6", recovery_code: "bad-code" }),
-    ).rejects.toThrow("Rate limit exceeded");
+    ).rejects.toMatchObject({ status: 429 });
   });
 });
