@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - name: Check merge conflicts
         run: |
-          if grep -R "<<<<<<< HEAD\|=======\|>>>>>>> " --include='*.ts' --include='*.tsx' --include='*.json' --include='*.jsonc' .; then
+          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.jsonc' '*.yml' '*.yaml'; then
             echo "❌ Merge conflicts detected!"
             exit 1
           fi
