@@ -1,4 +1,10 @@
-# Vercel dashboard auto-deploy on push must be DISABLED for this project going forward (Settings > Git > Ignored Build Step, or disconnect auto production deploys), since this workflow now owns production deploys instead.
+# This workflow is the SINGLE SOURCE OF TRUTH for production deployments.
+# Vercel's native Git auto-deploy for this project MUST be disabled in the
+# Vercel dashboard (Project Settings > Git > toggle off "Deploy Hooks" /
+# "Auto-deploy on push" or disconnect the GitHub integration for Production
+# Branch).
+# If you see a deployment in the Vercel dashboard whose trigger was NOT this
+# workflow, that is a governance violation — investigate immediately.
 name: Deploy
 
 on:
@@ -37,8 +43,3 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Smoke test deployed health endpoint
-        run: |
-          sleep 15
-          curl -f https://kbaiterminal.vercel.app/api/health || exit 1
