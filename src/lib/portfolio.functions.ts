@@ -521,7 +521,9 @@ export async function adminUpdateUser(data: {
   // Update profile fields via supabaseAdmin
   if (Object.keys(updates).length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabaseAdmin.from("profiles") as any).update(updates).eq("id", data.user_id);
+    const { error } = await (supabaseAdmin.from("profiles") as any)
+      .update(updates)
+      .eq("id", data.user_id);
     if (error) throw new Error(`Failed to update profile: ${error.message}`);
   }
 
