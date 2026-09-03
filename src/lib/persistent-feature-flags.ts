@@ -7,7 +7,14 @@
  * const isFeatureEnabled = await featureFlagManager.isEnabled('NEW_PORTFOLIO_UI', userId)
  */
 
+import React from "react";
+import { useAuth } from "@/auth";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+// This table is present in the deployed schema but not in the checked-in generated type snapshot.
+const featureFlagsDb = supabaseAdmin as unknown as {
+  from: (table: string) => ReturnType<typeof supabaseAdmin.from>;
+};
 
 interface FeatureFlag {
   id: string;
@@ -25,6 +32,19 @@ interface FeatureFlag {
 interface FeatureFlagCache {
   flags: Map<string, FeatureFlag>;
   expiresAt: number;
+}
+
+interface FeatureFlagRow {
+  id: string;
+  key: string;
+  enabled: boolean;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  expires_at?: string;
+  rollout_percentage?: number;
+  target_roles?: string[];
+  target_user_ids?: string[];
 }
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -84,7 +104,7 @@ export class PersistentFeatureFlagManager {
     }
 
     // Fetch from database
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await featureFlagsDb
       .from("feature_flags")
       .select("*")
       .eq("key", featureKey)
@@ -105,7 +125,7 @@ export class PersistentFeatureFlagManager {
    */
   async refreshCache(): Promise<void> {
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await featureFlagsDb
         .from("feature_flags")
         .select("*")
         .eq("enabled", true)
@@ -114,7 +134,7 @@ export class PersistentFeatureFlagManager {
       if (error) throw error;
 
       const flagMap = new Map<string, FeatureFlag>();
-      for (const flag of data || []) {
+      for (const flag of (data || []) as FeatureFlagRow[]) {
         flagMap.set(flag.key, {
           id: flag.id,
           key: flag.key,
@@ -147,7 +167,7 @@ export class PersistentFeatureFlagManager {
 
     if (!key) throw new Error("Feature key is required");
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await featureFlagsDb
       .from("feature_flags")
       .upsert(
         {
@@ -176,7 +196,7 @@ export class PersistentFeatureFlagManager {
    * Disable a feature flag
    */
   async disableFlag(featureKey: string): Promise<void> {
-    const { error } = await supabaseAdmin
+    const { error } = await featureFlagsDb
       .from("feature_flags")
       .update({ enabled: false })
       .eq("key", featureKey);
@@ -190,14 +210,14 @@ export class PersistentFeatureFlagManager {
    * Get all flags for dashboard
    */
   async getAllFlags(): Promise<FeatureFlag[]> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await featureFlagsDb
       .from("feature_flags")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return (data || []).map((flag) => ({
+    return (data || []).map((flag: Record<string, unknown>) => ({
       id: flag.id,
       key: flag.key,
       enabled: flag.enabled,
@@ -235,7 +255,9 @@ export const featureFlagManager = new PersistentFeatureFlagManager();
  * Usage: const isEnabled = useFeatureFlag('NEW_PORTFOLIO_UI')
  */
 export function useFeatureFlag(featureKey: string) {
-  const { userId, userRole } = useAuth(); // Assuming useAuth hook exists
+  const { user, isAdmin, isAdvisor } = useAuth();
+  const userId = user?.id;
+  const userRole = isAdmin ? "admin" : isAdvisor ? "advisor" : "user";
   const [isEnabled, setIsEnabled] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
 

@@ -24,12 +24,10 @@ function PortfolioPage() {
   const m = useMutation({
     mutationFn: () =>
       runPortfolioConstruction({
-        data: {
-          age: age[0],
-          risk_score: risk[0],
-          annual_income: income || undefined,
-          total_assets: assets || undefined,
-        },
+        age: age[0],
+        risk_score: risk[0],
+        annual_income: income || undefined,
+        total_assets: assets || undefined,
       }),
     onError: (e: Error) => toast.error(e.message),
   });

@@ -33,11 +33,8 @@ async function callAiTool<T>(opts: {
     tool_choice: { type: "function", function: { name: opts.toolName } },
   });
 
-  const choices = Array.isArray(json.data?.choices)
-    ? json.data.choices
-    : Array.isArray(json.choices)
-      ? json.choices
-      : [];
+  const response = json.data as LovableAiToolResponse | undefined;
+  const choices = Array.isArray(response?.choices) ? response.choices : [];
 
   const toolCall = choices[0]?.message?.tool_calls?.[0];
   const args = toolCall?.function?.arguments;

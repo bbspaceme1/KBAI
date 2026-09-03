@@ -2,10 +2,10 @@ import { createFileRoute, Outlet, Link, redirect } from "@tanstack/react-router"
 import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Globe, Coins, BarChart3, Sparkles, CalendarDays } from "lucide-react";
 
-type UserWithRoles = { app_metadata?: { roles?: Array<string | null> } } | null;
+type UserWithRoles = { app_metadata?: Record<string, unknown> } | null;
 
-function getRolesFromUser(user: UserWithRoles) {
-  const roles = user?.app_metadata?.roles;
+function getRolesFromUser(user: unknown) {
+  const roles = (user as UserWithRoles)?.app_metadata?.roles;
   return Array.isArray(roles) ? roles.map(String) : [];
 }
 

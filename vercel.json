@@ -2,7 +2,6 @@
   "buildCommand": "npm run lint:ci && npm run type-check && npm run build",
   "outputDirectory": "dist/client",
   "installCommand": "npm ci --include=dev",
-  "ignoreCommand": "git diff --quiet $VERCEL_GIT_COMMIT_REF^ $VERCEL_GIT_COMMIT_REF -- --exclude=.github",
   "framework": null,
   "rewrites": [
     {
@@ -32,7 +31,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.coingecko.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.coingecko.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none';"
         }
       ]
     }

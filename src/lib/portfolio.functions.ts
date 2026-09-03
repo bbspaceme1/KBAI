@@ -520,7 +520,10 @@ export async function adminUpdateUser(data: {
 
   // Update profile fields via supabaseAdmin
   if (Object.keys(updates).length > 0) {
-    const { error } = await supabaseAdmin.from("profiles").update(updates).eq("id", data.user_id);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update(updates as unknown as { username?: string; display_name?: string })
+      .eq("id", data.user_id);
     if (error) throw new Error(`Failed to update profile: ${error.message}`);
   }
 

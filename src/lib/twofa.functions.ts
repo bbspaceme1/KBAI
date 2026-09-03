@@ -3,8 +3,8 @@ import { TOTP, Secret } from "otpauth";
 import { getStartContext } from "@tanstack/start-storage-context";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { insertAuditLog } from "./audit.functions";
-import { hashRecoveryCode, verifyRecoveryCode } from "./crypto.functions";
+import { insertAuditLog } from "@/lib/audit.functions";
+import { hashRecoveryCode, verifyRecoveryCode } from "@/lib/crypto.functions";
 import { checkRateLimit, rateLimitMiddleware } from "@/lib/rate-limiter";
 
 const ISSUER = "KBAI Terminal";

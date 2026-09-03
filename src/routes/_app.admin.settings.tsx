@@ -30,7 +30,7 @@ function AdminSettingsPage() {
 
   const updateMut = useMutation({
     mutationFn: (vars: { key: string; value: unknown }) =>
-      adminUpdateSetting({ key: vars.key, value: vars.value }),
+      adminUpdateSetting({ key: vars.key, value: vars.value as string | number | boolean | null }),
     onSuccess: () => {
       toast.success("Setting tersimpan");
       qc.invalidateQueries({ queryKey: ["system-settings"] });

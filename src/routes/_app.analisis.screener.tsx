@@ -38,7 +38,10 @@ function ScreenerPage() {
   const mutation = useMutation({
     mutationFn: () =>
       runStockScreener({
-        data: { risk, horizon_years: horizon[0], sectors, amount: amount || undefined },
+        risk,
+        horizon_years: horizon[0],
+        sectors,
+        amount: amount ? Number(amount) : undefined,
       }),
     onError: (e: Error) => toast.error(e.message),
   });

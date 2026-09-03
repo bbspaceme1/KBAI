@@ -1,4 +1,4 @@
-# AI Agent Guidance for BBspacewebsite (KBAI Terminal)
+# AI Agent Guidance for KBAI Terminal
 
 **Updated: June 2026 (Post-Audit)**
 
@@ -111,7 +111,7 @@ it("maps IDR 1,500,000 to enterprise tier", () => {
 - **Active Work Items:** Test coverage, feature flag persistence, market data migration, API versioning
 - **Next Priorities:** GDPR compliance, enterprise SOC2 preparation, mobile optimization
 
-See `AUDIT_COMPLETION_SUMMARY.md` for detailed remediation status.
+See `docs/archive/AUDIT_COMPLETION_SUMMARY.md` for detailed remediation status.
 
 - For feature work, inspect `src/routes/`, `src/components/`, `src/features/`, and `src/lib/` first
 

@@ -123,10 +123,8 @@ export const generateAiInsight = limitInsightAi(async function generateAiInsight
     },
     { userId },
   );
-  const content =
-    aiJson.data?.choices?.[0]?.message?.content ??
-    aiJson.choices?.[0]?.message?.content ??
-    "(no response)";
+  const response = aiJson.data as LovableAiResponse | undefined;
+  const content = response?.choices?.[0]?.message?.content ?? "(no response)";
   return {
     content,
     generated_at: new Date().toISOString(),

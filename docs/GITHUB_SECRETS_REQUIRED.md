@@ -15,6 +15,10 @@ The following secrets must be configured in GitHub repository settings before th
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
+## Supabase Dashboard Security
+
+- [ ] Supabase Dashboard > Authentication > Policies > enable “Leaked password protection” (checks new passwords against HaveIBeenPwned). Reference: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
 ## Notes
 
 - These values are required for end-to-end and deployment verification steps.

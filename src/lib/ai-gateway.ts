@@ -289,10 +289,15 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
 
       // Prefer DB-side atomic reservation when available
       try {
-        const { data: quotaResult, error } = await supabaseAdmin.rpc("check_ai_quota", {
+        const { data: quotaResult, error } = await (
+          supabaseAdmin.rpc as unknown as (
+            name: string,
+            params: Record<string, unknown>,
+          ) => Promise<{ data: boolean | null; error: { message: string } | null }>
+        )("check_ai_quota", {
           p_user_id: userId,
           p_tokens_needed: estimatedInputTokens,
-        } as Record<string, unknown>);
+        });
 
         if (error) {
           console.warn("check_ai_quota rpc error, falling back to app-side check:", error.message);

@@ -36,11 +36,11 @@ vi.mock("@tanstack/start-storage-context", async () => {
   };
 });
 
-vi.mock("./audit.functions", async () => ({
+vi.mock("@/lib/audit.functions", async () => ({
   insertAuditLog: vi.fn(),
 }));
 
-vi.mock("./crypto.functions", async () => ({
+vi.mock("@/lib/crypto.functions", async () => ({
   hashRecoveryCode: vi.fn(),
   verifyRecoveryCode: vi.fn(),
 }));
@@ -148,8 +148,12 @@ describe("verifyRecoveryCodeForLogin", () => {
       ).resolves.toMatchObject({ ok: false, message: "Recovery code tidak valid" });
     }
 
-    await expect(
-      verifyRecoveryCodeForLogin({ userId: "victim-6", recovery_code: "bad-code" }),
-    ).rejects.toThrow("Rate limit exceeded");
+    const blocked = verifyRecoveryCodeForLogin({ userId: "victim-6", recovery_code: "bad-code" });
+    await expect(blocked).rejects.toBeInstanceOf(Response);
+    await blocked.catch((error: unknown) => {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(429);
+      expect((error as Response).headers.get("Retry-After")).toBeTruthy();
+    });
   });
 });

@@ -1,4 +1,9 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+const privacyDb = supabaseAdmin as unknown as {
+  from: (table: string) => ReturnType<typeof supabaseAdmin.from>;
+  auth: typeof supabaseAdmin.auth;
+};
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { insertAuditLog } from "@/lib/audit.functions";
 
@@ -10,7 +15,7 @@ export async function softDeleteUser(): Promise<{ ok: boolean }> {
   const now = new Date().toISOString();
 
   // Update user_metadata to mark as deleted (profiles table doesn't have deleted_at)
-  const { error: profileError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+  const { error: profileError } = await privacyDb.auth.admin.updateUserById(userId, {
     user_metadata: { deleted: true, deleted_at: now },
   });
 
@@ -20,7 +25,7 @@ export async function softDeleteUser(): Promise<{ ok: boolean }> {
 
   // Anonymize email
   try {
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
+    await privacyDb.auth.admin.updateUserById(userId, {
       email: `deleted_${userId}@deleted.kbai.id`,
       email_confirm: true,
     });
@@ -40,11 +45,11 @@ export async function exportUserData(): Promise<Record<string, unknown>> {
   const { userId } = await requireSupabaseAuth();
 
   const [profileRes, transactionsRes, holdingsRes, watchlistRes, alertsRes] = await Promise.all([
-    supabaseAdmin.from("profiles").select("*").eq("id", userId).single(),
-    supabaseAdmin.from("transactions").select("*").eq("user_id", userId),
-    supabaseAdmin.from("holdings").select("*").eq("user_id", userId),
-    supabaseAdmin.from("watchlist").select("*").eq("user_id", userId),
-    supabaseAdmin.from("price_alerts").select("*").eq("user_id", userId),
+    privacyDb.from("profiles").select("*").eq("id", userId).single(),
+    privacyDb.from("transactions").select("*").eq("user_id", userId),
+    privacyDb.from("holdings").select("*").eq("user_id", userId),
+    privacyDb.from("watchlist").select("*").eq("user_id", userId),
+    privacyDb.from("price_alerts").select("*").eq("user_id", userId),
   ]);
 
   if (profileRes.error) throw new Error(`failed to export profile: ${profileRes.error.message}`);
@@ -72,23 +77,20 @@ export async function restoreUser(_data: { userId: string }): Promise<{ ok: bool
 
   // If caller is not the same user, ensure caller is admin
   if (caller !== target) {
-    const { data: roles } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller);
+    const { data: roles } = await privacyDb.from("user_roles").select("role").eq("user_id", caller);
     const rs = (roles ?? []).map((r: UserRoleRow) => r.role);
     if (!rs.includes("admin"))
       throw new Error("Forbidden: admin role required to restore other users");
   }
 
   // Restore user metadata (profiles table doesn't have deleted_at)
-  const { error: profileError } = await supabaseAdmin.auth.admin.updateUserById(target, {
+  const { error: profileError } = await privacyDb.auth.admin.updateUserById(target, {
     user_metadata: { deleted: false },
   });
   if (profileError) throw new Error(`failed to restore profile: ${profileError.message}`);
 
   try {
-    await supabaseAdmin.auth.admin.updateUserById(target, {
+    await privacyDb.auth.admin.updateUserById(target, {
       user_metadata: { deleted: false },
     });
   } catch (err) {
@@ -105,11 +107,8 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
   if (!target) throw new Error("target userId required");
 
   if (caller !== target) {
-    const { data: roles } = await supabaseAdmin
-      .from<UserRoleRow>("user_roles")
-      .select("role")
-      .eq("user_id", caller);
-    const rs = (roles ?? []).map((r) => r.role);
+    const { data: roles } = await privacyDb.from("user_roles").select("role").eq("user_id", caller);
+    const rs = (roles ?? []).map((r: UserRoleRow) => r.role);
     if (!rs.includes("admin"))
       throw new Error("Forbidden: admin role required to permanently delete other users");
   }
@@ -127,19 +126,19 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
 
   for (const t of tables) {
     try {
-      await supabaseAdmin.from(t).delete().eq("user_id", target);
+      await privacyDb.from(t).delete().eq("user_id", target);
     } catch (err) {
       console.warn(`permanentlyDeleteUser: error deleting from ${t}`, err);
     }
   }
 
   try {
-    await supabaseAdmin.from("profiles").delete().eq("id", target);
+    await privacyDb.from("profiles").delete().eq("id", target);
   } catch (err) {
     console.warn("permanentlyDeleteUser: error deleting profile", err);
   }
 
-  const { error: deleteErr } = await supabaseAdmin.auth.admin.deleteUser(target);
+  const { error: deleteErr } = await privacyDb.auth.admin.deleteUser(target);
   if (deleteErr) throw new Error(`failed to delete auth user: ${deleteErr.message}`);
 
   await insertAuditLog({ action: "user.permanently_delete", metadata: { target } });
@@ -150,11 +149,8 @@ export async function archiveOldData(
   _data: { daysOld?: number } = {},
 ): Promise<{ ok: boolean; deleted: Record<string, number> }> {
   const { userId } = await requireSupabaseAuth();
-  const { data: roles } = await supabaseAdmin
-    .from<UserRoleRow>("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  const rs = (roles ?? []).map((r) => r.role);
+  const { data: roles } = await privacyDb.from("user_roles").select("role").eq("user_id", userId);
+  const rs = (roles ?? []).map((r: UserRoleRow) => r.role);
   if (!rs.includes("admin")) throw new Error("Forbidden: admin role required");
 
   const daysOld = Number(_data.daysOld ?? 90);
@@ -169,7 +165,7 @@ export async function archiveOldData(
 
   const deleted: Record<string, number> = {};
   for (const { name, column } of tables) {
-    const resp = await supabaseAdmin
+    const resp = await privacyDb
       .from(name)
       .delete()
       .lt(column, threshold)
