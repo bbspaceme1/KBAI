@@ -333,6 +333,10 @@ When a decision is reversed:
 2. Link new ADR
 3. In new ADR, explain why the old approach doesn't work anymore
 
+### Migration Drift Detection
+
+Every migration file merged to main MUST be applied to the linked Supabase project via `supabase db push` in the same change window. The `db-drift-check` CI job will block merges if this is not done. See docs/RUNBOOK for the migration-apply procedure. The repository runbook is [docs/RUNBOOK_MIGRATION_APPLY.md](RUNBOOK_MIGRATION_APPLY.md).
+
 ---
 
 ## Index of ADRs by Topic

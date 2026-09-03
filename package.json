@@ -30,6 +30,7 @@
     "deploy": "vercel --prod",
     "deploy:preview": "vercel",
     "db:migrate": "supabase db push",
+    "db:check-drift": "supabase migration list",
     "db:reset": "supabase db reset",
     "db:seed": "supabase db seed",
     "seed:users": "node scripts/seed-users.js",

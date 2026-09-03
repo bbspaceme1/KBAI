@@ -1,0 +1,58 @@
+name: Database Migration Drift Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  db-drift-check:
+    name: Check migration drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ejiufnrqvkvqzxroustb
+
+      - name: Check migration drift
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          migration_list="$(supabase migration list)"
+          printf '%s\n' "$migration_list"
+
+          pending_migrations="$(printf '%s\n' "$migration_list" | awk -F'|' '
+            function trim(value) {
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+              return value
+            }
+            /^[[:space:]]*[0-9]{8,}[[:space:]]*\|/ {
+              local=trim($1)
+              remote=trim($2)
+              if (remote == "") print local
+            }
+          ')"
+
+          if [[ -n "$pending_migrations" ]]; then
+            echo "Migration drift detected: these local migration files are not marked as applied remotely:"
+            printf '%s\n' "$pending_migrations"
+            echo "Apply and verify migrations using docs/RUNBOOK_MIGRATION_APPLY.md before merging."
+            exit 1
+          fi
+
+          echo "Schema in sync"
