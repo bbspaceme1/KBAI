@@ -1,1 +1,14 @@
+invalid_migrations="$(git diff --cached --name-only --diff-filter=A -- 'supabase/migrations/*' | while IFS= read -r file; do
+	name="${file##*/}"
+	if ! printf '%s\n' "$name" | grep -Eq '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
+		printf '%s\n' "$file"
+	fi
+done)"
+
+if [ -n "$invalid_migrations" ]; then
+	printf 'Invalid staged migration filename(s):\n%s\n' "$invalid_migrations" >&2
+	printf 'Expected: ^[0-9]{14}_[a-z0-9_]+\\.sql$\n' >&2
+	exit 1
+fi
+
 npx lint-staged
