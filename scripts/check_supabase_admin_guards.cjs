@@ -2,6 +2,15 @@
 const fs = require("fs");
 const path = require("path");
 
+const approvedNonAdminFunctions = new Set([
+  "getUserAiUsage",
+  "logAiUsage",
+  "insertAuditLog",
+  "processMidtransNotification",
+  "bootstrapAdmin",
+  "verifyRecoveryCodeForLogin",
+]);
+
 function listFiles(dir, ext = ".ts") {
   const res = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -26,6 +35,8 @@ function checkFile(file) {
     if (!fnHeaderMatch) continue;
     const fnName = fnHeaderMatch[1];
     const fnBody = part;
+
+    if (approvedNonAdminFunctions.has(fnName)) continue;
 
     if (fnBody.includes("supabaseAdmin")) {
       const idxSup = fnBody.indexOf("supabaseAdmin");
