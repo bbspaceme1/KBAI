@@ -29,3 +29,32 @@ export async function requireAdminAccess(userId?: string): Promise<string> {
 
   return requireRole(userId, "admin");
 }
+
+/**
+ * Company-only access for internal research and analyst tooling.
+ * TODO: include analyst-specific roles when they are actively assigned in production.
+ */
+export async function requireCompanyResearchAccess(userId?: string): Promise<string> {
+  if (!userId) {
+    const auth = await requireSupabaseAuth();
+    userId = auth.userId;
+  }
+
+  if (!userId) {
+    throw new Error("Unauthorized: user not authenticated");
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (error) throw new Error(error.message);
+
+  const allowed = new Set(["admin", "advisor"]);
+  if (!(data ?? []).some((row) => allowed.has(String(row.role)))) {
+    throw new Error("Forbidden: company research access required");
+  }
+
+  return userId;
+}

@@ -69,6 +69,9 @@ async function atomicAdjustCash(userId: string, delta: number): Promise<number> 
 // Refresh EOD prices for all holdings (admin only)
 // ============================================
 export async function refreshEodPrices(data: { access_token?: string } = {}) {
+  const { userId } = await requireSupabaseAuth();
+  await requireAdminAccess(userId);
+
   // ARCH-01: System-level operation always uses admin client
   const db = getAdminDatabaseClient();
   const today = new Date().toISOString().slice(0, 10);

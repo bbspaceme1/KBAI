@@ -1,5 +1,5 @@
 import { callLovableAi } from "@/lib/ai-client";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireCompanyResearchAccess } from "@/lib/rbac";
 
 type LovableAiToolResponse = {
   data?: { choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[] };
@@ -58,7 +58,7 @@ type StockScreenerInput = {
 };
 
 export async function runStockScreener(data: StockScreenerInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const sectorClause =
     data.sectors.length > 0
@@ -120,7 +120,7 @@ type DcfValuationInput = {
 };
 
 export async function runDcfValuation(data: DcfValuationInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const system = `Anda adalah VP Investment Banking yang melakukan Discounted Cash Flow valuation untuk saham IDX. Gunakan WACC, terminal value, dan sensitivity matrix. Estimasi berdasarkan pengetahuan publik. Selalu sertakan asumsi dan disclaimer.`;
   const user = `Lakukan DCF untuk emiten IDX: ${data.ticker.toUpperCase()}${data.company_name ? ` (${data.company_name})` : ""}.`;
@@ -207,7 +207,7 @@ type EarningsBriefInput = {
 };
 
 export async function runEarningsBrief(data: EarningsBriefInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const system = `Anda adalah Senior Equity Research Analyst yang menyusun pre-earnings brief untuk emiten IDX. Output ringkas, terstruktur, berbasis pengetahuan publik. Selalu sertakan disclaimer.`;
   const user = `Buat pre-earnings brief untuk: ${data.company}${data.release_date ? `. Rencana rilis: ${data.release_date}` : ""}.`;
@@ -292,7 +292,7 @@ type PortfolioConstructionInput = {
 };
 
 export async function runPortfolioConstruction(data: PortfolioConstructionInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const system = `Anda adalah Senior Portfolio Strategist. Bangun multi-asset allocation berbasis usia, toleransi risiko, dan kekayaan untuk investor IDX. Sertakan IPS (Investment Policy Statement) ringkas.`;
   const user = `Profil: usia ${data.age}, risiko ${data.risk_score}/10, pendapatan tahunan ${data.annual_income || "-"}, total aset ${data.total_assets || "-"}. Bangun portofolio.`;
@@ -370,7 +370,7 @@ type TechnicalAnalysisInput = {
 };
 
 export async function runTechnicalAnalysis(data: TechnicalAnalysisInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const system = `Anda adalah Quantitative Trader untuk saham IDX. Lakukan multi-timeframe technical analysis berbasis pengetahuan publik harga historis. Sertakan trade plan + confidence.`;
   const user = `Analisis teknikal ${data.ticker.toUpperCase()}. Posisi user saat ini: ${data.position}.`;
@@ -469,7 +469,7 @@ type DividendStrategyInput = {
 };
 
 export async function runDividendStrategy(data: DividendStrategyInput) {
-  await requireSupabaseAuth();
+  await requireCompanyResearchAccess();
 
   const system = `Anda adalah Chief Investment Strategist untuk dividend portfolio IDX. Pilih 12-15 saham dividen, sertakan safety score & DRIP compounding 5 tahun. Berbasis pengetahuan publik.`;
   const user = `Total investasi: ${data.total_investment || "-"}. Target bulanan: ${data.monthly_target || "-"}. Pajak: ${data.tax_status}.`;
