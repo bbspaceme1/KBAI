@@ -1,5 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { logError } from "@/lib/observability";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -14,12 +15,28 @@ const WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 10; // 10 requests per minute
 
 let redisRateLimiter: Ratelimit | null = null;
+let reportedMissingRedis = false;
+
+function reportFallback(message: string, error?: unknown): void {
+  logError(message, error instanceof Error ? error : undefined, {
+    component: "rate-limiter",
+    fallback: "in-memory",
+  });
+}
 
 function getRedisRateLimiter(): Ratelimit | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (!url || !token) return null;
+  if (!url || !token) {
+    if (process.env.NODE_ENV === "production" && !reportedMissingRedis) {
+      reportedMissingRedis = true;
+      reportFallback(
+        "Rate limiter running without Upstash Redis in production; using a non-distributed in-memory fallback.",
+      );
+    }
+    return null;
+  }
 
   if (!redisRateLimiter) {
     redisRateLimiter = new Ratelimit({
@@ -64,6 +81,7 @@ export async function checkRateLimit(identifier: string): Promise<RateLimitResul
       };
     } catch (error) {
       console.warn("Upstash rate limiter failed, falling back to in-memory limiter", error);
+      reportFallback("Upstash rate limiter failed; using in-memory fallback.", error);
     }
   }
 
