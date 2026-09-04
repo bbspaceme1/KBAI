@@ -115,6 +115,12 @@ Need: Monitor all 4 services
 
 ---
 
+## Definition of a Successful Fix
+
+A fix is successful only when the corresponding deployment reaches READY, any associated database migration is confirmed applied remotely, and the post-deploy health check returns HTTP 200. A committed fix with a canceled or errored deployment, an unapplied migration, or a failed health check MUST be logged as FAILED, not SUCCESS.
+
+Changes touching authentication, RLS, RBAC, portfolio calculations, payments, migrations, security configuration, `vercel.json`, or CI/CD workflows require human approval and must never be auto-committed.
+
 ## What I Can Do RIGHT NOW (No User Action Needed)
 
 ✓ Setup Vercel → GitHub webhook receiver script
