@@ -1,3 +1,4 @@
+/*
 -- Soft Delete Implementation
 -- Adds deleted_at columns and policies for GDPR compliance and data archival
 
@@ -93,22 +94,40 @@ BEGIN
   VALUES (user_uuid, 'USER_SOFT_DELETED', jsonb_build_object('deleted_at', NOW()), inet_client_addr());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+*/
+
+-- Apply soft delete to the tables that exist in this schema.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.holdings ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.cash_balances ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.portfolio_snapshots ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.price_alerts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE public.watchlist ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_profiles_deleted_at ON public.profiles(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_holdings_deleted_at ON public.holdings(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_deleted_at ON public.transactions(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cash_balances_deleted_at ON public.cash_balances(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_portfolio_snapshots_deleted_at ON public.portfolio_snapshots(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_price_alerts_deleted_at ON public.price_alerts(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_watchlist_deleted_at ON public.watchlist(deleted_at) WHERE deleted_at IS NULL;
 
 -- Function to restore soft-deleted user
 CREATE OR REPLACE FUNCTION restore_user(user_uuid UUID)
 RETURNS VOID AS $$
 BEGIN
   -- Restore user and all related data
-  UPDATE users SET deleted_at = NULL WHERE id = user_uuid;
-  UPDATE holdings SET deleted_at = NULL WHERE user_id = user_uuid;
-  UPDATE transactions SET deleted_at = NULL WHERE user_id = user_uuid;
-  UPDATE cash_balances SET deleted_at = NULL WHERE user_id = user_uuid;
-  UPDATE portfolios SET deleted_at = NULL WHERE user_id = user_uuid;
-  UPDATE price_alerts SET deleted_at = NULL WHERE user_id = user_uuid;
-  UPDATE watchlists SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.profiles SET deleted_at = NULL WHERE id = user_uuid;
+  UPDATE public.holdings SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.transactions SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.cash_balances SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.portfolio_snapshots SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.price_alerts SET deleted_at = NULL WHERE user_id = user_uuid;
+  UPDATE public.watchlist SET deleted_at = NULL WHERE user_id = user_uuid;
 
   -- Insert audit log
-  INSERT INTO audit_logs (user_id, action, details, ip_address)
+  INSERT INTO public.audit_logs (user_id, action, metadata, ip_address)
   VALUES (user_uuid, 'USER_RESTORED', jsonb_build_object('restored_at', NOW()), inet_client_addr());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -121,8 +140,8 @@ DECLARE
 BEGIN
   -- Only allow permanent deletion after retention period
   IF NOT EXISTS (
-    SELECT 1 FROM users
-    WHERE id = user_uuid
+        SELECT 1 FROM public.profiles
+          WHERE id = user_uuid
     AND deleted_at IS NOT NULL
     AND deleted_at < NOW() - INTERVAL '1 day' * retention_days
   ) THEN
@@ -130,21 +149,21 @@ BEGIN
   END IF;
 
   -- Permanently delete all user data
-  DELETE FROM audit_logs WHERE user_id = user_uuid;
-  DELETE FROM holdings WHERE user_id = user_uuid;
-  DELETE FROM transactions WHERE user_id = user_uuid;
-  DELETE FROM cash_balances WHERE user_id = user_uuid;
-  DELETE FROM portfolios WHERE user_id = user_uuid;
-  DELETE FROM price_alerts WHERE user_id = user_uuid;
-  DELETE FROM watchlists WHERE user_id = user_uuid;
-  DELETE FROM user_roles WHERE user_id = user_uuid;
-  DELETE FROM users WHERE id = user_uuid;
+          DELETE FROM public.audit_logs WHERE user_id = user_uuid;
+          DELETE FROM public.holdings WHERE user_id = user_uuid;
+          DELETE FROM public.transactions WHERE user_id = user_uuid;
+          DELETE FROM public.cash_balances WHERE user_id = user_uuid;
+          DELETE FROM public.portfolio_snapshots WHERE user_id = user_uuid;
+          DELETE FROM public.price_alerts WHERE user_id = user_uuid;
+          DELETE FROM public.watchlist WHERE user_id = user_uuid;
+          DELETE FROM public.user_roles WHERE user_id = user_uuid;
+          DELETE FROM public.profiles WHERE id = user_uuid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create view for active users (excludes soft-deleted)
 CREATE OR REPLACE VIEW active_users AS
-SELECT * FROM users WHERE deleted_at IS NULL;
+SELECT * FROM public.profiles WHERE deleted_at IS NULL;
 
 -- Create view for active holdings
 CREATE OR REPLACE VIEW active_holdings AS

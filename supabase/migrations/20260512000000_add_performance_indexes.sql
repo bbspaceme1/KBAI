@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_display_name ON profiles(display_name);
 
 -- Holdings
 CREATE INDEX IF NOT EXISTS idx_holdings_user_id ON holdings(user_id);
-CREATE INDEX IF NOT EXISTS idx_holdings_symbol ON holdings(symbol);
+CREATE INDEX IF NOT EXISTS idx_holdings_ticker ON holdings(ticker);
 CREATE INDEX IF NOT EXISTS idx_holdings_total_lot ON holdings(total_lot) WHERE total_lot > 0;
 CREATE INDEX IF NOT EXISTS idx_holdings_active ON holdings(user_id, ticker) WHERE total_lot > 0;
 CREATE INDEX IF NOT EXISTS idx_holdings_user ON holdings(user_id);
@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_holdings_user ON holdings(user_id);
 -- Transactions
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_transactions_symbol ON transactions(symbol);
+CREATE INDEX IF NOT EXISTS idx_transactions_ticker ON transactions(ticker);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, transacted_at DESC);
 
 -- Cash balances and movements

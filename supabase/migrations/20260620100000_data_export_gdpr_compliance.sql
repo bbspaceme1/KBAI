@@ -188,11 +188,8 @@ RETURNS void AS $$
 BEGIN
   -- Anonymize profile
   UPDATE profiles
-  SET name = 'Deleted User ' || substring(p_user_id::text, 1, 8),
-      full_name = NULL,
-      avatar_url = NULL,
-      phone = NULL,
-      bio = NULL
+    SET display_name = 'Deleted User ' || substring(p_user_id::text, 1, 8),
+      username = 'deleted_' || substring(p_user_id::text, 1, 8)
   WHERE id = p_user_id;
   
   -- Log deletion
@@ -231,7 +228,7 @@ CREATE OR REPLACE VIEW data_compliance_status AS
 SELECT
   u.id as user_id,
   u.email,
-  p.name,
+  p.display_name,
   COALESCE(drp.retain_transactions_days, 2555) as retain_transactions_days,
   COALESCE(drp.retain_audit_logs_days, 365) as retain_audit_logs_days,
   COALESCE(drp.retain_ai_logs_days, 90) as retain_ai_logs_days,
@@ -239,18 +236,11 @@ SELECT
   (SELECT COUNT(*) FROM audit_logs al WHERE al.user_id = u.id) as audit_log_count
 FROM auth.users u
 LEFT JOIN profiles p ON p.id = u.id
-LEFT JOIN data_retention_policies drp ON drp.user_id = u.id;
+LEFT JOIN data_retention_policies drp ON drp.user_id = u.id
+WHERE public.has_role((select auth.uid()), 'admin'::public.app_role);
 
 -- ============================================================================
 -- ENABLE RLS ON VIEWS
 -- ============================================================================
 
 GRANT SELECT ON data_compliance_status TO authenticated;
-
--- Allow admins to view compliance status
-CREATE POLICY "Admins view compliance status" ON data_compliance_status
-  AS PERMISSIVE FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_id = auth.uid() AND role = 'admin'
-  ));
