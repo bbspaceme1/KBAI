@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,9 +18,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { fmtIDR, fmtNum, fmtPct } from "@/lib/format";
-import { adjustCash, refreshEodPrices, submitTransaction } from "@/lib/portfolio.functions";
+import { adjustCash, submitTransaction } from "@/lib/portfolio.functions";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Minus, Wallet, Briefcase, Sparkles, FileDown } from "lucide-react";
+import { Plus, Minus, Wallet, Briefcase, Sparkles, FileDown } from "lucide-react";
 import { exportPortfolioPdf } from "@/lib/pdf-export";
 import { cn } from "@/lib/utils";
 import { IDX_EMITEN, IDX_TICKERS } from "@/lib/idx-tickers";
@@ -70,7 +70,6 @@ export const Route = createFileRoute("/_app/portfolio")({
 function PortfolioPage() {
   const auth = useAuth();
   const userId = auth.user?.id;
-  const accessToken = auth.session?.access_token;
   const qc = useQueryClient();
   const [openDialog, setOpenDialog] = useState<null | "BUY" | "SELL">(null);
   const [cashOpen, setCashOpen] = useState(false);
@@ -123,15 +122,12 @@ function PortfolioPage() {
     },
   });
 
-  const refreshMut = useMutation({
-    mutationFn: () => refreshEodPrices(accessToken ? { access_token: accessToken } : undefined),
-    onSuccess: (res) => {
-      toast.success(`Harga diperbarui: ${res.updated} ticker`);
-      qc.invalidateQueries({ queryKey: ["latest-prices"] });
-      qc.invalidateQueries({ queryKey: ["holdings"] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
+  const latestPriceDate = pricesQ.data
+    ? Array.from(pricesQ.data.values()).reduce<string | null>(
+        (latest, item) => (latest == null || item.date > latest ? item.date : latest),
+        null,
+      )
+    : null;
 
   const rows = (holdingsQ.data ?? []).map((h) => {
     const priceInfo = pricesQ.data?.get(h.ticker);
@@ -212,18 +208,9 @@ function PortfolioPage() {
             >
               <FileDown className="h-3.5 w-3.5" /> Export PDF
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => refreshMut.mutate()}
-              disabled={refreshMut.isPending}
-              className="h-8 rounded-sm text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw
-                className={refreshMut.isPending ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
-              />
-              Refresh prices
-            </Button>
+            <span className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+              Harga terakhir diperbarui: {latestPriceDate ?? "belum tersedia"}
+            </span>
           </div>
         </div>
 
@@ -248,12 +235,7 @@ function PortfolioPage() {
         />
 
         {/* Portfolio Chart */}
-        <PortfolioChart
-          holdings={holdingsQ.data ?? []}
-          prices={pricesQ.data ?? new Map()}
-          onRefresh={() => refreshMut.mutate()}
-          isRefreshing={refreshMut.isPending}
-        />
+        <PortfolioChart holdings={holdingsQ.data ?? []} prices={pricesQ.data ?? new Map()} />
 
         {/* Transaction History */}
         <TransactionHistory userId={userId!} />

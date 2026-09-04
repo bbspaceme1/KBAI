@@ -18,6 +18,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check merge conflicts
         run: |
           if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.jsonc' '*.yml' '*.yaml'; then
@@ -28,6 +32,15 @@ jobs:
         run: npm run lint:ci
       - name: Type check
         run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+      - name: Verify no service-role key in client bundle
+        run: |
+          if grep -r "SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
+            echo "Service-role key reference found in client build output"
+            exit 1
+          fi
+          echo "No service-role key reference in client bundle"
       - name: Supabase admin guard check
         run: node ./scripts/check_supabase_admin_guards.cjs
       - name: Unit tests

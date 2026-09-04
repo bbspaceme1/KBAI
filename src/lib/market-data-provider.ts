@@ -238,10 +238,18 @@ export async function fetchMarketQuoteDetail(
   const quotes = await fetchMarketQuotes([symbol]);
   const price = quotes[symbol];
   if (price == null) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  const chart = await fetchMarketChart(symbol, now - 14 * 24 * 60 * 60, now);
+  const today = new Date().toISOString().slice(0, 10);
+  const previousClose = [...chart].reverse().find((point) => point.date < today)?.close ?? price;
+  const pctChange = previousClose > 0 ? ((price - previousClose) / previousClose) * 100 : 0;
+  const isIdxTicker = /^[A-Z]{4}$/.test(symbol.replace(/^IDX:/, ""));
+
   return {
     price,
-    previousClose: price,
-    pctChange: 0,
-    currency: "USD",
+    previousClose,
+    pctChange,
+    currency: isIdxTicker ? "IDR" : "USD",
   };
 }

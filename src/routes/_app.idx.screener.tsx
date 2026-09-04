@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useAuth } from "@/auth";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,16 @@ export const Route = createFileRoute("/_app/idx/screener")({
 });
 
 function IDXScreenPage() {
+  const auth = useAuth();
+
+  if (!auth.isLoading && !auth.isAdmin && !auth.isAdvisor) {
+    return <Navigate to="/community" replace />;
+  }
+
+  return <IDXScreenPageContent />;
+}
+
+function IDXScreenPageContent() {
   const [sector, setSector] = useState<string>("");
   const [board, setBoard] = useState<string>("");
   const [minPer, setMinPer] = useState<string>("");

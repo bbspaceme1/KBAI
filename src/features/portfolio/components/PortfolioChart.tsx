@@ -1,9 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/auth";
-import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 
 interface PortfolioChartProps {
   holdings: Array<{
@@ -13,13 +8,9 @@ interface PortfolioChartProps {
     avg_price: number;
   }>;
   prices: Map<string, { close: number; date: string }>;
-  onRefresh: () => void;
-  isRefreshing: boolean;
 }
 
-export function PortfolioChart({ holdings, prices, onRefresh, isRefreshing }: PortfolioChartProps) {
-  const auth = useAuth();
-
+export function PortfolioChart({ holdings, prices }: PortfolioChartProps) {
   // Calculate portfolio composition for chart
   const chartData = holdings
     .map((h) => {
@@ -56,16 +47,9 @@ export function PortfolioChart({ holdings, prices, onRefresh, isRefreshing }: Po
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.14em]">
           Portfolio Composition
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="h-8 rounded-sm text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw className={isRefreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
-          Refresh
-        </Button>
+        <span className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+          Harga harian
+        </span>
       </header>
 
       {chartData.length === 0 ? (

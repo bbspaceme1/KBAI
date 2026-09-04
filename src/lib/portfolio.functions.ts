@@ -69,6 +69,9 @@ async function atomicAdjustCash(userId: string, delta: number): Promise<number> 
 // Refresh EOD prices for all holdings (admin only)
 // ============================================
 export async function refreshEodPrices(data: { access_token?: string } = {}) {
+  const { userId } = await requireSupabaseAuth();
+  await requireAdminAccess(userId);
+
   // ARCH-01: System-level operation always uses admin client
   const db = getAdminDatabaseClient();
   const today = new Date().toISOString().slice(0, 10);
@@ -164,7 +167,9 @@ async function recomputeSnapshotsAndKbai(
     await db.from("portfolio_snapshots").upsert(snapshotRows, { onConflict: "user_id,date" });
   }
 
-  // KBAI = average % return across users (base 100)
+  // Methodology note: this is totalValue / totalCost × 100, not TWR/XIRR;
+  // cash flows can move the index independently of investment performance.
+  // See docs/KBAI_INDEX_METHODOLOGY_ROADMAP.md for the v2 roadmap.
   const totalValue = snapshotRows.reduce((s, r) => s + r.total_value, 0);
   const totalCost = snapshotRows.reduce((s, r) => s + r.total_cost, 0);
   const indexValue = totalCost > 0 ? (totalValue / totalCost) * 100 : 100;

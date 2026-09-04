@@ -36,7 +36,6 @@
     "seed:users": "node scripts/seed-users.js",
     "sync": "./scripts/auto-sync.sh",
     "watch:sync": "./scripts/watch-sync.sh",
-    "install:git-hooks": "git config core.hooksPath .githooks",
     "format": "prettier --write .",
     "prepare": "husky",
     "auto-fix": "node scripts/auto-fix-engine.js --fix-all",

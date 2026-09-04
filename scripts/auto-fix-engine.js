@@ -242,9 +242,42 @@ class AutoFixEngine {
   }
 
   /**
-   * Execute collected fixes
+   * Execute collected fixes. Protected domains always require human approval.
    */
   async executeFixes() {
+    const protectedPatterns = [
+      /^supabase\/migrations\//,
+      /(^|\/)auth/i,
+      /(^|\/)rls/i,
+      /^vercel\.json$/,
+      /^\.github\/workflows\//,
+      /rbac/i,
+      /payment/i,
+      /security/i,
+      /portfolio\.functions\./,
+    ];
+    const changedFiles = execSync("git diff --name-only", {
+      cwd: this.projectRoot,
+      encoding: "utf8",
+    })
+      .split("\\n")
+      .filter(Boolean);
+    const protectedFiles = changedFiles.filter((file) =>
+      protectedPatterns.some((pattern) => pattern.test(file)),
+    );
+
+    if (protectedFiles.length > 0) {
+      console.log("  → Protected files require human approval:");
+      protectedFiles.forEach((file) => console.log(`    - ${file}`));
+      this.fixes.push({
+        type: "protected-domain",
+        action: "human-approval-required",
+        status: "requires human approval",
+        files: protectedFiles,
+      });
+      return;
+    }
+
     for (const issue of this.issues) {
       console.log(`\nFixing: ${issue.message}`);
 

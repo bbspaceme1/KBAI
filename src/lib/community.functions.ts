@@ -40,6 +40,25 @@ export async function getCommunityPortfolioStats(data: { from_date: string }) {
     }));
 }
 
-export async function getCommunityEquitySeries(_data: { from_date: string }): Promise<unknown[]> {
-  return [];
+export async function getCommunityEquitySeries(data: {
+  from_date: string;
+}): Promise<
+  Array<{ date: string; value: number; pct_change: number | null; member_count: number | null }>
+> {
+  await requireSupabaseAuth();
+
+  const { data: rows, error } = await supabaseAdmin
+    .from("kbai_index")
+    .select("date, value, pct_change, member_count")
+    .gte("date", data.from_date)
+    .order("date", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  return (rows ?? []).map((row) => ({
+    date: row.date,
+    value: Number(row.value),
+    pct_change: row.pct_change == null ? null : Number(row.pct_change),
+    member_count: row.member_count == null ? null : Number(row.member_count),
+  }));
 }

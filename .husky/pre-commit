@@ -11,4 +11,16 @@ if [ -n "$invalid_migrations" ]; then
 	exit 1
 fi
 
+# Scan staged content for common credential patterns before formatting.
+PATTERN="AKIA[0-9A-Z]{16}|-----BEGIN (RSA )?PRIVATE KEY-----|-----BEGIN OPENSSH PRIVATE KEY-----|SUPABASE_SERVICE_ROLE|sk_live_|xox[baprs]-|sq0atp-|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|password"
+staged_files=$(git diff --cached --name-only -z)
+if [ -n "$staged_files" ]; then
+  while IFS= read -r -d '' file; do
+    if git show :"$file" 2>/dev/null | head -c 8000 | grep -I -n -E "$PATTERN" >/dev/null 2>&1; then
+      echo "Potential secret found in staged file: $file" >&2
+      exit 1
+    fi
+  done <<< "$staged_files"
+fi
+
 npx lint-staged
