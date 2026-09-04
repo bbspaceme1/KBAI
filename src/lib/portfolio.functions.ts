@@ -167,7 +167,9 @@ async function recomputeSnapshotsAndKbai(
     await db.from("portfolio_snapshots").upsert(snapshotRows, { onConflict: "user_id,date" });
   }
 
-  // KBAI = average % return across users (base 100)
+  // Methodology note: this is totalValue / totalCost × 100, not TWR/XIRR;
+  // cash flows can move the index independently of investment performance.
+  // See docs/KBAI_INDEX_METHODOLOGY_ROADMAP.md for the v2 roadmap.
   const totalValue = snapshotRows.reduce((s, r) => s + r.total_value, 0);
   const totalCost = snapshotRows.reduce((s, r) => s + r.total_cost, 0);
   const indexValue = totalCost > 0 ? (totalValue / totalCost) * 100 : 100;

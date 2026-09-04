@@ -21,7 +21,7 @@ interface ImprovedLandingPageProps {
 export const ImprovedLandingPage: React.FC<ImprovedLandingPageProps> = ({
   showDisclaimer = true,
   metrics = [
-    { label: "Total AUM Komunitas", value: "Rp 48.2M", change: "▲ 12.4% YTD" },
+    { label: "Contoh AUM Komunitas", value: "Rp 48.2M", change: "Ilustratif · ▲ 12.4% YTD" },
     { label: "Sharpe Ratio", value: "1.84", change: "▲ 0.18 vs benchmark" },
     { label: "Avg Drawdown", value: "−8.2%", change: "▼ −3.6% vs S&P" },
     { label: "Members Aktif", value: "3,247", change: "↑ +28% MoM" },
@@ -38,8 +38,8 @@ export const ImprovedLandingPage: React.FC<ImprovedLandingPageProps> = ({
     {
       num: "02",
       title: "Intelligence Engine",
-      sub: "AI-powered analysis",
-      desc: "Analisis teknikal, fundamental, dan sentiment dengan machine learning untuk memberikan signal yang akurat.",
+      sub: "KBAI intelligence + human guidance",
+      desc: "Monitoring kesehatan portfolio, alert risiko, dan dukungan advisor untuk membantu Anda mengambil keputusan dengan lebih terarah.",
       tags: ["ML", "NLP", "Backtesting"],
       icon: "🧠",
     },
@@ -62,8 +62,8 @@ export const ImprovedLandingPage: React.FC<ImprovedLandingPageProps> = ({
     {
       num: "05",
       title: "Portfolio Manager",
-      sub: "Risk-aware allocation",
-      desc: "Optimasi portfolio berdasarkan risk profile, diversifikasi, dan correlation analysis.",
+      sub: "Risk-aware monitoring",
+      desc: "Pantau diversifikasi, konsentrasi, likuiditas, dan risiko portfolio dengan konteks yang mudah dipahami.",
       tags: ["Optimization", "Risk", "Rebalance"],
       icon: "📊",
     },
