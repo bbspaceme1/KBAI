@@ -126,13 +126,13 @@ def store_indicators(ticker: str, df: pd.DataFrame) -> int:
         return 0
 
 
-def compute_for_all_stocks(tickers: list, limit: Optional[int] = 100) -> int:
+def compute_for_all_stocks(tickers: list, limit: Optional[int] = None) -> int:
     """
-    Compute and store indicators for all stocks with recent price data.
-    
+    Compute and store indicators for the full active IDX universe.
+
     Args:
         tickers: List of ticker symbols
-        limit: Maximum number of stocks to process (to save time)
+        limit: Optional development/testing limit; production runs process all tickers.
     """
     log.info(f"📊 Computing technical indicators for {len(tickers[:limit])} stocks...")
     
@@ -178,7 +178,7 @@ if __name__ == "__main__":
         result = supabase.table("idx_companies").select("ticker").eq("is_active", True).execute()
         tickers = [row["ticker"] for row in result.data]
         
-        limit = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+        limit = int(sys.argv[1]) if len(sys.argv) > 1 else None
         compute_for_all_stocks(tickers, limit=limit)
         
     except Exception as e:

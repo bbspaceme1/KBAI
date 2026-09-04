@@ -10,6 +10,8 @@ import {
   LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth";
+import { Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/analisis")({
   component: AnalisisLayout,
@@ -61,8 +63,13 @@ const MODULES = [
 ] as const;
 
 function AnalisisLayout() {
+  const auth = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHub = pathname === "/analisis" || pathname === "/analisis/";
+
+  if (!auth.isLoading && !auth.isAdmin && !auth.isAdvisor) {
+    return <Navigate to="/community" replace />;
+  }
 
   return (
     <div className="space-y-6">

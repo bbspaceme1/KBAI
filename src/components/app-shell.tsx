@@ -50,7 +50,7 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 type NavGroup = { label: string; items: NavItem[] };
 
-// Member: investor pribadi — fokus pada portfolio diri sendiri & riset
+// Member: investor pribadi — fokus pada portfolio diri sendiri & monitoring
 const MEMBER_GROUPS: NavGroup[] = [
   {
     label: "Workspace",
@@ -64,8 +64,6 @@ const MEMBER_GROUPS: NavGroup[] = [
   {
     label: "Research",
     items: [
-      { to: "/analisis", label: "Analisis", icon: LineChart },
-      { to: "/idx/screener", label: "IDX Screener", icon: Search },
       { to: "/idx/markets", label: "IDX Markets", icon: BarChart3 },
       { to: "/ekonomi", label: "Ekonomi", icon: Globe },
     ],

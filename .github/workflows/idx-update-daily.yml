@@ -83,7 +83,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           cd scripts/etl
-          python idx_compute_indicators.py 100  # Process top 100 stocks
+          python idx_compute_indicators.py  # Process the full active IDX universe
 
       # 6. Notify on failure (optional - could add Slack webhook)
       - name: Notify on failure
