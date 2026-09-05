@@ -37,12 +37,18 @@ jobs:
       - name: Build
         run: npm run build
       - name: Verify no service-role key in client bundle
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if grep -r "SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
-            echo "Service-role key reference found in client build output"
+          if [[ -z "$SUPABASE_SERVICE_ROLE_KEY" ]]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY is not available for bundle verification"
             exit 1
           fi
-          echo "No service-role key reference in client bundle"
+          if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
+            echo "Service-role key value found in client build output"
+            exit 1
+          fi
+          echo "No service-role key value in client bundle"
       - name: Supabase admin guard check
         run: node ./scripts/check_supabase_admin_guards.cjs
       - name: Unit tests
