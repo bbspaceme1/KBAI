@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 
 const url = process.env.SUPABASE_URL_2 ?? process.env.SUPABASE_URL;
 const anonKey = process.env.SUPABASE_ANON_KEY_2 ?? process.env.SUPABASE_ANON_KEY;
-const enabled = Boolean(url && anonKey && process.env.RLS_TEST_USER_A_TOKEN);
+const userAToken = process.env.RLS_TEST_USER_A_TOKEN;
+const userAId = process.env.RLS_TEST_USER_A_ID;
+const userBId = process.env.RLS_TEST_USER_B_ID;
+const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
 
 describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
   const client = (): SupabaseClient => createClient(url!, anonKey!);
@@ -29,6 +32,23 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     ]);
 
     expect(calls.every(({ error }) => error)).toBe(true);
+  });
+
+  it("allows a user to call financial RPCs only for their own user id", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const ownCall = await authenticated.rpc("adjust_cash_balance", {
+      p_user_id: userAId,
+      p_delta: 0,
+    });
+    const otherCall = await authenticated.rpc("adjust_cash_balance", {
+      p_user_id: userBId,
+      p_delta: 0,
+    });
+
+    expect(ownCall.error).toBeNull();
+    expect(otherCall.error).toBeTruthy();
   });
 
   it("does not treat a client-supplied role claim as authorization", async () => {
