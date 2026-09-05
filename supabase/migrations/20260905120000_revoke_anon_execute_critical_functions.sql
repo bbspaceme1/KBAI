@@ -38,7 +38,7 @@ GRANT EXECUTE ON FUNCTION public.try_consume_ai_quota(uuid, integer) TO authenti
 
 REVOKE EXECUTE ON FUNCTION public.permanently_delete_user(uuid) FROM anon, authenticated, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.restore_user(uuid) FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.soft_delete_user(uuid) FROM anon, authenticated, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.soft_delete_user() FROM anon, authenticated, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.anonymize_user_data(uuid) FROM anon, authenticated, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.add_role_to_jwt() FROM anon, authenticated, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.audit_feature_flag_changes() FROM anon, authenticated, PUBLIC;
@@ -61,6 +61,8 @@ ALTER FUNCTION public.upsert_holding_sell(uuid, text, integer)
 ALTER FUNCTION public.restore_user(uuid)
   SET search_path = public, pg_temp;
 ALTER FUNCTION public.permanently_delete_user(uuid)
+  SET search_path = public, pg_temp;
+ALTER FUNCTION public.soft_delete_user()
   SET search_path = public, pg_temp;
 ALTER FUNCTION public.archive_old_data(integer)
   SET search_path = public, pg_temp;
