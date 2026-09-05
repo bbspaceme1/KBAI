@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@sentry/node", () => ({
+vi.mock("@sentry/react", () => ({
   captureMessage: vi.fn(),
   captureException: vi.fn(),
 }));
 
-import * as Sentry from "@sentry/node";
+import * as Sentry from "@sentry/react";
 import { checkRateLimit, rateLimitMiddleware } from "@/lib/rate-limiter";
 
 describe("rate limiter", () => {

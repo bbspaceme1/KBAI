@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import * as Sentry from "@sentry/node";
+import * as Sentry from "@sentry/react";
 
 export interface RateLimitResult {
   allowed: boolean;
