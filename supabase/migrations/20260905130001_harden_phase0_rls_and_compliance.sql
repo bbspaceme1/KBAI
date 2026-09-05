@@ -20,6 +20,35 @@ DROP POLICY IF EXISTS idx_etl_logs_admin_select ON public.idx_etl_logs;
 CREATE POLICY idx_etl_logs_admin_select ON public.idx_etl_logs
   FOR SELECT TO authenticated USING (public.has_role((select auth.uid()), 'admin'::public.app_role));
 
+ALTER TABLE IF EXISTS public.case_analysis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.case_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS case_analysis_assigned_select ON public.case_analysis;
+DROP POLICY IF EXISTS case_notes_assigned_select ON public.case_notes;
+CREATE POLICY case_analysis_assigned_select ON public.case_analysis
+  FOR SELECT TO authenticated USING (
+    author_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.case_assignments a
+      WHERE a.case_id = case_analysis.case_id AND a.advisor_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.assistance_cases c
+      WHERE c.id = case_analysis.case_id AND c.user_id = auth.uid()
+    )
+  );
+CREATE POLICY case_notes_assigned_select ON public.case_notes
+  FOR SELECT TO authenticated USING (
+    author_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.case_assignments a
+      WHERE a.case_id = case_notes.case_id AND a.advisor_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.assistance_cases c
+      WHERE c.id = case_notes.case_id AND c.user_id = auth.uid()
+    )
+  );
+
 ALTER TABLE IF EXISTS public.methodologies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.methodology_versions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS methodologies_admin_all ON public.methodologies;

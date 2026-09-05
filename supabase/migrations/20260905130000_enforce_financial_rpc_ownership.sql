@@ -28,11 +28,7 @@ BEGIN
   IF v_current_lot IS NULL THEN
     INSERT INTO public.holdings (user_id, ticker, total_lot, avg_price, created_at, updated_at)
     VALUES (p_user_id, p_ticker, p_lot, p_price, now(), now())
-    ON CONFLICT (user_id, ticker) DO UPDATE SET
-      total_lot = public.holdings.total_lot + EXCLUDED.total_lot,
-      avg_price = ((public.holdings.avg_price * public.holdings.total_lot) + (EXCLUDED.total_lot * EXCLUDED.avg_price)) /
-        (public.holdings.total_lot + EXCLUDED.total_lot),
-      updated_at = now();
+    ON CONFLICT (user_id, ticker) DO NOTHING;
   ELSE
     v_new_avg_price := (v_current_cost + (p_lot * p_price)) / (v_current_lot + p_lot);
     UPDATE public.holdings SET total_lot = v_current_lot + p_lot, avg_price = v_new_avg_price, updated_at = now()
@@ -52,8 +48,10 @@ BEGIN
   IF p_lot <= 0 OR p_ticker IS NULL OR btrim(p_ticker) = '' THEN RAISE EXCEPTION 'invalid holding transaction'; END IF;
   SELECT total_lot INTO v_current_lot FROM public.holdings
   WHERE user_id = p_user_id AND ticker = p_ticker FOR UPDATE;
-  IF v_current_lot IS NULL OR v_current_lot < p_lot THEN RAISE EXCEPTION 'insufficient holdings'; END IF;
-  IF v_current_lot = p_lot THEN
+  IF v_current_lot IS NULL THEN
+    RETURN;
+  END IF;
+  IF v_current_lot - p_lot <= 0 THEN
     DELETE FROM public.holdings WHERE user_id = p_user_id AND ticker = p_ticker;
   ELSE
     UPDATE public.holdings SET total_lot = v_current_lot - p_lot, updated_at = now()
@@ -72,8 +70,7 @@ BEGIN
     INSERT INTO public.cash_balances (user_id, balance, created_at, updated_at)
     VALUES (p_user_id, p_delta, now()) RETURNING balance INTO v_new_balance;
   END IF;
-  IF v_new_balance < 0 THEN RAISE EXCEPTION 'insufficient cash balance'; END IF;
-  RETURN v_new_balance;
+  RETURN COALESCE(v_new_balance, 0);
 END $$;
 
 REVOKE EXECUTE ON FUNCTION public.upsert_holding_buy(uuid, text, integer, numeric) FROM anon, PUBLIC;
