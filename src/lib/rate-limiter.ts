@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { logError } from "@/lib/observability";
+import * as Sentry from "@sentry/react";
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -18,10 +18,14 @@ let redisRateLimiter: Ratelimit | null = null;
 let reportedMissingRedis = false;
 
 function reportFallback(message: string, error?: unknown): void {
-  logError(message, error instanceof Error ? error : undefined, {
-    component: "rate-limiter",
-    fallback: "in-memory",
-  });
+  if (error instanceof Error) {
+    Sentry.captureException(error, {
+      tags: { component: "rate-limiter", fallback: "in-memory" },
+    });
+    return;
+  }
+
+  Sentry.captureMessage(message, "error");
 }
 
 function getRedisRateLimiter(): Ratelimit | null {

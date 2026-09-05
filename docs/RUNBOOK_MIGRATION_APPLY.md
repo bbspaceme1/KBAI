@@ -23,6 +23,7 @@ Use this procedure when a change adds or modifies files in `supabase/migrations/
    ```bash
    npm run test:run
    npm run test:e2e
+   npm run test:rls
    ```
 
    Resolve any migration or application failures before continuing.

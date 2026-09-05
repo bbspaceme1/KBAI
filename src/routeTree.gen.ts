@@ -9,61 +9,55 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RequestAccessRouteImport } from './routes/request-access'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppWatchlistRouteImport } from './routes/_app.watchlist'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppPortfolioRouteImport } from './routes/_app.portfolio'
-import { Route as AppMarketInsightRouteImport } from './routes/_app.market-insight'
-import { Route as AppEkonomiRouteImport } from './routes/_app.ekonomi'
-import { Route as AppCommunityRouteImport } from './routes/_app.community'
-import { Route as AppAnalisisRouteImport } from './routes/_app.analisis'
-import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RequestAccessRouteImport } from './routes/request-access'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppActivityRouteImport } from './routes/_app.activity'
-import { Route as AppEkonomiIndexRouteImport } from './routes/_app.ekonomi.index'
-import { Route as AppIdxScreenerRouteImport } from './routes/_app.idx.screener'
-import { Route as AppIdxMarketsRouteImport } from './routes/_app.idx.markets'
-import { Route as AppEkonomiMacroRouteImport } from './routes/_app.ekonomi.macro'
-import { Route as AppEkonomiKomoditasRouteImport } from './routes/_app.ekonomi.komoditas'
-import { Route as AppEkonomiGlobalRouteImport } from './routes/_app.ekonomi.global'
-import { Route as AppEkonomiCalendarRouteImport } from './routes/_app.ekonomi.calendar'
-import { Route as AppEkonomiAiBriefRouteImport } from './routes/_app.ekonomi.ai-brief'
-import { Route as AppAnalisisValuationRouteImport } from './routes/_app.analisis.valuation'
-import { Route as AppAnalisisTechnicalRouteImport } from './routes/_app.analisis.technical'
-import { Route as AppAnalisisScreenerRouteImport } from './routes/_app.analisis.screener'
-import { Route as AppAnalisisPortfolioRouteImport } from './routes/_app.analisis.portfolio'
-import { Route as AppAnalisisEarningsRouteImport } from './routes/_app.analisis.earnings'
-import { Route as AppAnalisisDividendRouteImport } from './routes/_app.analisis.dividend'
-import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
-import { Route as AppAdminUserPortfoliosRouteImport } from './routes/_app.admin.user-portfolios'
-import { Route as AppAdminTransactionsRouteImport } from './routes/_app.admin.transactions'
-import { Route as AppAdminSystemHealthRouteImport } from './routes/_app.admin.system-health'
-import { Route as AppAdminSettingsRouteImport } from './routes/_app.admin.settings'
-import { Route as AppAdminSecurityRouteImport } from './routes/_app.admin.security'
-import { Route as AppAdminPricesRouteImport } from './routes/_app.admin.prices'
-import { Route as AppAdminInsightAiRouteImport } from './routes/_app.admin.insight-ai'
-import { Route as AppAdminInsightRouteImport } from './routes/_app.admin.insight'
-import { Route as AppAdminHoldingsRouteImport } from './routes/_app.admin.holdings'
-import { Route as AppAdminBroadcastRouteImport } from './routes/_app.admin.broadcast'
+import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppAnalisisRouteImport } from './routes/_app.analisis'
+import { Route as AppCommunityRouteImport } from './routes/_app.community'
+import { Route as AppEkonomiRouteImport } from './routes/_app.ekonomi'
+import { Route as AppMarketInsightRouteImport } from './routes/_app.market-insight'
+import { Route as AppPortfolioRouteImport } from './routes/_app.portfolio'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppWatchlistRouteImport } from './routes/_app.watchlist'
 import { Route as AppAdminAuditRouteImport } from './routes/_app.admin.audit'
+import { Route as AppAdminBroadcastRouteImport } from './routes/_app.admin.broadcast'
+import { Route as AppAdminHoldingsRouteImport } from './routes/_app.admin.holdings'
+import { Route as AppAdminInsightRouteImport } from './routes/_app.admin.insight'
+import { Route as AppAdminInsightAiRouteImport } from './routes/_app.admin.insight-ai'
+import { Route as AppAdminPricesRouteImport } from './routes/_app.admin.prices'
+import { Route as AppAdminSecurityRouteImport } from './routes/_app.admin.security'
+import { Route as AppAdminSettingsRouteImport } from './routes/_app.admin.settings'
+import { Route as AppAdminSystemHealthRouteImport } from './routes/_app.admin.system-health'
+import { Route as AppAdminTransactionsRouteImport } from './routes/_app.admin.transactions'
+import { Route as AppAdminUserPortfoliosRouteImport } from './routes/_app.admin.user-portfolios'
+import { Route as AppAdminUsersRouteImport } from './routes/_app.admin.users'
+import { Route as AppAnalisisDividendRouteImport } from './routes/_app.analisis.dividend'
+import { Route as AppAnalisisEarningsRouteImport } from './routes/_app.analisis.earnings'
+import { Route as AppAnalisisPortfolioRouteImport } from './routes/_app.analisis.portfolio'
+import { Route as AppAnalisisScreenerRouteImport } from './routes/_app.analisis.screener'
+import { Route as AppAnalisisTechnicalRouteImport } from './routes/_app.analisis.technical'
+import { Route as AppAnalisisValuationRouteImport } from './routes/_app.analisis.valuation'
+import { Route as AppEkonomiIndexRouteImport } from './routes/_app.ekonomi.index'
+import { Route as AppEkonomiAiBriefRouteImport } from './routes/_app.ekonomi.ai-brief'
+import { Route as AppEkonomiCalendarRouteImport } from './routes/_app.ekonomi.calendar'
+import { Route as AppEkonomiGlobalRouteImport } from './routes/_app.ekonomi.global'
+import { Route as AppEkonomiKomoditasRouteImport } from './routes/_app.ekonomi.komoditas'
+import { Route as AppEkonomiMacroRouteImport } from './routes/_app.ekonomi.macro'
+import { Route as AppIdxMarketsRouteImport } from './routes/_app.idx.markets'
+import { Route as AppIdxScreenerRouteImport } from './routes/_app.idx.screener'
 
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RequestAccessRoute = RequestAccessRouteImport.update({
-  id: '/request-access',
-  path: '/request-access',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -71,48 +65,24 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const RequestAccessRoute = RequestAccessRouteImport.update({
+  id: '/request-access',
+  path: '/request-access',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppWatchlistRoute = AppWatchlistRouteImport.update({
-  id: '/watchlist',
-  path: '/watchlist',
-  getParentRoute: () => AppRoute,
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPortfolioRoute = AppPortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMarketInsightRoute = AppMarketInsightRouteImport.update({
-  id: '/market-insight',
-  path: '/market-insight',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEkonomiRoute = AppEkonomiRouteImport.update({
-  id: '/ekonomi',
-  path: '/ekonomi',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCommunityRoute = AppCommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAnalisisRoute = AppAnalisisRouteImport.update({
-  id: '/analisis',
-  path: '/analisis',
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminRoute = AppAdminRouteImport.update({
@@ -120,129 +90,44 @@ const AppAdminRoute = AppAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
-const AppActivityRoute = AppActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
+const AppAnalisisRoute = AppAnalisisRouteImport.update({
+  id: '/analisis',
+  path: '/analisis',
   getParentRoute: () => AppRoute,
 } as any)
-const AppEkonomiIndexRoute = AppEkonomiIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppEkonomiRoute,
-} as any)
-const AppIdxScreenerRoute = AppIdxScreenerRouteImport.update({
-  id: '/idx/screener',
-  path: '/idx/screener',
+const AppCommunityRoute = AppCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => AppRoute,
 } as any)
-const AppIdxMarketsRoute = AppIdxMarketsRouteImport.update({
-  id: '/idx/markets',
-  path: '/idx/markets',
+const AppEkonomiRoute = AppEkonomiRouteImport.update({
+  id: '/ekonomi',
+  path: '/ekonomi',
   getParentRoute: () => AppRoute,
 } as any)
-const AppEkonomiMacroRoute = AppEkonomiMacroRouteImport.update({
-  id: '/macro',
-  path: '/macro',
-  getParentRoute: () => AppEkonomiRoute,
+const AppMarketInsightRoute = AppMarketInsightRouteImport.update({
+  id: '/market-insight',
+  path: '/market-insight',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppEkonomiKomoditasRoute = AppEkonomiKomoditasRouteImport.update({
-  id: '/komoditas',
-  path: '/komoditas',
-  getParentRoute: () => AppEkonomiRoute,
-} as any)
-const AppEkonomiGlobalRoute = AppEkonomiGlobalRouteImport.update({
-  id: '/global',
-  path: '/global',
-  getParentRoute: () => AppEkonomiRoute,
-} as any)
-const AppEkonomiCalendarRoute = AppEkonomiCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => AppEkonomiRoute,
-} as any)
-const AppEkonomiAiBriefRoute = AppEkonomiAiBriefRouteImport.update({
-  id: '/ai-brief',
-  path: '/ai-brief',
-  getParentRoute: () => AppEkonomiRoute,
-} as any)
-const AppAnalisisValuationRoute = AppAnalisisValuationRouteImport.update({
-  id: '/valuation',
-  path: '/valuation',
-  getParentRoute: () => AppAnalisisRoute,
-} as any)
-const AppAnalisisTechnicalRoute = AppAnalisisTechnicalRouteImport.update({
-  id: '/technical',
-  path: '/technical',
-  getParentRoute: () => AppAnalisisRoute,
-} as any)
-const AppAnalisisScreenerRoute = AppAnalisisScreenerRouteImport.update({
-  id: '/screener',
-  path: '/screener',
-  getParentRoute: () => AppAnalisisRoute,
-} as any)
-const AppAnalisisPortfolioRoute = AppAnalisisPortfolioRouteImport.update({
+const AppPortfolioRoute = AppPortfolioRouteImport.update({
   id: '/portfolio',
   path: '/portfolio',
-  getParentRoute: () => AppAnalisisRoute,
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAnalisisEarningsRoute = AppAnalisisEarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => AppAnalisisRoute,
-} as any)
-const AppAnalisisDividendRoute = AppAnalisisDividendRouteImport.update({
-  id: '/dividend',
-  path: '/dividend',
-  getParentRoute: () => AppAnalisisRoute,
-} as any)
-const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminUserPortfoliosRoute = AppAdminUserPortfoliosRouteImport.update({
-  id: '/user-portfolios',
-  path: '/user-portfolios',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminTransactionsRoute = AppAdminTransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminSystemHealthRoute = AppAdminSystemHealthRouteImport.update({
-  id: '/system-health',
-  path: '/system-health',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppAdminRoute,
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => AppAdminRoute,
+const AppWatchlistRoute = AppWatchlistRouteImport.update({
+  id: '/watchlist',
+  path: '/watchlist',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppAdminPricesRoute = AppAdminPricesRouteImport.update({
-  id: '/prices',
-  path: '/prices',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminInsightAiRoute = AppAdminInsightAiRouteImport.update({
-  id: '/insight-ai',
-  path: '/insight-ai',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminInsightRoute = AppAdminInsightRouteImport.update({
-  id: '/insight',
-  path: '/insight',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminHoldingsRoute = AppAdminHoldingsRouteImport.update({
-  id: '/holdings',
-  path: '/holdings',
+const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminBroadcastRoute = AppAdminBroadcastRouteImport.update({
@@ -250,10 +135,125 @@ const AppAdminBroadcastRoute = AppAdminBroadcastRouteImport.update({
   path: '/broadcast',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminAuditRoute = AppAdminAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+const AppAdminHoldingsRoute = AppAdminHoldingsRouteImport.update({
+  id: '/holdings',
+  path: '/holdings',
   getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminInsightRoute = AppAdminInsightRouteImport.update({
+  id: '/insight',
+  path: '/insight',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminInsightAiRoute = AppAdminInsightAiRouteImport.update({
+  id: '/insight-ai',
+  path: '/insight-ai',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminPricesRoute = AppAdminPricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSecurityRoute = AppAdminSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSystemHealthRoute = AppAdminSystemHealthRouteImport.update({
+  id: '/system-health',
+  path: '/system-health',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminTransactionsRoute = AppAdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminUserPortfoliosRoute = AppAdminUserPortfoliosRouteImport.update({
+  id: '/user-portfolios',
+  path: '/user-portfolios',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAnalisisDividendRoute = AppAnalisisDividendRouteImport.update({
+  id: '/dividend',
+  path: '/dividend',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppAnalisisEarningsRoute = AppAnalisisEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppAnalisisPortfolioRoute = AppAnalisisPortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppAnalisisScreenerRoute = AppAnalisisScreenerRouteImport.update({
+  id: '/screener',
+  path: '/screener',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppAnalisisTechnicalRoute = AppAnalisisTechnicalRouteImport.update({
+  id: '/technical',
+  path: '/technical',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppAnalisisValuationRoute = AppAnalisisValuationRouteImport.update({
+  id: '/valuation',
+  path: '/valuation',
+  getParentRoute: () => AppAnalisisRoute,
+} as any)
+const AppEkonomiIndexRoute = AppEkonomiIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppEkonomiAiBriefRoute = AppEkonomiAiBriefRouteImport.update({
+  id: '/ai-brief',
+  path: '/ai-brief',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppEkonomiCalendarRoute = AppEkonomiCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppEkonomiGlobalRoute = AppEkonomiGlobalRouteImport.update({
+  id: '/global',
+  path: '/global',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppEkonomiKomoditasRoute = AppEkonomiKomoditasRouteImport.update({
+  id: '/komoditas',
+  path: '/komoditas',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppEkonomiMacroRoute = AppEkonomiMacroRouteImport.update({
+  id: '/macro',
+  path: '/macro',
+  getParentRoute: () => AppEkonomiRoute,
+} as any)
+const AppIdxMarketsRoute = AppIdxMarketsRouteImport.update({
+  id: '/idx/markets',
+  path: '/idx/markets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIdxScreenerRoute = AppIdxScreenerRouteImport.update({
+  id: '/idx/screener',
+  path: '/idx/screener',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -523,32 +523,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/request-access': {
-      id: '/request-access'
-      path: '/request-access'
-      fullPath: '/request-access'
-      preLoaderRoute: typeof RequestAccessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -558,60 +537,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/watchlist': {
-      id: '/_app/watchlist'
-      path: '/watchlist'
-      fullPath: '/watchlist'
-      preLoaderRoute: typeof AppWatchlistRouteImport
-      parentRoute: typeof AppRoute
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
+    '/request-access': {
+      id: '/request-access'
+      path: '/request-access'
+      fullPath: '/request-access'
+      preLoaderRoute: typeof RequestAccessRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/portfolio': {
-      id: '/_app/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof AppPortfolioRouteImport
-      parentRoute: typeof AppRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/market-insight': {
-      id: '/_app/market-insight'
-      path: '/market-insight'
-      fullPath: '/market-insight'
-      preLoaderRoute: typeof AppMarketInsightRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/ekonomi': {
-      id: '/_app/ekonomi'
-      path: '/ekonomi'
-      fullPath: '/ekonomi'
-      preLoaderRoute: typeof AppEkonomiRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/community': {
-      id: '/_app/community'
-      path: '/community'
-      fullPath: '/community'
-      preLoaderRoute: typeof AppCommunityRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/analisis': {
-      id: '/_app/analisis'
-      path: '/analisis'
-      fullPath: '/analisis'
-      preLoaderRoute: typeof AppAnalisisRouteImport
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/admin': {
@@ -621,179 +579,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/activity': {
-      id: '/_app/activity'
-      path: '/activity'
-      fullPath: '/activity'
-      preLoaderRoute: typeof AppActivityRouteImport
+    '/_app/analisis': {
+      id: '/_app/analisis'
+      path: '/analisis'
+      fullPath: '/analisis'
+      preLoaderRoute: typeof AppAnalisisRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/ekonomi/': {
-      id: '/_app/ekonomi/'
-      path: '/'
-      fullPath: '/ekonomi/'
-      preLoaderRoute: typeof AppEkonomiIndexRouteImport
-      parentRoute: typeof AppEkonomiRoute
-    }
-    '/_app/idx/screener': {
-      id: '/_app/idx/screener'
-      path: '/idx/screener'
-      fullPath: '/idx/screener'
-      preLoaderRoute: typeof AppIdxScreenerRouteImport
+    '/_app/community': {
+      id: '/_app/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof AppCommunityRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/idx/markets': {
-      id: '/_app/idx/markets'
-      path: '/idx/markets'
-      fullPath: '/idx/markets'
-      preLoaderRoute: typeof AppIdxMarketsRouteImport
+    '/_app/ekonomi': {
+      id: '/_app/ekonomi'
+      path: '/ekonomi'
+      fullPath: '/ekonomi'
+      preLoaderRoute: typeof AppEkonomiRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/ekonomi/macro': {
-      id: '/_app/ekonomi/macro'
-      path: '/macro'
-      fullPath: '/ekonomi/macro'
-      preLoaderRoute: typeof AppEkonomiMacroRouteImport
-      parentRoute: typeof AppEkonomiRoute
+    '/_app/market-insight': {
+      id: '/_app/market-insight'
+      path: '/market-insight'
+      fullPath: '/market-insight'
+      preLoaderRoute: typeof AppMarketInsightRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/ekonomi/komoditas': {
-      id: '/_app/ekonomi/komoditas'
-      path: '/komoditas'
-      fullPath: '/ekonomi/komoditas'
-      preLoaderRoute: typeof AppEkonomiKomoditasRouteImport
-      parentRoute: typeof AppEkonomiRoute
-    }
-    '/_app/ekonomi/global': {
-      id: '/_app/ekonomi/global'
-      path: '/global'
-      fullPath: '/ekonomi/global'
-      preLoaderRoute: typeof AppEkonomiGlobalRouteImport
-      parentRoute: typeof AppEkonomiRoute
-    }
-    '/_app/ekonomi/calendar': {
-      id: '/_app/ekonomi/calendar'
-      path: '/calendar'
-      fullPath: '/ekonomi/calendar'
-      preLoaderRoute: typeof AppEkonomiCalendarRouteImport
-      parentRoute: typeof AppEkonomiRoute
-    }
-    '/_app/ekonomi/ai-brief': {
-      id: '/_app/ekonomi/ai-brief'
-      path: '/ai-brief'
-      fullPath: '/ekonomi/ai-brief'
-      preLoaderRoute: typeof AppEkonomiAiBriefRouteImport
-      parentRoute: typeof AppEkonomiRoute
-    }
-    '/_app/analisis/valuation': {
-      id: '/_app/analisis/valuation'
-      path: '/valuation'
-      fullPath: '/analisis/valuation'
-      preLoaderRoute: typeof AppAnalisisValuationRouteImport
-      parentRoute: typeof AppAnalisisRoute
-    }
-    '/_app/analisis/technical': {
-      id: '/_app/analisis/technical'
-      path: '/technical'
-      fullPath: '/analisis/technical'
-      preLoaderRoute: typeof AppAnalisisTechnicalRouteImport
-      parentRoute: typeof AppAnalisisRoute
-    }
-    '/_app/analisis/screener': {
-      id: '/_app/analisis/screener'
-      path: '/screener'
-      fullPath: '/analisis/screener'
-      preLoaderRoute: typeof AppAnalisisScreenerRouteImport
-      parentRoute: typeof AppAnalisisRoute
-    }
-    '/_app/analisis/portfolio': {
-      id: '/_app/analisis/portfolio'
+    '/_app/portfolio': {
+      id: '/_app/portfolio'
       path: '/portfolio'
-      fullPath: '/analisis/portfolio'
-      preLoaderRoute: typeof AppAnalisisPortfolioRouteImport
-      parentRoute: typeof AppAnalisisRoute
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof AppPortfolioRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/analisis/earnings': {
-      id: '/_app/analisis/earnings'
-      path: '/earnings'
-      fullPath: '/analisis/earnings'
-      preLoaderRoute: typeof AppAnalisisEarningsRouteImport
-      parentRoute: typeof AppAnalisisRoute
-    }
-    '/_app/analisis/dividend': {
-      id: '/_app/analisis/dividend'
-      path: '/dividend'
-      fullPath: '/analisis/dividend'
-      preLoaderRoute: typeof AppAnalisisDividendRouteImport
-      parentRoute: typeof AppAnalisisRoute
-    }
-    '/_app/admin/users': {
-      id: '/_app/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AppAdminUsersRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/user-portfolios': {
-      id: '/_app/admin/user-portfolios'
-      path: '/user-portfolios'
-      fullPath: '/admin/user-portfolios'
-      preLoaderRoute: typeof AppAdminUserPortfoliosRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/transactions': {
-      id: '/_app/admin/transactions'
-      path: '/transactions'
-      fullPath: '/admin/transactions'
-      preLoaderRoute: typeof AppAdminTransactionsRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/system-health': {
-      id: '/_app/admin/system-health'
-      path: '/system-health'
-      fullPath: '/admin/system-health'
-      preLoaderRoute: typeof AppAdminSystemHealthRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/settings': {
-      id: '/_app/admin/settings'
+    '/_app/settings': {
+      id: '/_app/settings'
       path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AppAdminSettingsRouteImport
-      parentRoute: typeof AppAdminRoute
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/admin/security': {
-      id: '/_app/admin/security'
-      path: '/security'
-      fullPath: '/admin/security'
-      preLoaderRoute: typeof AppAdminSecurityRouteImport
-      parentRoute: typeof AppAdminRoute
+    '/_app/watchlist': {
+      id: '/_app/watchlist'
+      path: '/watchlist'
+      fullPath: '/watchlist'
+      preLoaderRoute: typeof AppWatchlistRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/admin/prices': {
-      id: '/_app/admin/prices'
-      path: '/prices'
-      fullPath: '/admin/prices'
-      preLoaderRoute: typeof AppAdminPricesRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/insight-ai': {
-      id: '/_app/admin/insight-ai'
-      path: '/insight-ai'
-      fullPath: '/admin/insight-ai'
-      preLoaderRoute: typeof AppAdminInsightAiRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/insight': {
-      id: '/_app/admin/insight'
-      path: '/insight'
-      fullPath: '/admin/insight'
-      preLoaderRoute: typeof AppAdminInsightRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/holdings': {
-      id: '/_app/admin/holdings'
-      path: '/holdings'
-      fullPath: '/admin/holdings'
-      preLoaderRoute: typeof AppAdminHoldingsRouteImport
+    '/_app/admin/audit': {
+      id: '/_app/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AppAdminAuditRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/broadcast': {
@@ -803,12 +642,173 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminBroadcastRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/_app/admin/audit': {
-      id: '/_app/admin/audit'
-      path: '/audit'
-      fullPath: '/admin/audit'
-      preLoaderRoute: typeof AppAdminAuditRouteImport
+    '/_app/admin/holdings': {
+      id: '/_app/admin/holdings'
+      path: '/holdings'
+      fullPath: '/admin/holdings'
+      preLoaderRoute: typeof AppAdminHoldingsRouteImport
       parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/insight': {
+      id: '/_app/admin/insight'
+      path: '/insight'
+      fullPath: '/admin/insight'
+      preLoaderRoute: typeof AppAdminInsightRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/insight-ai': {
+      id: '/_app/admin/insight-ai'
+      path: '/insight-ai'
+      fullPath: '/admin/insight-ai'
+      preLoaderRoute: typeof AppAdminInsightAiRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/prices': {
+      id: '/_app/admin/prices'
+      path: '/prices'
+      fullPath: '/admin/prices'
+      preLoaderRoute: typeof AppAdminPricesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/security': {
+      id: '/_app/admin/security'
+      path: '/security'
+      fullPath: '/admin/security'
+      preLoaderRoute: typeof AppAdminSecurityRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/settings': {
+      id: '/_app/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/system-health': {
+      id: '/_app/admin/system-health'
+      path: '/system-health'
+      fullPath: '/admin/system-health'
+      preLoaderRoute: typeof AppAdminSystemHealthRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/transactions': {
+      id: '/_app/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AppAdminTransactionsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/user-portfolios': {
+      id: '/_app/admin/user-portfolios'
+      path: '/user-portfolios'
+      fullPath: '/admin/user-portfolios'
+      preLoaderRoute: typeof AppAdminUserPortfoliosRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/users': {
+      id: '/_app/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AppAdminUsersRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/analisis/dividend': {
+      id: '/_app/analisis/dividend'
+      path: '/dividend'
+      fullPath: '/analisis/dividend'
+      preLoaderRoute: typeof AppAnalisisDividendRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/analisis/earnings': {
+      id: '/_app/analisis/earnings'
+      path: '/earnings'
+      fullPath: '/analisis/earnings'
+      preLoaderRoute: typeof AppAnalisisEarningsRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/analisis/portfolio': {
+      id: '/_app/analisis/portfolio'
+      path: '/portfolio'
+      fullPath: '/analisis/portfolio'
+      preLoaderRoute: typeof AppAnalisisPortfolioRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/analisis/screener': {
+      id: '/_app/analisis/screener'
+      path: '/screener'
+      fullPath: '/analisis/screener'
+      preLoaderRoute: typeof AppAnalisisScreenerRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/analisis/technical': {
+      id: '/_app/analisis/technical'
+      path: '/technical'
+      fullPath: '/analisis/technical'
+      preLoaderRoute: typeof AppAnalisisTechnicalRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/analisis/valuation': {
+      id: '/_app/analisis/valuation'
+      path: '/valuation'
+      fullPath: '/analisis/valuation'
+      preLoaderRoute: typeof AppAnalisisValuationRouteImport
+      parentRoute: typeof AppAnalisisRoute
+    }
+    '/_app/ekonomi/': {
+      id: '/_app/ekonomi/'
+      path: '/'
+      fullPath: '/ekonomi/'
+      preLoaderRoute: typeof AppEkonomiIndexRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/ekonomi/ai-brief': {
+      id: '/_app/ekonomi/ai-brief'
+      path: '/ai-brief'
+      fullPath: '/ekonomi/ai-brief'
+      preLoaderRoute: typeof AppEkonomiAiBriefRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/ekonomi/calendar': {
+      id: '/_app/ekonomi/calendar'
+      path: '/calendar'
+      fullPath: '/ekonomi/calendar'
+      preLoaderRoute: typeof AppEkonomiCalendarRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/ekonomi/global': {
+      id: '/_app/ekonomi/global'
+      path: '/global'
+      fullPath: '/ekonomi/global'
+      preLoaderRoute: typeof AppEkonomiGlobalRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/ekonomi/komoditas': {
+      id: '/_app/ekonomi/komoditas'
+      path: '/komoditas'
+      fullPath: '/ekonomi/komoditas'
+      preLoaderRoute: typeof AppEkonomiKomoditasRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/ekonomi/macro': {
+      id: '/_app/ekonomi/macro'
+      path: '/macro'
+      fullPath: '/ekonomi/macro'
+      preLoaderRoute: typeof AppEkonomiMacroRouteImport
+      parentRoute: typeof AppEkonomiRoute
+    }
+    '/_app/idx/markets': {
+      id: '/_app/idx/markets'
+      path: '/idx/markets'
+      fullPath: '/idx/markets'
+      preLoaderRoute: typeof AppIdxMarketsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/idx/screener': {
+      id: '/_app/idx/screener'
+      path: '/idx/screener'
+      fullPath: '/idx/screener'
+      preLoaderRoute: typeof AppIdxScreenerRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
