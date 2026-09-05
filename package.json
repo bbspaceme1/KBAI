@@ -25,6 +25,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:rls": "vitest run src/lib/__tests__/rls-authorization.test.ts",
     "check": "npm run lint:ci && npm run build",
     "ci": "npm ci",
     "deploy": "vercel --prod",

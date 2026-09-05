@@ -1,4 +1,5 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Search,
@@ -10,10 +11,27 @@ import {
   LineChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/auth";
-import { Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/analisis")({
+  beforeLoad: async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) throw redirect({ to: "/login" });
+
+    const roles = Array.isArray(data.user.app_metadata?.roles)
+      ? data.user.app_metadata.roles.map(String)
+      : [];
+    let allowed = roles.includes("admin") || roles.includes("advisor");
+
+    if (!allowed) {
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.user.id);
+      allowed = !!userRoles?.some((entry) => ["admin", "advisor"].includes(String(entry.role)));
+    }
+
+    if (!allowed) throw redirect({ to: "/community" });
+  },
   component: AnalisisLayout,
 });
 
@@ -63,13 +81,8 @@ const MODULES = [
 ] as const;
 
 function AnalisisLayout() {
-  const auth = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isHub = pathname === "/analisis" || pathname === "/analisis/";
-
-  if (!auth.isLoading && !auth.isAdmin && !auth.isAdvisor) {
-    return <Navigate to="/community" replace />;
-  }
 
   return (
     <div className="space-y-6">
