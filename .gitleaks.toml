@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Legacy example values and an already-applied migration contain historical public/placeholder data; keep these exact paths scoped out while scanning all other files and commits."
+paths = [
+  '''(?i)^SUPABASE_CONNECTION_GUIDE\.md$''',
+  '''(?i)^supabase/migrations/20260507145710_75dc0dce-897f-4741-b6dc-2cb33fe8dc63\.sql$''',
+]
