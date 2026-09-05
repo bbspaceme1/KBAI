@@ -45,3 +45,7 @@ test-results/
 
 # Tooling lockfiles
 bun.lock
+
+# Supabase local runtime metadata
+supabase/.temp/
+supabase/.branches/

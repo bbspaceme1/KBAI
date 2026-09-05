@@ -1,3 +1,4 @@
+/*
 -- =========================================
 -- ENUM TYPES
 -- =========================================
@@ -347,3 +348,4 @@ BEGIN
   INSERT INTO public.cash_balances (user_id, balance) VALUES (new_user_id, 0)
     ON CONFLICT (user_id) DO NOTHING;
 END $$;
+*/

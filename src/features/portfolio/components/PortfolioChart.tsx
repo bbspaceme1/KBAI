@@ -60,7 +60,7 @@ export function PortfolioChart({ holdings, prices }: PortfolioChartProps) {
           <div className="space-y-1">
             <h3 className="font-serif text-lg font-semibold">No chart data</h3>
             <p className="max-w-sm text-[12px] text-muted-foreground">
-              Add holdings and refresh prices to see your portfolio composition.
+              Add holdings to see your portfolio composition.
             </p>
           </div>
         </div>
