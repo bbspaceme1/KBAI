@@ -46,6 +46,7 @@ const accounts = [
 
 async function run() {
   console.log("Seeding Supabase accounts...");
+  let hasFailures = false;
 
   for (const account of accounts) {
     console.log(`\nCreating ${account.roleName} account: ${account.email}`);
@@ -62,12 +63,14 @@ async function run() {
 
     if (error) {
       console.error(`Failed to create ${account.roleName}:`, error.message ?? error);
+      hasFailures = true;
       continue;
     }
 
     const user = data?.user;
     if (!user) {
       console.error(`No user returned for ${account.email}`);
+      hasFailures = true;
       continue;
     }
 
@@ -78,9 +81,9 @@ async function run() {
         .insert(extraRoles.map((role) => ({ user_id: user.id, role })));
 
       if (roleError) {
-        console.error(
-          `Failed to assign extra role(s) to ${account.email}:`,
-          roleError.message ?? roleError,
+        hasFailures = true;
+        throw new Error(
+          `Failed to assign extra role(s) to ${account.email}: ${roleError.message ?? roleError}`,
         );
       }
     }
@@ -93,13 +96,14 @@ async function run() {
         display_name: account.display_name,
       });
       if (profileError) {
-        console.error(
-          `Failed to upsert profile for ${account.email}:`,
-          profileError.message ?? profileError,
+        hasFailures = true;
+        throw new Error(
+          `Failed to upsert profile for ${account.email}: ${profileError.message ?? profileError}`,
         );
       }
     } catch (err) {
-      console.error(`Profiles upsert failed for ${account.email}:`, err);
+      hasFailures = true;
+      throw new Error(`Profiles upsert failed for ${account.email}: ${err}`);
     }
 
     // Auto-enable 2FA for privileged seeded accounts so admin/advisor can login
@@ -115,20 +119,64 @@ async function run() {
             .from("user_2fa")
             .insert([{ user_id: user.id, enabled: true }]);
           if (twofaError) {
-            console.error(
-              `Failed to create 2FA record for ${account.email}:`,
-              twofaError.message ?? twofaError,
+            hasFailures = true;
+            throw new Error(
+              `Failed to create 2FA record for ${account.email}: ${twofaError.message ?? twofaError}`,
             );
           }
         }
       } catch (err) {
-        console.error(`2FA setup failed for ${account.email}:`, err);
+        hasFailures = true;
+        throw new Error(`2FA setup failed for ${account.email}: ${err}`);
       }
     }
 
     console.log(
       `Created ${account.roleName} user ${account.email} with password ${account.password}`,
     );
+  }
+
+  const expectedRoles = accounts.flatMap((account) =>
+    account.roles.map((role) => ({ email: account.email, role })),
+  );
+  const verificationFailures = [];
+
+  for (const expected of expectedRoles) {
+    const { data: user, error: userError } = await supabase.auth.admin.listUsers();
+    if (userError) {
+      verificationFailures.push(
+        `Unable to verify ${expected.email}:${expected.role}: ${userError.message ?? userError}`,
+      );
+      continue;
+    }
+
+    const matchedUser = user.users.find((candidate) => candidate.email === expected.email);
+    if (!matchedUser) {
+      verificationFailures.push(`Missing seeded user ${expected.email}`);
+      continue;
+    }
+
+    const { data: roleRow, error: roleError } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", matchedUser.id)
+      .eq("role", expected.role)
+      .maybeSingle();
+    if (roleError || !roleRow) {
+      verificationFailures.push(
+        `Missing expected role ${expected.email}:${expected.role}${roleError ? ` (${roleError.message ?? roleError})` : ""}`,
+      );
+    }
+  }
+
+  if (verificationFailures.length > 0) {
+    console.error("\nSEED VERIFICATION FAILED:");
+    verificationFailures.forEach((failure) => console.error(`- ${failure}`));
+    hasFailures = true;
+  }
+
+  if (hasFailures) {
+    throw new Error("Seed completed with failures; review the errors above.");
   }
 
   console.log("\nSeed complete.");
