@@ -30,7 +30,7 @@ supabase: Client = create_client(
 
 # ─── PIPELINE STEPS ──────────────────────────────────────────
 
-def log_etl_execution(source: str, status: str, records: int, error: str = "", duration: int = 0):
+def log_etl_execution(source: str, status: str, records: int, error: str = "", duration: int = 0, expected_count: int = None, missing_count: int = None, duplicate_count: int = None):
     """Log ETL execution to database."""
     try:
         record = {
@@ -38,6 +38,9 @@ def log_etl_execution(source: str, status: str, records: int, error: str = "", d
             "source":          source,
             "status":          status,
             "records_stored":  records,
+            "expected_count": expected_count,
+            "missing_count": missing_count,
+            "duplicate_count": duplicate_count,
             "error_message":   error or None,
             "execution_time":  duration,
         }
@@ -74,6 +77,35 @@ def step_1_sync_companies() -> List[str]:
         log.error(f"❌ Step 1 failed: {e}")
         log_etl_execution("idx_companies", "failed", 0, error=str(e), duration=duration)
         return []
+
+
+def reconcile_price_universe(expected_tickers: List[str], run_date: str):
+    """Compare the active company universe with received prices and fail incomplete runs."""
+    if not expected_tickers:
+        return
+    try:
+        received_rows = supabase.table("idx_stock_prices").select("ticker").eq("date", run_date).execute().data or []
+        received = [row["ticker"] for row in received_rows]
+        expected = set(expected_tickers)
+        received_set = set(received)
+        missing = sorted(expected - received_set)
+        duplicates = max(0, len(received) - len(received_set))
+        ratio = len(missing) / len(expected)
+        threshold = float(os.environ.get("IDX_ETL_PARTIAL_THRESHOLD", "0.02"))
+        status = "success" if not missing and not duplicates else ("partial" if ratio <= threshold else "failed")
+        result = supabase.table("idx_etl_logs").insert({
+            "run_date": run_date, "source": "yfinance_reconciliation", "status": status,
+            "records_fetched": len(received), "records_stored": len(received),
+            "expected_count": len(expected), "missing_count": len(missing), "duplicate_count": duplicates,
+        }).execute()
+        log_id = (result.data or [{}])[0].get("id")
+        if log_id and missing:
+            supabase.table("idx_missing_symbols").insert([{"etl_log_id": log_id, "ticker": ticker} for ticker in missing]).execute()
+        if status in {"failed", "rejected"}:
+            raise RuntimeError(f"IDX reconciliation {status}: {len(missing)} missing, {duplicates} duplicates")
+    except Exception as exc:
+        log.error("IDX reconciliation failed: %s", exc)
+        raise
 
 
 def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 50) -> int:
@@ -345,6 +377,7 @@ def run_daily_pipeline(
     # Step 2: Fetch prices
     start_date = "2019-01-01" if full_history else (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
     step_2_fetch_prices(tickers, start_date)
+    reconcile_price_universe(tickers, datetime.now().strftime("%Y-%m-%d"))
     
     # Step 3: Fetch indices
     indices_days = 1825 if full_history else 30
