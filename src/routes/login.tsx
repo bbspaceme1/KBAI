@@ -10,6 +10,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { supabase, supabaseConfigError } from "@/integrations/supabase/client";
 
+declare global {
+  interface Window {
+    onTelegramAuth?: (payload: Record<string, string>) => void;
+  }
+}
+
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
@@ -21,6 +27,59 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [today, setToday] = useState<string>("");
+  const [telegramState, setTelegramState] = useState<"idle" | "connecting" | "checking" | "channel" | "groups" | "verified" | "error">("idle");
+  const [telegramMessage, setTelegramMessage] = useState<string | null>(null);
+  const [missingGroups, setMissingGroups] = useState<Array<{ title: string; inviteUrl: string | null }>>([]);
+
+  const verifyTelegram = async (telegramLogin: Record<string, string>) => {
+    setTelegramState("checking");
+    setTelegramMessage(null);
+    try {
+      const response = await fetch("/api/telegram/verify", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ telegram_login: telegramLogin }),
+      });
+      const result = await response.json();
+      if (result.status === "CHANNEL_REQUIRED") {
+        setTelegramState("channel");
+        setTelegramMessage(result.contact_admin_url ?? "Akses channel resmi dikelola admin komunitas.");
+      } else if (result.status === "GROUPS_REQUIRED") {
+        setTelegramState("groups");
+        setMissingGroups(result.missing_groups ?? []);
+      } else if (result.status === "VERIFIED") {
+        setTelegramState("verified");
+        navigate({ to: "/community" });
+      } else {
+        setTelegramState("error");
+        setTelegramMessage("Verifikasi Telegram sementara tidak tersedia. Silakan coba lagi.");
+      }
+    } catch {
+      setTelegramState("error");
+      setTelegramMessage("Verifikasi Telegram sementara tidak tersedia. Silakan coba lagi.");
+    }
+  };
+
+  useEffect(() => {
+    window.onTelegramAuth = (telegramLogin: Record<string, string>) => verifyTelegram(telegramLogin);
+    const container = document.getElementById("telegram-login-widget");
+    const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+    if (container && botUsername) {
+      const script = document.createElement("script");
+      script.src = "https://telegram.org/js/telegram-widget.js?22";
+      script.async = true;
+      script.dataset.telegramLogin = botUsername;
+      script.dataset.size = "large";
+      script.dataset.onauth = "onTelegramAuth(user)";
+      script.dataset.requestAccess = "write";
+      container.appendChild(script);
+    }
+    return () => {
+      delete window.onTelegramAuth;
+      container?.replaceChildren();
+    };
+  }, []);
+
   useEffect(() => {
     setToday(format(new Date(), "dd MMM yyyy"));
   }, []);
@@ -177,16 +236,49 @@ function LoginPage() {
               {submitting ? "Authenticating…" : "Sign in"}
             </Button>
           </form>
-          <div className="border-t border-border px-5 py-3 text-center">
-            <a
-              href="https://t.me/eLsavador1"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Send className="h-3 w-3" />
-              Hubungi Admin · Telegram @eLsavador1
-            </a>
+          <div className="border-t border-border px-5 py-4">
+            <div className="mb-3 flex items-center gap-2 text-center text-[10px] uppercase tracking-[0.14em] text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
+              <span>or</span>
+            </div>
+            <div className="rounded-sm border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-900 dark:bg-sky-950/20">
+              <div className="mb-2 flex items-center gap-2 text-[12px] font-medium">
+                <Send className="h-3.5 w-3.5 text-sky-600" />
+                Login dengan Telegram
+              </div>
+              <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+                Verifikasi akun Telegram dan membership komunitas sebelum akses diberikan.
+              </p>
+              {telegramState === "idle" || telegramState === "connecting" ? (
+                <div className="flex min-h-10 items-center justify-center" id="telegram-login-widget">
+                  {telegramState === "connecting" ? (
+                    <span className="text-[11px] text-muted-foreground">Connecting to Telegram...</span>
+                  ) : typeof window !== "undefined" && import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? (
+                    null
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">Telegram login sedang disiapkan oleh admin.</span>
+                  )}
+                </div>
+              ) : telegramState === "checking" ? (
+                <p className="text-[11px] text-muted-foreground">Checking KBAI community membership...</p>
+              ) : telegramState === "channel" ? (
+                <div className="space-y-2 text-[11px]">
+                  <p className="font-medium">Channel belum terverifikasi.</p>
+                  <p className="text-muted-foreground">{telegramMessage}</p>
+                  <button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Check Again</button>
+                </div>
+              ) : telegramState === "groups" ? (
+                <div className="space-y-2 text-[11px]">
+                  <p className="font-medium">You still need to join:</p>
+                  {missingGroups.map((group) => <a key={group.title} href={group.inviteUrl ?? undefined} target="_blank" rel="noopener noreferrer" className="block text-sky-700 underline">Join {group.title}</a>)}
+                  <button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Check Again</button>
+                </div>
+              ) : telegramState === "verified" ? (
+                <p className="text-[11px] text-emerald-700">Telegram verified. Redirecting...</p>
+              ) : (
+                <div className="space-y-2 text-[11px]"><p className="text-destructive">{telegramMessage}</p><button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Retry</button></div>
+              )}
+            </div>
+            <p className="mt-3 text-center text-[10px] text-muted-foreground">Hubungi admin komunitas jika akses channel belum tersedia.</p>
           </div>
         </div>
 
