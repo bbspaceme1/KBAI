@@ -94,3 +94,24 @@ GRANT SELECT ON public.telegram_users, public.telegram_memberships, public.teleg
 
 COMMENT ON TABLE public.telegram_verifications IS 'Website authorization derived from server-side Telegram membership checks; never client-writable.';
 COMMENT ON TABLE public.telegram_invite_links IS 'Per-user, single-use discussion-group invites. Master channel never receives generated invites.';
+
+CREATE TABLE IF NOT EXISTS public.telegram_verification_rate_limits (
+  rate_key text PRIMARY KEY,
+  window_started_at timestamptz NOT NULL DEFAULT now(),
+  request_count integer NOT NULL DEFAULT 0
+);
+ALTER TABLE public.telegram_verification_rate_limits ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.telegram_verification_rate_limits FROM anon, authenticated;
+CREATE OR REPLACE FUNCTION public.consume_telegram_verification_rate_limit(p_rate_key text, p_limit integer DEFAULT 5, p_window_seconds integer DEFAULT 60)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE current_count integer;
+BEGIN
+  INSERT INTO public.telegram_verification_rate_limits(rate_key, window_started_at, request_count) VALUES (p_rate_key, now(), 1)
+  ON CONFLICT (rate_key) DO UPDATE SET
+    window_started_at = CASE WHEN now() - public.telegram_verification_rate_limits.window_started_at >= make_interval(secs => p_window_seconds) THEN now() ELSE public.telegram_verification_rate_limits.window_started_at END,
+    request_count = CASE WHEN now() - public.telegram_verification_rate_limits.window_started_at >= make_interval(secs => p_window_seconds) THEN 1 ELSE public.telegram_verification_rate_limits.request_count + 1 END
+  RETURNING request_count INTO current_count;
+  RETURN current_count <= p_limit;
+END; $$;
+REVOKE ALL ON FUNCTION public.consume_telegram_verification_rate_limit(text, integer, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.consume_telegram_verification_rate_limit(text, integer, integer) TO service_role;
