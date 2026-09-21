@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/auth";
 import { recordSession, writeAuditLog } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
@@ -27,41 +27,51 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [today, setToday] = useState<string>("");
-  const [telegramState, setTelegramState] = useState<"idle" | "connecting" | "checking" | "channel" | "groups" | "verified" | "error">("idle");
+  const [telegramState, setTelegramState] = useState<
+    "idle" | "connecting" | "checking" | "channel" | "groups" | "verified" | "error"
+  >("idle");
   const [telegramMessage, setTelegramMessage] = useState<string | null>(null);
-  const [missingGroups, setMissingGroups] = useState<Array<{ title: string; inviteUrl: string | null }>>([]);
+  const [missingGroups, setMissingGroups] = useState<
+    Array<{ title: string; inviteUrl: string | null }>
+  >([]);
 
-  const verifyTelegram = async (telegramLogin: Record<string, string>) => {
-    setTelegramState("checking");
-    setTelegramMessage(null);
-    try {
-      const response = await fetch("/api/telegram/verify", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ telegram_login: telegramLogin }),
-      });
-      const result = await response.json();
-      if (result.status === "CHANNEL_REQUIRED") {
-        setTelegramState("channel");
-        setTelegramMessage(result.contact_admin_url ?? "Akses channel resmi dikelola admin komunitas.");
-      } else if (result.status === "GROUPS_REQUIRED") {
-        setTelegramState("groups");
-        setMissingGroups(result.missing_groups ?? []);
-      } else if (result.status === "VERIFIED") {
-        setTelegramState("verified");
-        navigate({ to: "/community" });
-      } else {
+  const verifyTelegram = useCallback(
+    async (telegramLogin: Record<string, string>) => {
+      setTelegramState("checking");
+      setTelegramMessage(null);
+      try {
+        const response = await fetch("/api/telegram/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ telegram_login: telegramLogin }),
+        });
+        const result = await response.json();
+        if (result.status === "CHANNEL_REQUIRED") {
+          setTelegramState("channel");
+          setTelegramMessage(
+            result.contact_admin_url ?? "Akses channel resmi dikelola admin komunitas.",
+          );
+        } else if (result.status === "GROUPS_REQUIRED") {
+          setTelegramState("groups");
+          setMissingGroups(result.missing_groups ?? []);
+        } else if (result.status === "VERIFIED") {
+          setTelegramState("verified");
+          navigate({ to: "/community" });
+        } else {
+          setTelegramState("error");
+          setTelegramMessage("Verifikasi Telegram sementara tidak tersedia. Silakan coba lagi.");
+        }
+      } catch {
         setTelegramState("error");
         setTelegramMessage("Verifikasi Telegram sementara tidak tersedia. Silakan coba lagi.");
       }
-    } catch {
-      setTelegramState("error");
-      setTelegramMessage("Verifikasi Telegram sementara tidak tersedia. Silakan coba lagi.");
-    }
-  };
+    },
+    [navigate],
+  );
 
   useEffect(() => {
-    window.onTelegramAuth = (telegramLogin: Record<string, string>) => verifyTelegram(telegramLogin);
+    window.onTelegramAuth = (telegramLogin: Record<string, string>) =>
+      verifyTelegram(telegramLogin);
     const container = document.getElementById("telegram-login-widget");
     const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
     if (container && botUsername) {
@@ -78,7 +88,7 @@ function LoginPage() {
       delete window.onTelegramAuth;
       container?.replaceChildren();
     };
-  }, []);
+  }, [verifyTelegram]);
 
   useEffect(() => {
     setToday(format(new Date(), "dd MMM yyyy"));
@@ -249,36 +259,77 @@ function LoginPage() {
                 Verifikasi akun Telegram dan membership komunitas sebelum akses diberikan.
               </p>
               {telegramState === "idle" || telegramState === "connecting" ? (
-                <div className="flex min-h-10 items-center justify-center" id="telegram-login-widget">
+                <div
+                  className="flex min-h-10 items-center justify-center"
+                  id="telegram-login-widget"
+                >
                   {telegramState === "connecting" ? (
-                    <span className="text-[11px] text-muted-foreground">Connecting to Telegram...</span>
-                  ) : typeof window !== "undefined" && import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? (
-                    null
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">Telegram login sedang disiapkan oleh admin.</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Connecting to Telegram...
+                    </span>
+                  ) : typeof window !== "undefined" &&
+                    import.meta.env.VITE_TELEGRAM_BOT_USERNAME ? null : (
+                    <span className="text-[11px] text-muted-foreground">
+                      Telegram login sedang disiapkan oleh admin.
+                    </span>
                   )}
                 </div>
               ) : telegramState === "checking" ? (
-                <p className="text-[11px] text-muted-foreground">Checking KBAI community membership...</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Checking KBAI community membership...
+                </p>
               ) : telegramState === "channel" ? (
                 <div className="space-y-2 text-[11px]">
                   <p className="font-medium">Channel belum terverifikasi.</p>
                   <p className="text-muted-foreground">{telegramMessage}</p>
-                  <button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Check Again</button>
+                  <button
+                    type="button"
+                    onClick={() => setTelegramState("idle")}
+                    className="text-sky-700 underline"
+                  >
+                    Check Again
+                  </button>
                 </div>
               ) : telegramState === "groups" ? (
                 <div className="space-y-2 text-[11px]">
                   <p className="font-medium">You still need to join:</p>
-                  {missingGroups.map((group) => <a key={group.title} href={group.inviteUrl ?? undefined} target="_blank" rel="noopener noreferrer" className="block text-sky-700 underline">Join {group.title}</a>)}
-                  <button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Check Again</button>
+                  {missingGroups.map((group) => (
+                    <a
+                      key={group.title}
+                      href={group.inviteUrl ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-sky-700 underline"
+                    >
+                      Join {group.title}
+                    </a>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setTelegramState("idle")}
+                    className="text-sky-700 underline"
+                  >
+                    Check Again
+                  </button>
                 </div>
               ) : telegramState === "verified" ? (
                 <p className="text-[11px] text-emerald-700">Telegram verified. Redirecting...</p>
               ) : (
-                <div className="space-y-2 text-[11px]"><p className="text-destructive">{telegramMessage}</p><button type="button" onClick={() => setTelegramState("idle")} className="text-sky-700 underline">Retry</button></div>
+                <div className="space-y-2 text-[11px]">
+                  <p className="text-destructive">{telegramMessage}</p>
+                  <button
+                    type="button"
+                    onClick={() => setTelegramState("idle")}
+                    className="text-sky-700 underline"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
             </div>
-            <p className="mt-3 text-center text-[10px] text-muted-foreground">Hubungi admin komunitas jika akses channel belum tersedia.</p>
+            <p className="mt-3 text-center text-[10px] text-muted-foreground">
+              Hubungi admin komunitas jika akses channel belum tersedia.
+            </p>
           </div>
         </div>
 
