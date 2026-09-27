@@ -29,7 +29,6 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { writeAuditLog } from "@/lib/admin.functions";
-import { featureFlags, FeatureFlag } from "@/lib/feature-flags";
 import { CommandPalette } from "@/components/command-palette";
 import {
   DropdownMenu,
@@ -135,6 +134,7 @@ const ADMIN_GROUPS: NavGroup[] = [
     items: [
       { to: "/admin/audit", label: "Audit Log", icon: ScrollText },
       { to: "/admin/security", label: "Security", icon: ShieldCheck },
+      { to: "/admin/system-health", label: "System Health", icon: Activity },
     ],
   },
   {
@@ -166,6 +166,7 @@ const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/admin/transactions": { title: "Administration", subtitle: "Transactions" },
   "/admin/audit": { title: "Administration", subtitle: "Audit Log" },
   "/admin/security": { title: "Administration", subtitle: "Security · Sessions" },
+  "/admin/system-health": { title: "Administration", subtitle: "System Health" },
   "/admin/holdings": { title: "Advisor", subtitle: "Analisis · Holdings" },
   "/admin/user-portfolios": { title: "Advisor", subtitle: "Analisis · User Portfolios" },
   "/admin/insight": { title: "Advisor", subtitle: "Analisis · Insight" },
@@ -260,19 +261,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {g.items
                   .filter((item) => {
                     // Feature flag checks for navigation items
-                    if (
-                      item.to === "/settings" &&
-                      !featureFlags.isEnabled(FeatureFlag.ENABLE_DARK_MODE)
-                    ) {
-                      return false;
-                    }
-                    if (
-                      item.to === "/analisis" &&
-                      !featureFlags.isEnabled(FeatureFlag.ENABLE_PERFORMANCE_MONITORING)
-                    ) {
-                      return false;
-                    }
-                    // Dashboard should always be visible
+                    // Navigation is the source of truth for available workflows. Feature flags
+                    // gate behavior inside pages, not whether users can discover a route.
                     return true;
                   })
                   .map((item) => (
@@ -305,8 +295,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Akun
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled>
-                  <UserIcon className="mr-2 h-4 w-4" /> Profile
+                <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
+                  <UserIcon className="mr-2 h-4 w-4" /> Profile & account
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate({ to: "/settings" })}>
                   <Settings className="mr-2 h-4 w-4" /> Settings
