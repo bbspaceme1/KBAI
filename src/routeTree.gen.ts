@@ -50,6 +50,7 @@ import { Route as AppEkonomiKomoditasRouteImport } from './routes/_app.ekonomi.k
 import { Route as AppEkonomiMacroRouteImport } from './routes/_app.ekonomi.macro'
 import { Route as AppIdxMarketsRouteImport } from './routes/_app.idx.markets'
 import { Route as AppIdxScreenerRouteImport } from './routes/_app.idx.screener'
+import { Route as ApiTelegramVerifyRouteImport } from './routes/api/telegram/verify'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -255,6 +256,11 @@ const AppIdxScreenerRoute = AppIdxScreenerRouteImport.update({
   path: '/idx/screener',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiTelegramVerifyRoute = ApiTelegramVerifyRouteImport.update({
+  id: '/api/telegram/verify',
+  path: '/api/telegram/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/ekonomi/macro': typeof AppEkonomiMacroRoute
   '/idx/markets': typeof AppIdxMarketsRoute
   '/idx/screener': typeof AppIdxScreenerRoute
+  '/api/telegram/verify': typeof ApiTelegramVerifyRoute
   '/ekonomi/': typeof AppEkonomiIndexRoute
 }
 export interface FileRoutesByTo {
@@ -337,6 +344,7 @@ export interface FileRoutesByTo {
   '/ekonomi/macro': typeof AppEkonomiMacroRoute
   '/idx/markets': typeof AppIdxMarketsRoute
   '/idx/screener': typeof AppIdxScreenerRoute
+  '/api/telegram/verify': typeof ApiTelegramVerifyRoute
   '/ekonomi': typeof AppEkonomiIndexRoute
 }
 export interface FileRoutesById {
@@ -381,6 +389,7 @@ export interface FileRoutesById {
   '/_app/ekonomi/macro': typeof AppEkonomiMacroRoute
   '/_app/idx/markets': typeof AppIdxMarketsRoute
   '/_app/idx/screener': typeof AppIdxScreenerRoute
+  '/api/telegram/verify': typeof ApiTelegramVerifyRoute
   '/_app/ekonomi/': typeof AppEkonomiIndexRoute
 }
 export interface FileRouteTypes {
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/ekonomi/macro'
     | '/idx/markets'
     | '/idx/screener'
+    | '/api/telegram/verify'
     | '/ekonomi/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/ekonomi/macro'
     | '/idx/markets'
     | '/idx/screener'
+    | '/api/telegram/verify'
     | '/ekonomi'
   id:
     | '__root__'
@@ -509,6 +520,7 @@ export interface FileRouteTypes {
     | '/_app/ekonomi/macro'
     | '/_app/idx/markets'
     | '/_app/idx/screener'
+    | '/api/telegram/verify'
     | '/_app/ekonomi/'
   fileRoutesById: FileRoutesById
 }
@@ -519,6 +531,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RequestAccessRoute: typeof RequestAccessRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiTelegramVerifyRoute: typeof ApiTelegramVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -810,6 +823,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIdxScreenerRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/telegram/verify': {
+      id: '/api/telegram/verify'
+      path: '/api/telegram/verify'
+      fullPath: '/api/telegram/verify'
+      preLoaderRoute: typeof ApiTelegramVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -928,6 +948,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RequestAccessRoute: RequestAccessRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiTelegramVerifyRoute: ApiTelegramVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

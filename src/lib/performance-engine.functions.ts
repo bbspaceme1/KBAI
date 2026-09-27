@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Existing Supabase schema typings omit analytics views used by this feature. */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type Snapshot = { date: string; total_value: number };
@@ -22,11 +23,13 @@ export function calculateXirrFromFlows(flows: Array<{ date: string; amount: numb
   if (flows.length < 2) return null;
   const origin = Date.parse(flows[0].date);
   const yearFraction = (date: string) => (Date.parse(date) - origin) / 86_400_000 / 365;
-  const npv = (rate: number) => flows.reduce((sum, flow) => sum + flow.amount / (1 + rate) ** yearFraction(flow.date), 0);
-  const derivative = (rate: number) => flows.reduce((sum, flow) => {
-    const t = yearFraction(flow.date);
-    return sum - (t * flow.amount) / (1 + rate) ** (t + 1);
-  }, 0);
+  const npv = (rate: number) =>
+    flows.reduce((sum, flow) => sum + flow.amount / (1 + rate) ** yearFraction(flow.date), 0);
+  const derivative = (rate: number) =>
+    flows.reduce((sum, flow) => {
+      const t = yearFraction(flow.date);
+      return sum - (t * flow.amount) / (1 + rate) ** (t + 1);
+    }, 0);
   let rate = 0.1;
   for (let iteration = 0; iteration < 100; iteration += 1) {
     const value = npv(rate);
@@ -56,24 +59,55 @@ export function calculateAlpha(userTwr: number | null, benchmarkReturn: number |
   return userTwr == null || benchmarkReturn == null ? null : userTwr - benchmarkReturn;
 }
 
-export async function getPortfolioPerformanceSummary(userId: string, fromDate: string, toDate: string, benchmarkSymbol = "IHSG") {
+export async function getPortfolioPerformanceSummary(
+  userId: string,
+  fromDate: string,
+  toDate: string,
+  benchmarkSymbol = "IHSG",
+) {
   const db = supabaseAdmin as any;
-  const [{ data: snapshots, error: snapshotError }, { data: cashFlows, error: flowError }] = await Promise.all([
-    db.from("portfolio_snapshots").select("date,total_value").eq("user_id", userId).gte("date", fromDate).lte("date", toDate).order("date"),
-    db.from("portfolio_cash_flows").select("flow_date,amount").eq("user_id", userId).gte("flow_date", fromDate).lte("flow_date", toDate).order("flow_date"),
-  ]);
+  const [{ data: snapshots, error: snapshotError }, { data: cashFlows, error: flowError }] =
+    await Promise.all([
+      db
+        .from("portfolio_snapshots")
+        .select("date,total_value")
+        .eq("user_id", userId)
+        .gte("date", fromDate)
+        .lte("date", toDate)
+        .order("date"),
+      db
+        .from("portfolio_cash_flows")
+        .select("flow_date,amount")
+        .eq("user_id", userId)
+        .gte("flow_date", fromDate)
+        .lte("flow_date", toDate)
+        .order("flow_date"),
+    ]);
   if (snapshotError) throw new Error(snapshotError.message);
   if (flowError) throw new Error(flowError.message);
   const series = (snapshots ?? []) as Snapshot[];
   const flows = (cashFlows ?? []) as CashFlow[];
   const twr = calculateTwrFromSeries(series, flows);
   const latestValue = series.at(-1)?.total_value;
-  const xirrFlows = flows.map((flow) => ({ date: flow.flow_date, amount: -flow.amount })).concat(
-    latestValue == null ? [] : [{ date: toDate, amount: latestValue }],
-  );
+  const xirrFlows = flows
+    .map((flow) => ({ date: flow.flow_date, amount: -flow.amount }))
+    .concat(latestValue == null ? [] : [{ date: toDate, amount: latestValue }]);
   const xirr = calculateXirrFromFlows(xirrFlows);
   const drawdown = calculateDrawdownFromSeries(series.map((item) => item.total_value));
-  const { data: benchmark } = await db.from("benchmark_base100_series").select("normalized_value").eq("benchmark_symbol", benchmarkSymbol).eq("period_start_date", fromDate).gte("as_of_date", fromDate).lte("as_of_date", toDate).order("as_of_date");
+  const { data: benchmark } = await db
+    .from("benchmark_base100_series")
+    .select("normalized_value")
+    .eq("benchmark_symbol", benchmarkSymbol)
+    .eq("period_start_date", fromDate)
+    .gte("as_of_date", fromDate)
+    .lte("as_of_date", toDate)
+    .order("as_of_date");
   const benchmarkReturn = benchmark?.length ? benchmark.at(-1).normalized_value / 100 - 1 : null;
-  return { twr, xirr, ...drawdown, benchmarkComparison: [{ symbol: benchmarkSymbol, return: benchmarkReturn }], alpha: calculateAlpha(twr, benchmarkReturn) };
+  return {
+    twr,
+    xirr,
+    ...drawdown,
+    benchmarkComparison: [{ symbol: benchmarkSymbol, return: benchmarkReturn }],
+    alpha: calculateAlpha(twr, benchmarkReturn),
+  };
 }
