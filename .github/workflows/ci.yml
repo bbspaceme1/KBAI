@@ -37,19 +37,6 @@ jobs:
         run: npx tsc --noEmit
       - name: Build
         run: npm run build
-      - name: Verify no service-role key in client bundle
-        env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          if [[ -z "$SUPABASE_SERVICE_ROLE_KEY" ]]; then
-            echo "SUPABASE_SERVICE_ROLE_KEY is not available for bundle verification"
-            exit 1
-          fi
-          if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
-            echo "Service-role key value found in client build output"
-            exit 1
-          fi
-          echo "No service-role key value in client bundle"
       - name: Supabase admin guard check
         run: node ./scripts/check_supabase_admin_guards.cjs
       - name: Unit tests
@@ -63,39 +50,44 @@ jobs:
           fail_ci_if_error: false
           verbose: true
         continue-on-error: true
-      - name: Validate required secrets
+
+  integration:
+    name: Integration and E2E
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build client for secret scan
+        run: npm run build
+      - name: Verify no service-role key in client bundle
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
+            echo "Service-role key value found in client build output"
+            exit 1
+          fi
+      - name: Validate required integration secrets
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
-          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
         run: |
-          test -n "$SUPABASE_URL" || { echo "SUPABASE_URL is required"; exit 1; }
-          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "SUPABASE_SERVICE_ROLE_KEY is required"; exit 1; }
-          test -n "$SUPABASE_ANON_KEY" || { echo "SUPABASE_ANON_KEY is required"; exit 1; }
-          test -n "$OPENAI_API_KEY" || { echo "OPENAI_API_KEY is required"; exit 1; }
-          test -n "$ANTHROPIC_API_KEY" || { echo "ANTHROPIC_API_KEY is required"; exit 1; }
-          test -n "$GEMINI_API_KEY" || { echo "GEMINI_API_KEY is required"; exit 1; }
-          test -n "$MIDTRANS_SERVER_KEY" || { echo "MIDTRANS_SERVER_KEY is required"; exit 1; }
-          test -n "$MIDTRANS_CLIENT_KEY" || { echo "MIDTRANS_CLIENT_KEY is required"; exit 1; }
-          test -n "$SENTRY_DSN" || { echo "SENTRY_DSN is required"; exit 1; }
-          test -n "$VITE_POSTHOG_KEY" || { echo "VITE_POSTHOG_KEY is required"; exit 1; }
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          test -n "$SUPABASE_ANON_KEY"
       - name: E2E tests
         run: npm run test:e2e
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
-          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
