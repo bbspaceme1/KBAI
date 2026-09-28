@@ -14,6 +14,7 @@ import {
   Receipt,
   PieChart,
   ShieldCheck,
+  LifeBuoy,
   ScrollText,
   Settings,
   Star,
@@ -56,6 +57,7 @@ const MEMBER_GROUPS: NavGroup[] = [
     items: [
       { to: "/community", label: "Dashboard", icon: Users },
       { to: "/portfolio", label: "Portfolio", icon: Briefcase },
+      { to: "/emergency-fund", label: "Dana Darurat", icon: LifeBuoy },
       { to: "/watchlist", label: "Watchlist", icon: Star },
       { to: "/market-insight", label: "Market Insight", icon: Newspaper },
     ],
@@ -149,6 +151,9 @@ const ADMIN_GROUPS: NavGroup[] = [
 const ROUTE_TITLES: Record<string, { title: string; subtitle: string }> = {
   "/community": { title: "Community Dashboard", subtitle: "KBAI · IHSG · GOLD" },
   "/portfolio": { title: "Portfolio", subtitle: "Holdings & transactions" },
+  "/emergency-fund": { title: "Dana Darurat", subtitle: "Personal resilience" },
+  "/emergency-fund/setup": { title: "Dana Darurat", subtitle: "Setup personal" },
+  "/emergency-fund/history": { title: "Dana Darurat", subtitle: "Riwayat perhitungan" },
   "/market-insight": { title: "Market Insight", subtitle: "Broadcast advisor" },
   "/analisis": { title: "Analisis", subtitle: "Equity Intelligence Platform" },
   "/analisis/screener": { title: "Analisis", subtitle: "Stock Screener" },

@@ -20,6 +20,7 @@ import { Route as AppAdminRouteImport } from './routes/_app.admin'
 import { Route as AppAnalisisRouteImport } from './routes/_app.analisis'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppEkonomiRouteImport } from './routes/_app.ekonomi'
+import { Route as AppEmergencyFundRouteImport } from './routes/_app.emergency-fund'
 import { Route as AppMarketInsightRouteImport } from './routes/_app.market-insight'
 import { Route as AppPortfolioRouteImport } from './routes/_app.portfolio'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -48,6 +49,8 @@ import { Route as AppEkonomiCalendarRouteImport } from './routes/_app.ekonomi.ca
 import { Route as AppEkonomiGlobalRouteImport } from './routes/_app.ekonomi.global'
 import { Route as AppEkonomiKomoditasRouteImport } from './routes/_app.ekonomi.komoditas'
 import { Route as AppEkonomiMacroRouteImport } from './routes/_app.ekonomi.macro'
+import { Route as AppEmergencyFundHistoryRouteImport } from './routes/_app.emergency-fund.history'
+import { Route as AppEmergencyFundSetupRouteImport } from './routes/_app.emergency-fund.setup'
 import { Route as AppIdxMarketsRouteImport } from './routes/_app.idx.markets'
 import { Route as AppIdxScreenerRouteImport } from './routes/_app.idx.screener'
 import { Route as ApiTelegramVerifyRouteImport } from './routes/api/telegram/verify'
@@ -104,6 +107,11 @@ const AppCommunityRoute = AppCommunityRouteImport.update({
 const AppEkonomiRoute = AppEkonomiRouteImport.update({
   id: '/ekonomi',
   path: '/ekonomi',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmergencyFundRoute = AppEmergencyFundRouteImport.update({
+  id: '/emergency-fund',
+  path: '/emergency-fund',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMarketInsightRoute = AppMarketInsightRouteImport.update({
@@ -246,6 +254,16 @@ const AppEkonomiMacroRoute = AppEkonomiMacroRouteImport.update({
   path: '/macro',
   getParentRoute: () => AppEkonomiRoute,
 } as any)
+const AppEmergencyFundHistoryRoute = AppEmergencyFundHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AppEmergencyFundRoute,
+} as any)
+const AppEmergencyFundSetupRoute = AppEmergencyFundSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => AppEmergencyFundRoute,
+} as any)
 const AppIdxMarketsRoute = AppIdxMarketsRouteImport.update({
   id: '/idx/markets',
   path: '/idx/markets',
@@ -273,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/analisis': typeof AppAnalisisRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/ekonomi': typeof AppEkonomiRouteWithChildren
+  '/emergency-fund': typeof AppEmergencyFundRouteWithChildren
   '/market-insight': typeof AppMarketInsightRoute
   '/portfolio': typeof AppPortfolioRoute
   '/settings': typeof AppSettingsRoute
@@ -300,6 +319,8 @@ export interface FileRoutesByFullPath {
   '/ekonomi/global': typeof AppEkonomiGlobalRoute
   '/ekonomi/komoditas': typeof AppEkonomiKomoditasRoute
   '/ekonomi/macro': typeof AppEkonomiMacroRoute
+  '/emergency-fund/history': typeof AppEmergencyFundHistoryRoute
+  '/emergency-fund/setup': typeof AppEmergencyFundSetupRoute
   '/idx/markets': typeof AppIdxMarketsRoute
   '/idx/screener': typeof AppIdxScreenerRoute
   '/api/telegram/verify': typeof ApiTelegramVerifyRoute
@@ -315,6 +336,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AppAdminRouteWithChildren
   '/analisis': typeof AppAnalisisRouteWithChildren
   '/community': typeof AppCommunityRoute
+  '/emergency-fund': typeof AppEmergencyFundRouteWithChildren
   '/market-insight': typeof AppMarketInsightRoute
   '/portfolio': typeof AppPortfolioRoute
   '/settings': typeof AppSettingsRoute
@@ -342,6 +364,8 @@ export interface FileRoutesByTo {
   '/ekonomi/global': typeof AppEkonomiGlobalRoute
   '/ekonomi/komoditas': typeof AppEkonomiKomoditasRoute
   '/ekonomi/macro': typeof AppEkonomiMacroRoute
+  '/emergency-fund/history': typeof AppEmergencyFundHistoryRoute
+  '/emergency-fund/setup': typeof AppEmergencyFundSetupRoute
   '/idx/markets': typeof AppIdxMarketsRoute
   '/idx/screener': typeof AppIdxScreenerRoute
   '/api/telegram/verify': typeof ApiTelegramVerifyRoute
@@ -360,6 +384,7 @@ export interface FileRoutesById {
   '/_app/analisis': typeof AppAnalisisRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
   '/_app/ekonomi': typeof AppEkonomiRouteWithChildren
+  '/_app/emergency-fund': typeof AppEmergencyFundRouteWithChildren
   '/_app/market-insight': typeof AppMarketInsightRoute
   '/_app/portfolio': typeof AppPortfolioRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -387,6 +412,8 @@ export interface FileRoutesById {
   '/_app/ekonomi/global': typeof AppEkonomiGlobalRoute
   '/_app/ekonomi/komoditas': typeof AppEkonomiKomoditasRoute
   '/_app/ekonomi/macro': typeof AppEkonomiMacroRoute
+  '/_app/emergency-fund/history': typeof AppEmergencyFundHistoryRoute
+  '/_app/emergency-fund/setup': typeof AppEmergencyFundSetupRoute
   '/_app/idx/markets': typeof AppIdxMarketsRoute
   '/_app/idx/screener': typeof AppIdxScreenerRoute
   '/api/telegram/verify': typeof ApiTelegramVerifyRoute
@@ -405,6 +432,7 @@ export interface FileRouteTypes {
     | '/analisis'
     | '/community'
     | '/ekonomi'
+    | '/emergency-fund'
     | '/market-insight'
     | '/portfolio'
     | '/settings'
@@ -432,6 +460,8 @@ export interface FileRouteTypes {
     | '/ekonomi/global'
     | '/ekonomi/komoditas'
     | '/ekonomi/macro'
+    | '/emergency-fund/history'
+    | '/emergency-fund/setup'
     | '/idx/markets'
     | '/idx/screener'
     | '/api/telegram/verify'
@@ -447,6 +477,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/analisis'
     | '/community'
+    | '/emergency-fund'
     | '/market-insight'
     | '/portfolio'
     | '/settings'
@@ -474,6 +505,8 @@ export interface FileRouteTypes {
     | '/ekonomi/global'
     | '/ekonomi/komoditas'
     | '/ekonomi/macro'
+    | '/emergency-fund/history'
+    | '/emergency-fund/setup'
     | '/idx/markets'
     | '/idx/screener'
     | '/api/telegram/verify'
@@ -491,6 +524,7 @@ export interface FileRouteTypes {
     | '/_app/analisis'
     | '/_app/community'
     | '/_app/ekonomi'
+    | '/_app/emergency-fund'
     | '/_app/market-insight'
     | '/_app/portfolio'
     | '/_app/settings'
@@ -518,6 +552,8 @@ export interface FileRouteTypes {
     | '/_app/ekonomi/global'
     | '/_app/ekonomi/komoditas'
     | '/_app/ekonomi/macro'
+    | '/_app/emergency-fund/history'
+    | '/_app/emergency-fund/setup'
     | '/_app/idx/markets'
     | '/_app/idx/screener'
     | '/api/telegram/verify'
@@ -611,6 +647,13 @@ declare module '@tanstack/react-router' {
       path: '/ekonomi'
       fullPath: '/ekonomi'
       preLoaderRoute: typeof AppEkonomiRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/emergency-fund': {
+      id: '/_app/emergency-fund'
+      path: '/emergency-fund'
+      fullPath: '/emergency-fund'
+      preLoaderRoute: typeof AppEmergencyFundRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/market-insight': {
@@ -809,6 +852,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEkonomiMacroRouteImport
       parentRoute: typeof AppEkonomiRoute
     }
+    '/_app/emergency-fund/history': {
+      id: '/_app/emergency-fund/history'
+      path: '/history'
+      fullPath: '/emergency-fund/history'
+      preLoaderRoute: typeof AppEmergencyFundHistoryRouteImport
+      parentRoute: typeof AppEmergencyFundRoute
+    }
+    '/_app/emergency-fund/setup': {
+      id: '/_app/emergency-fund/setup'
+      path: '/setup'
+      fullPath: '/emergency-fund/setup'
+      preLoaderRoute: typeof AppEmergencyFundSetupRouteImport
+      parentRoute: typeof AppEmergencyFundRoute
+    }
     '/_app/idx/markets': {
       id: '/_app/idx/markets'
       path: '/idx/markets'
@@ -911,12 +968,26 @@ const AppEkonomiRouteWithChildren = AppEkonomiRoute._addFileChildren(
   AppEkonomiRouteChildren,
 )
 
+interface AppEmergencyFundRouteChildren {
+  AppEmergencyFundHistoryRoute: typeof AppEmergencyFundHistoryRoute
+  AppEmergencyFundSetupRoute: typeof AppEmergencyFundSetupRoute
+}
+
+const AppEmergencyFundRouteChildren: AppEmergencyFundRouteChildren = {
+  AppEmergencyFundHistoryRoute: AppEmergencyFundHistoryRoute,
+  AppEmergencyFundSetupRoute: AppEmergencyFundSetupRoute,
+}
+
+const AppEmergencyFundRouteWithChildren =
+  AppEmergencyFundRoute._addFileChildren(AppEmergencyFundRouteChildren)
+
 interface AppRouteChildren {
   AppActivityRoute: typeof AppActivityRoute
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppAnalisisRoute: typeof AppAnalisisRouteWithChildren
   AppCommunityRoute: typeof AppCommunityRoute
   AppEkonomiRoute: typeof AppEkonomiRouteWithChildren
+  AppEmergencyFundRoute: typeof AppEmergencyFundRouteWithChildren
   AppMarketInsightRoute: typeof AppMarketInsightRoute
   AppPortfolioRoute: typeof AppPortfolioRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -931,6 +1002,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnalisisRoute: AppAnalisisRouteWithChildren,
   AppCommunityRoute: AppCommunityRoute,
   AppEkonomiRoute: AppEkonomiRouteWithChildren,
+  AppEmergencyFundRoute: AppEmergencyFundRouteWithChildren,
   AppMarketInsightRoute: AppMarketInsightRoute,
   AppPortfolioRoute: AppPortfolioRoute,
   AppSettingsRoute: AppSettingsRoute,
