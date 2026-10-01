@@ -57,8 +57,6 @@ const ADVISOR_STEPS: Step[] = [
   },
 ];
 
-const STORAGE_KEY = "kbai-onboarding-shown";
-
 export function OnboardingTour() {
   const auth = useAuth();
   const [open, setOpen] = useState(false);
@@ -69,8 +67,6 @@ export function OnboardingTour() {
     if (!auth.isAuthenticated || !auth.user) return;
     let cancelled = false;
     (async () => {
-      // Local session guard first
-      if (typeof window !== "undefined" && sessionStorage.getItem(STORAGE_KEY)) return;
       const { data } = await supabase
         .from("profiles")
         .select("onboarded_at")
@@ -79,7 +75,6 @@ export function OnboardingTour() {
       if (cancelled) return;
       if (!data?.onboarded_at) {
         setOpen(true);
-        sessionStorage.setItem(STORAGE_KEY, "1");
       }
     })();
     return () => {

@@ -5,9 +5,13 @@ on:
     - cron: "0 0 * * *" # daily at 00:00 UTC
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   ai-cost-alerts:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

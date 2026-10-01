@@ -66,24 +66,6 @@ class YahooFinanceProvider implements MarketDataProvider {
   }
 }
 
-class SectorsFinanceProvider implements MarketDataProvider {
-  constructor(private apiKey?: string) {}
-
-  async fetchQuotes(symbols: string[]): Promise<Record<string, number>> {
-    // Placeholder for Sectors API integration. If a dedicated MARKET_DATA_API
-    // is configured, the OfficialMarketDataProvider below will be used instead.
-    throw new Error("Sectors API integration not implemented");
-  }
-
-  async fetchChart(
-    symbol: string,
-    fromUnix: number,
-    toUnix: number,
-  ): Promise<Array<{ date: string; close: number }>> {
-    throw new Error("Sectors API integration not implemented");
-  }
-}
-
 /**
  * OfficialMarketDataProvider - generic adapter for an official market-data API.
  *
@@ -174,8 +156,8 @@ class MarketDataProviderChain implements MarketDataProvider {
     for (const provider of this.providers) {
       try {
         return await provider.fetchQuotes(symbols);
-      } catch (error) {
-        console.warn(`Market data provider failed: ${error}`);
+      } catch {
+        console.warn("Market data provider request failed; trying fallback.");
         continue;
       }
     }
@@ -190,8 +172,8 @@ class MarketDataProviderChain implements MarketDataProvider {
     for (const provider of this.providers) {
       try {
         return await provider.fetchChart(symbol, fromUnix, toUnix);
-      } catch (error) {
-        console.warn(`Market data provider failed: ${error}`);
+      } catch {
+        console.warn("Market data provider request failed; trying fallback.");
         continue;
       }
     }
@@ -209,13 +191,9 @@ export function createMarketDataProvider(): MarketDataProvider {
     providers.push(new OfficialMarketDataProvider(apiUrl, apiKey));
   }
 
-  // Next: Sectors API (if configured)
-  if (process.env.SECTORS_API_KEY) {
-    providers.push(new SectorsFinanceProvider(process.env.SECTORS_API_KEY));
+  if (providers.length === 0) {
+    throw new Error("No official market data provider configured");
   }
-
-  // Fallback: Yahoo Finance provider (kept as last resort)
-  providers.push(new YahooFinanceProvider());
 
   return new MarketDataProviderChain(providers);
 }

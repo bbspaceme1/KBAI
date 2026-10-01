@@ -83,10 +83,17 @@ export async function checkRateLimit(identifier: string): Promise<RateLimitResul
         remaining,
         resetTime: Date.now() + WINDOW_MS,
       };
-    } catch (error) {
-      console.warn("Upstash rate limiter failed, falling back to in-memory limiter", error);
-      reportFallback("Upstash rate limiter failed; using in-memory fallback.", error);
+    } catch {
+      if (process.env.NODE_ENV === "production") {
+        reportFallback("Upstash rate limiter failed in production; request rejected.");
+        throw new Response("Rate limiting is temporarily unavailable.", { status: 503 });
+      }
+      console.warn("Upstash rate limiter failed; using the local development fallback.");
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Response("Rate limiting is temporarily unavailable.", { status: 503 });
   }
 
   return checkRateLimitInMemory(identifier);

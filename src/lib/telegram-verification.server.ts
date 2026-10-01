@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Telegram tables are deployment-managed until Supabase generated types are refreshed. */
 import { createHash, timingSafeEqual } from "node:crypto";
+import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+const telegramUserIdSchema = z.number().int().positive().safe();
 
 export type TelegramMembershipState = "ACTIVE" | "LEFT" | "ERROR";
 export type TelegramVerificationResult =
@@ -39,10 +43,15 @@ export function validateTelegramLogin(payload: Record<string, string>) {
   const received = Buffer.from(receivedHash, "hex");
   const expected = Buffer.from(expectedHash, "hex");
   if (received.length !== expected.length || !timingSafeEqual(received, expected)) return null;
+  const telegramUserId = Number(payload.id);
+  const authDate = Number(payload.auth_date);
   const maxAge = Number(process.env.TELEGRAM_LOGIN_MAX_AGE_SECONDS ?? 86400);
-  if (Math.abs(Date.now() / 1000 - Number(payload.auth_date)) > maxAge) return null;
+  if (!Number.isSafeInteger(telegramUserId) || telegramUserId <= 0) return null;
+  if (!Number.isSafeInteger(authDate) || authDate <= 0 || !Number.isFinite(maxAge) || maxAge <= 0)
+    return null;
+  if (Math.abs(Date.now() / 1000 - authDate) > maxAge) return null;
   return {
-    telegramUserId: Number(payload.id),
+    telegramUserId,
     username: payload.username ?? null,
     firstName: payload.first_name ?? null,
     lastName: payload.last_name ?? null,
@@ -70,9 +79,10 @@ async function getChatMember(chatId: number, userId: number): Promise<TelegramMe
 }
 
 export async function verifyTelegramMembership(
-  userId: string,
-  telegramUserId: number,
+  rawTelegramUserId: number,
 ): Promise<TelegramVerificationResult> {
+  const { userId } = await requireSupabaseAuth();
+  const telegramUserId = telegramUserIdSchema.parse(rawTelegramUserId);
   const db = supabaseAdmin as any;
   const { data: chats, error } = await db
     .from("telegram_chats")

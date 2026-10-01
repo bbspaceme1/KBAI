@@ -1,9 +1,27 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createHash } from "node:crypto";
-import { validateTelegramLogin } from "@/lib/telegram-verification.server";
+
+const { authMock, fromMock } = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  fromMock: vi.fn(),
+}));
+
+vi.mock("@/integrations/supabase/auth-middleware", () => ({
+  requireSupabaseAuth: authMock,
+}));
+vi.mock("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: { from: fromMock },
+}));
+
+import {
+  validateTelegramLogin,
+  verifyTelegramMembership,
+} from "@/lib/telegram-verification.server";
 
 describe("Telegram login validation", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    authMock.mockRejectedValue(new Error("Authentication required"));
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-bot-token");
     vi.stubEnv("TELEGRAM_LOGIN_MAX_AGE_SECONDS", "86400");
   });
@@ -36,5 +54,17 @@ describe("Telegram login validation", () => {
         hash: "00",
       }),
     ).toBeNull();
+  });
+
+  it("requires a server session before querying Telegram memberships", async () => {
+    await expect(verifyTelegramMembership(123)).rejects.toThrow("Authentication required");
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid Telegram user ids before querying memberships", async () => {
+    authMock.mockResolvedValueOnce({ userId: "session-user" });
+
+    await expect(verifyTelegramMembership(Number.MAX_SAFE_INTEGER + 1)).rejects.toThrow();
+    expect(fromMock).not.toHaveBeenCalled();
   });
 });

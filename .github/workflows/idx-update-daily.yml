@@ -20,6 +20,13 @@ on:
         default: "true"
         type: boolean
 
+permissions:
+  contents: read
+
+concurrency:
+  group: idx-data-pipeline
+  cancel-in-progress: false
+
 jobs:
   update-idx-data:
     runs-on: ubuntu-latest

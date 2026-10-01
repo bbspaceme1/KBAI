@@ -40,19 +40,30 @@ describe("rate limiter", () => {
     expect(allowedForOtherUser).toEqual({ ok: true });
   });
 
-  it("reports a missing Redis fallback in production", async () => {
+  it("rejects requests when Redis is unavailable in production", async () => {
     const previousNodeEnv = process.env.NODE_ENV;
+    const previousRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const previousRedisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
     process.env.NODE_ENV = "production";
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
 
-    await checkRateLimit(`production-fallback-${Date.now()}`);
+    const error = await checkRateLimit(`production-fallback-${Date.now()}`).catch(
+      (response) => response,
+    );
 
+    expect(error).toBeInstanceOf(Response);
+    expect(error.status).toBe(503);
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       expect.stringContaining("Rate limiter running without Upstash Redis"),
       "error",
     );
-    process.env.NODE_ENV = previousNodeEnv;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousRedisUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
+    else process.env.UPSTASH_REDIS_REST_URL = previousRedisUrl;
+    if (previousRedisToken === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    else process.env.UPSTASH_REDIS_REST_TOKEN = previousRedisToken;
   });
 
   it("rejects unresolvable identities with 401 instead of using a shared bucket", async () => {

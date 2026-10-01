@@ -10,6 +10,10 @@ vi.mock("@/integrations/supabase/client.server", () => ({
   },
 }));
 
+vi.mock("@/integrations/supabase/auth-middleware", () => ({
+  requireSupabaseAuth: vi.fn().mockResolvedValue({ userId: "session-user" }),
+}));
+
 vi.mock("@/lib/ai-quota", async () => {
   const actual = await vi.importActual<typeof import("@/lib/ai-quota")>("@/lib/ai-quota");
   return {
@@ -68,7 +72,7 @@ describe("callAI", () => {
     vi.unstubAllGlobals();
   });
 
-  it("uses provider usage counts when logging AI usage", async () => {
+  it("uses session identity and provider usage counts when logging AI usage", async () => {
     const { logAiUsage } = await import("@/lib/ai-quota");
 
     await callAI([{ role: "user", content: "Hello" }], {
@@ -79,10 +83,24 @@ describe("callAI", () => {
 
     expect(logAiUsage).toHaveBeenCalledWith(
       expect.objectContaining({
+        user_id: "session-user",
         input_tokens: 12,
         output_tokens: 5,
         total_tokens: 17,
       }),
+    );
+  });
+
+  it("does not use a client-supplied user id for quota enforcement", async () => {
+    await callAI([{ role: "user", content: "Hello" }], {
+      userId: "attacker-selected-user",
+      operation: "test",
+      model: "gpt-4o",
+    });
+
+    expect(supabaseAdmin.rpc).toHaveBeenCalledWith(
+      "check_ai_quota",
+      expect.objectContaining({ p_user_id: "session-user" }),
     );
   });
 });

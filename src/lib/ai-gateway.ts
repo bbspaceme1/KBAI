@@ -253,8 +253,7 @@ function getProviderChain(): AIProviderChain {
  * Call AI with quota enforcement, logging, and cost tracking.
  * Automatically routes through provider chain if one fails.
  */
-const limitAiGateway = rateLimitMiddleware(async (context) => {
-  if (context.userId) return context.userId;
+const limitAiGateway = rateLimitMiddleware(async () => {
   const { userId } = await requireSupabaseAuth();
   return userId;
 });
@@ -263,18 +262,7 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
   messages: ChatMessage[],
   options: AiGatewayOptions = {},
 ): Promise<AiGatewayResult<T>> {
-  const authenticatedUserId =
-    options.userId ??
-    (await (async () => {
-      try {
-        const auth = await requireSupabaseAuth();
-        return auth.userId;
-      } catch {
-        return undefined;
-      }
-    })());
-
-  const userId = authenticatedUserId ?? options.userId;
+  const { userId } = await requireSupabaseAuth();
   const {
     operation = "unknown",
     model = "gemini-2.5-flash",
