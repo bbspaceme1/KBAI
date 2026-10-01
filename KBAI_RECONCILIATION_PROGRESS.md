@@ -87,6 +87,7 @@ Static scan menemukan 346 titik interaksi/UI dan 26 kecocokan pola storage/HTML/
 | Supabase CLI            | Tidak tersedia; migration list/diff/advisors tidak dijalankan                                                                           |
 | Vercel CLI              | Dependency tersedia tetapi tidak ada credentials lokal; login interaktif dibatalkan tanpa memasukkan credential                         |
 | `git diff --check`      | Lulus                                                                                                                                   |
+| Pre-commit hook         | Lulus setelah POSIX/fail-fast dan secret-pattern false positive diperbaiki                                                              |
 | CI GitHub terakhir      | Quality/build gagal di static admin guard (sekarang lulus lokal); unit/coverage ter-skip setelah failure; integration E2E gagal         |
 | Deploy GitHub terakhir  | Quality checks lulus, langkah deploy Vercel gagal pada HEAD `1bbadaf`                                                                   |
 
@@ -103,7 +104,7 @@ Tidak ada migration dibuat atau dijalankan pada audit ini. Tetap pending: verifi
 - Billing notification belum terbukti terhubung ke route/webhook idempotent; entitlement billing belum direkonsiliasi.
 - Telegram replay protection dan membership sync live belum dibuktikan.
 - E2E/RLS, accessibility, mobile viewport dan performance gates belum lulus/berjalan.
-- CI terbaru dan deploy terbaru gagal; perubahan branch ini belum dipush sehingga GitHub checks tidak mencakup patch.
+- CI terbaru dan deploy terbaru gagal; Draft PR #17 sudah terbuka dan checks untuk patch ini perlu dipantau.
 
 ## Manual Owner Actions
 
@@ -125,4 +126,4 @@ Tidak ada migration dibuat atau dijalankan pada audit ini. Tetap pending: verifi
 
 ## Git Completion
 
-Belum ada commit, push atau PR dibuat. Perubahan tetap pada branch `copilot/full-access-reconciliation`; `main` tidak diubah. Migration production, deploy production, penghapusan data, dan perubahan live provider tidak dilakukan.
+Commit `10d3329` berisi perubahan yang direview; branch `copilot/full-access-reconciliation` telah dipush dan Draft PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) dibuka terhadap `main`. Update dokumen ini mengikuti commit tersebut. Perubahan awal pengguna pada `package-lock.json` tidak dimasukkan ke commit. Tidak ada push langsung ke `main`, migration production, deploy production, penghapusan data, atau perubahan live provider.
