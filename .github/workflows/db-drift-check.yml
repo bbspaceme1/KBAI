@@ -186,15 +186,29 @@ jobs:
               rls_tables: (.rls | length), policies: (.policies | length),
               functions: (.functions | length), triggers: (.triggers | length),
               grants: (.grants | length)
-            },
-            tables: [.tables[].table],
-            columns: [.columns[] | {table, column, type, nullable}],
-            indexes: [.indexes[] | {table, name, definition}],
-            constraints: [.constraints[] | {table, name, type, definition}],
-            rls: .rls,
-            policies: .policies,
-            functions: .functions,
-            triggers: .triggers,
+            }, tables: [.tables[].table]
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            columns_by_table: [.columns | group_by(.table)[] | {
+              table: .[0].table, columns: map({column, type, nullable})
+            }]
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            indexes: [.indexes[] | {table, name, definition}]
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            constraints: [.constraints[] | {table, name, type, definition}]
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            rls: .rls, policies: .policies
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            functions: .functions
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            triggers: .triggers
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
             grants: .grants
           }'
 
@@ -218,12 +232,15 @@ jobs:
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
               return value
             }
-            /^[[:space:]]*[0-9]{8,}[[:space:]]*\|/ || /^[[:space:]]*\|[[:space:]]*[0-9]{8,}/ {
-              local=trim($1)
-              remote=trim($2)
-              if (local == "" && remote != "") print "REMOTE_ONLY " remote
-              else if (remote == "" && local != "") print "LOCAL_ONLY " local
-              else if (local != remote) print "DIVERGED " local " " remote
+            {
+              local_version=trim($1)
+              remote_version=trim($2)
+              if (length(local_version) >= 8 && local_version ~ /^[0-9]+$/ && remote_version == "")
+                print "LOCAL_ONLY " local_version
+              else if (length(remote_version) >= 8 && remote_version ~ /^[0-9]+$/ && local_version == "")
+                print "REMOTE_ONLY " remote_version
+              else if (length(local_version) >= 8 && length(remote_version) >= 8 && local_version != remote_version)
+                print "DIVERGED " local_version " " remote_version
             }
           ')"
 
