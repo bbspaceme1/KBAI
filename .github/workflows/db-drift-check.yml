@@ -91,6 +91,24 @@ jobs:
               FROM information_schema.tables
               WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
             ), '[]'::jsonb),
+            'views', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'view', v.table_name, 'updatable', v.is_updatable,
+                'check_option', v.check_option,
+                'security_invoker', COALESCE('security_invoker=true' = ANY(cls.reloptions), false),
+                'definition_hash', md5(COALESCE(v.view_definition, ''))
+              ) ORDER BY v.table_name)
+              FROM information_schema.views v
+              JOIN pg_class cls ON cls.relname = v.table_name
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace AND ns.nspname = v.table_schema
+              WHERE v.table_schema = 'public'
+            ), '[]'::jsonb),
+            'enum_types', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object('name', typ.typname) ORDER BY typ.typname)
+              FROM pg_type typ
+              JOIN pg_namespace ns ON ns.oid = typ.typnamespace
+              WHERE ns.nspname = 'public' AND typ.typtype = 'e'
+            ), '[]'::jsonb),
             'columns', COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
                 'table', table_name, 'column', column_name, 'type', data_type,
@@ -122,7 +140,7 @@ jobs:
               ) ORDER BY cls.relname)
               FROM pg_class cls
               JOIN pg_namespace ns ON ns.oid = cls.relnamespace
-              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p', 'v', 'm')
             ), '[]'::jsonb),
             'policies', COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
@@ -160,6 +178,10 @@ jobs:
                 'validates_positive_tokens',
                   position('p_tokens <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
                   position('p_tokens < 1' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'references_raw_user_meta_data', position('raw_user_meta_data' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'references_user_metadata', position('user_metadata' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'holding_insert_includes_created_at', position('created_at' in split_part(split_part(lower(pg_get_functiondef(proc.oid)), 'insert into public.holdings', 2), 'values', 1)) > 0,
+                'cash_insert_includes_created_at', position('created_at' in split_part(split_part(lower(pg_get_functiondef(proc.oid)), 'insert into public.cash_balances', 2), 'values', 1)) > 0,
                 'settings', proc.proconfig,
                 'definition_hash', md5(pg_get_functiondef(proc.oid)),
                 'anon_execute', has_function_privilege('anon', proc.oid, 'EXECUTE'),
@@ -196,7 +218,7 @@ jobs:
               FROM pg_class cls
               JOIN pg_namespace ns ON ns.oid = cls.relnamespace
               CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) AS principals(role_name)
-              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p', 'v', 'm')
                 AND (
                   has_table_privilege(principals.role_name, cls.oid, 'SELECT') OR
                   has_table_privilege(principals.role_name, cls.oid, 'INSERT') OR
@@ -259,17 +281,18 @@ jobs:
           jq -c '{
             counts: {
               tables: (.tables | length), columns: (.columns | length),
+              views: (.views | length), enum_types: (.enum_types | length),
               indexes: (.indexes | length), constraints: (.constraints | length),
               rls_tables: (.rls | length), policies: (.policies | length),
               functions: (.functions | length), triggers: (.triggers | length),
               grants: (.grants | length), table_acl_entries: (.table_acl | length)
             },
-            tables: [.tables[].table],
+            tables: [.tables[].table], views: .views, enum_types: .enum_types,
             domain_tables: [.tables[].table | select(test("emergency|company|approval|feature_flags|plans|features|payments|revenue"; "i"))],
             rls_disabled: [.rls[] | select(.enabled == false) | .table],
             public_unrestricted_policies: [.policies[] | select((.roles | index("public")) and ((.using_unrestricted == true) or (.check_unrestricted == true))) | {table, name, command, using_unrestricted, check_unrestricted}],
             application_function_security: [.functions[] | select(.extension_owned == false) | {name, arguments, security_definer, anon_execute, authenticated_execute, settings}],
-            critical_rpc_guards: [.functions[] | select(.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "adjust_cash_balance" or .name == "try_consume_ai_quota") | {name, arguments, security_definer, anon_execute, authenticated_execute, auth_uid_reference, owner_guard_signature, for_update_lock, validates_positive_lot, validates_nonnegative_price, validates_positive_tokens}],
+            critical_rpc_guards: [.functions[] | select(.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "adjust_cash_balance" or .name == "try_consume_ai_quota" or .name == "soft_delete_user") | {name, arguments, security_definer, anon_execute, authenticated_execute, auth_uid_reference, owner_guard_signature, for_update_lock, validates_positive_lot, validates_nonnegative_price, validates_positive_tokens, references_raw_user_meta_data, references_user_metadata, holding_insert_includes_created_at, cash_insert_includes_created_at}],
             role_attributes: .roles,
             role_memberships: .role_memberships,
             schema_privileges: .schema_privileges,
