@@ -68,9 +68,16 @@ jobs:
         shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
           project_ref="$(awk -F'"' '/^project_id/ {print $2}' supabase/config.toml)"
+          url_ref="${SUPABASE_URL#https://}"
+          url_ref="${url_ref%%.*}"
+          if [[ "$url_ref" != "$project_ref" ]]; then
+            echo "::error::SUPABASE_URL project ref does not match supabase/config.toml."
+            exit 1
+          fi
 
           project="$(curl --fail --silent --show-error \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
@@ -172,7 +179,24 @@ jobs:
             -H 'Content-Type: application/json' \
             --data "$request_body" \
             "https://api.supabase.com/v1/projects/${project_ref}/database/query")"
-          printf '%s\n' "$schema_metadata" | jq '.[0].schema_metadata'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            counts: {
+              tables: (.tables | length), columns: (.columns | length),
+              indexes: (.indexes | length), constraints: (.constraints | length),
+              rls_tables: (.rls | length), policies: (.policies | length),
+              functions: (.functions | length), triggers: (.triggers | length),
+              grants: (.grants | length)
+            },
+            tables: [.tables[].table],
+            columns: [.columns[] | {table, column, type, nullable}],
+            indexes: [.indexes[] | {table, name, definition}],
+            constraints: [.constraints[] | {table, name, type, definition}],
+            rls: .rls,
+            policies: .policies,
+            functions: .functions,
+            triggers: .triggers,
+            grants: .grants
+          }'
 
       - name: Check migration drift
         shell: bash
@@ -189,22 +213,24 @@ jobs:
           migration_list="$(supabase migration list)"
           printf '%s\n' "$migration_list"
 
-          pending_migrations="$(printf '%s\n' "$migration_list" | awk -F'|' '
+          migration_differences="$(printf '%s\n' "$migration_list" | awk -F'|' '
             function trim(value) {
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
               return value
             }
-            /^[[:space:]]*[0-9]{8,}[[:space:]]*\|/ {
+            /^[[:space:]]*[0-9]{8,}[[:space:]]*\|/ || /^[[:space:]]*\|[[:space:]]*[0-9]{8,}/ {
               local=trim($1)
               remote=trim($2)
-              if (remote == "") print local
+              if (local == "" && remote != "") print "REMOTE_ONLY " remote
+              else if (remote == "" && local != "") print "LOCAL_ONLY " local
+              else if (local != remote) print "DIVERGED " local " " remote
             }
           ')"
 
-          if [[ -n "$pending_migrations" ]]; then
-            echo "Migration drift detected: these local migration files are not marked as applied remotely:"
-            printf '%s\n' "$pending_migrations"
-            echo "Apply and verify migrations using docs/RUNBOOK_MIGRATION_APPLY.md before merging."
+          if [[ -n "$migration_differences" ]]; then
+            echo "Migration history differences found; this check does not apply migrations:"
+            printf '%s\n' "$migration_differences"
+            echo "Compare each entry with the migration files and remote schema before any apply decision."
             exit 1
           fi
 
