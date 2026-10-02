@@ -24,6 +24,38 @@ jobs:
         with:
           version: latest
 
+      - name: Check required audit secrets are present
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            SUPABASE_ACCESS_TOKEN \
+            SUPABASE_URL \
+            SUPABASE_ANON_KEY \
+            SUPABASE_SERVICE_ROLE_KEY \
+            VERCEL_TOKEN \
+            VERCEL_ORG_ID \
+            VERCEL_PROJECT_ID; do
+            if [[ -n "${!name:-}" ]]; then
+              printf '%s=PRESENT\n' "$name"
+            else
+              printf '%s=MISSING\n' "$name"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
       - name: Link Supabase project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -32,31 +64,376 @@ jobs:
           test -n "$project_ref"
           supabase link --project-ref "$project_ref"
 
+      - name: Inspect Supabase project and schema (read-only)
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          project_ref="$(awk -F'"' '/^project_id/ {print $2}' supabase/config.toml)"
+          url_ref="${SUPABASE_URL#https://}"
+          url_ref="${url_ref%%.*}"
+          if [[ "$url_ref" != "$project_ref" ]]; then
+            echo "::error::SUPABASE_URL project ref does not match supabase/config.toml."
+            exit 1
+          fi
+
+          project="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${project_ref}")"
+          printf '%s\n' "$project" | jq '{id, name, organization_id, region, status}'
+
+          schema_query="$(cat <<'SQL'
+          SELECT jsonb_build_object(
+            'tables', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object('table', table_name) ORDER BY table_name)
+              FROM information_schema.tables
+              WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+            ), '[]'::jsonb),
+            'views', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'view', v.table_name, 'updatable', v.is_updatable,
+                'check_option', v.check_option,
+                'security_invoker', COALESCE('security_invoker=true' = ANY(cls.reloptions), false),
+                'definition_hash', md5(COALESCE(v.view_definition, ''))
+              ) ORDER BY v.table_name)
+              FROM information_schema.views v
+              JOIN pg_class cls ON cls.relname = v.table_name
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace AND ns.nspname = v.table_schema
+              WHERE v.table_schema = 'public'
+            ), '[]'::jsonb),
+            'enum_types', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object('name', typ.typname) ORDER BY typ.typname)
+              FROM pg_type typ
+              JOIN pg_namespace ns ON ns.oid = typ.typnamespace
+              WHERE ns.nspname = 'public' AND typ.typtype = 'e'
+            ), '[]'::jsonb),
+            'columns', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', table_name, 'column', column_name, 'type', data_type,
+                'nullable', is_nullable, 'position', ordinal_position
+              ) ORDER BY table_name, ordinal_position)
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+            ), '[]'::jsonb),
+            'indexes', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', tablename, 'name', indexname, 'definition', indexdef
+              ) ORDER BY tablename, indexname)
+              FROM pg_indexes WHERE schemaname = 'public'
+            ), '[]'::jsonb),
+            'constraints', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'name', con.conname, 'type', con.contype,
+                'definition', pg_get_constraintdef(con.oid)
+              ) ORDER BY cls.relname, con.conname)
+              FROM pg_constraint con
+              JOIN pg_class cls ON cls.oid = con.conrelid
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              WHERE ns.nspname = 'public'
+            ), '[]'::jsonb),
+            'rls', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'enabled', cls.relrowsecurity,
+                'forced', cls.relforcerowsecurity
+              ) ORDER BY cls.relname)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p', 'v', 'm')
+            ), '[]'::jsonb),
+            'policies', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', tablename, 'name', policyname, 'roles', roles,
+                'command', cmd, 'permissive', permissive,
+                'using_unrestricted', qual IS NULL OR lower(btrim(qual)) IN ('true', '(true)'),
+                'check_unrestricted', with_check IS NULL OR lower(btrim(with_check)) IN ('true', '(true)'),
+                'using_auth_uid', COALESCE(qual, '') ILIKE '%auth.uid%',
+                'check_auth_uid', COALESCE(with_check, '') ILIKE '%auth.uid%',
+                'using_admin_gate', COALESCE(qual, '') ILIKE '%admin%',
+                'check_admin_gate', COALESCE(with_check, '') ILIKE '%admin%',
+                'using_hash', md5(COALESCE(qual, '')),
+                'check_hash', md5(COALESCE(with_check, ''))
+              ) ORDER BY tablename, policyname)
+              FROM pg_policies WHERE schemaname = 'public'
+            ), '[]'::jsonb),
+            'functions', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'name', proc.proname,
+                'arguments', pg_get_function_identity_arguments(proc.oid),
+                'language', lang.lanname, 'security_definer', proc.prosecdef,
+                'extension_owned', EXISTS (
+                  SELECT 1 FROM pg_depend dep
+                  WHERE dep.classid = 'pg_proc'::regclass AND dep.objid = proc.oid AND dep.deptype = 'e'
+                ),
+                'auth_uid_reference', position('auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'owner_guard_signature',
+                  position('auth.uid() <> p_user_id' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('auth.uid() <> p_user' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'for_update_lock', position('for update' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_positive_lot',
+                  position('p_lot <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_lot < 1' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_nonnegative_price', position('p_price < 0' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_positive_tokens',
+                  position('p_tokens <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_tokens < 1' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'references_raw_user_meta_data', position('raw_user_meta_data' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'references_user_metadata', position('user_metadata' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'holding_insert_includes_created_at', position('created_at' in split_part(split_part(lower(pg_get_functiondef(proc.oid)), 'insert into public.holdings', 2), 'values', 1)) > 0,
+                'cash_insert_includes_created_at', position('created_at' in split_part(split_part(lower(pg_get_functiondef(proc.oid)), 'insert into public.cash_balances', 2), 'values', 1)) > 0,
+                'settings', proc.proconfig,
+                'definition_hash', md5(pg_get_functiondef(proc.oid)),
+                'anon_execute', has_function_privilege('anon', proc.oid, 'EXECUTE'),
+                'authenticated_execute', has_function_privilege('authenticated', proc.oid, 'EXECUTE'),
+                'service_role_execute', has_function_privilege('service_role', proc.oid, 'EXECUTE')
+              ) ORDER BY proc.proname, pg_get_function_identity_arguments(proc.oid))
+              FROM pg_proc proc
+              JOIN pg_namespace ns ON ns.oid = proc.pronamespace
+              JOIN pg_language lang ON lang.oid = proc.prolang
+              WHERE ns.nspname = 'public' AND proc.prokind IN ('f', 'p')
+            ), '[]'::jsonb),
+            'triggers', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'name', trg.tgname,
+                'enabled', trg.tgenabled, 'function', proc.proname
+              ) ORDER BY cls.relname, trg.tgname)
+              FROM pg_trigger trg
+              JOIN pg_class cls ON cls.oid = trg.tgrelid
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              JOIN pg_proc proc ON proc.oid = trg.tgfoid
+              WHERE ns.nspname = 'public' AND NOT trg.tgisinternal
+            ), '[]'::jsonb),
+            'grants', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'grantee', principals.role_name,
+                'select', has_table_privilege(principals.role_name, cls.oid, 'SELECT'),
+                'insert', has_table_privilege(principals.role_name, cls.oid, 'INSERT'),
+                'update', has_table_privilege(principals.role_name, cls.oid, 'UPDATE'),
+                'delete', has_table_privilege(principals.role_name, cls.oid, 'DELETE'),
+                'truncate', has_table_privilege(principals.role_name, cls.oid, 'TRUNCATE'),
+                'references', has_table_privilege(principals.role_name, cls.oid, 'REFERENCES'),
+                'trigger', has_table_privilege(principals.role_name, cls.oid, 'TRIGGER')
+              ) ORDER BY cls.relname, principals.role_name)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) AS principals(role_name)
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p', 'v', 'm')
+                AND (
+                  has_table_privilege(principals.role_name, cls.oid, 'SELECT') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'INSERT') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'UPDATE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'DELETE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'TRUNCATE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'REFERENCES') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'TRIGGER')
+                )
+            ), '[]'::jsonb)
+            , 'schema_privileges', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'role', principals.role_name,
+                'usage', has_schema_privilege(principals.role_name, 'public', 'USAGE'),
+                'create', has_schema_privilege(principals.role_name, 'public', 'CREATE')
+              ) ORDER BY principals.role_name)
+              FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS principals(role_name)
+            ), '[]'::jsonb)
+            , 'roles', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'name', rolname, 'superuser', rolsuper, 'bypass_rls', rolbypassrls,
+                'inherit', rolinherit, 'create_role', rolcreaterole, 'create_db', rolcreatedb
+              ) ORDER BY rolname)
+              FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'service_role')
+            ), '[]'::jsonb)
+            , 'role_memberships', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'member', member.rolname, 'granted_role', granted.rolname,
+                'admin_option', membership.admin_option
+              ) ORDER BY member.rolname, granted.rolname)
+              FROM pg_auth_members membership
+              JOIN pg_roles member ON member.oid = membership.member
+              JOIN pg_roles granted ON granted.oid = membership.roleid
+              WHERE member.rolname IN ('anon', 'authenticated', 'service_role')
+            ), '[]'::jsonb)
+            , 'table_acl', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'grantee', COALESCE(grantee.rolname, 'PUBLIC'),
+                'privilege', acl.privilege_type, 'grantable', acl.is_grantable
+              ) ORDER BY cls.relname, COALESCE(grantee.rolname, 'PUBLIC'), acl.privilege_type)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              CROSS JOIN LATERAL aclexplode(COALESCE(cls.relacl, acldefault('r', cls.relowner))) acl
+              LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+                AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated', 'service_role'))
+            ), '[]'::jsonb)
+          ) AS schema_metadata;
+          SQL
+          )"
+          request_body="$(jq -n --arg query "$schema_query" '{query: $query, read_only: true}')"
+          schema_metadata="$(curl --fail --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data "$request_body" \
+            "https://api.supabase.com/v1/projects/${project_ref}/database/query")"
+          schema_file="$RUNNER_TEMP/kbai-supabase-schema-audit.json"
+          printf '%s\n' "$schema_metadata" | jq '.[0].schema_metadata' > "$schema_file"
+          jq -c '{
+            counts: {
+              tables: (.tables | length), columns: (.columns | length),
+              views: (.views | length), enum_types: (.enum_types | length),
+              indexes: (.indexes | length), constraints: (.constraints | length),
+              rls_tables: (.rls | length), policies: (.policies | length),
+              functions: (.functions | length), triggers: (.triggers | length),
+              grants: (.grants | length), table_acl_entries: (.table_acl | length)
+            },
+            tables: [.tables[].table], views: .views, enum_types: .enum_types,
+            domain_tables: [.tables[].table | select(test("emergency|company|approval|feature_flags|plans|features|payments|revenue"; "i"))],
+            rls_disabled: [.rls[] | select(.enabled == false) | .table],
+            public_unrestricted_policies: [.policies[] | select((.roles | index("public")) and ((.using_unrestricted == true) or (.check_unrestricted == true))) | {table, name, command, using_unrestricted, check_unrestricted}],
+            application_function_security: [.functions[] | select(.extension_owned == false) | {name, arguments, security_definer, anon_execute, authenticated_execute, settings}],
+            critical_rpc_guards: [.functions[] | select(.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "adjust_cash_balance" or .name == "try_consume_ai_quota" or .name == "soft_delete_user") | {name, arguments, security_definer, anon_execute, authenticated_execute, auth_uid_reference, owner_guard_signature, for_update_lock, validates_positive_lot, validates_nonnegative_price, validates_positive_tokens, references_raw_user_meta_data, references_user_metadata, holding_insert_includes_created_at, cash_insert_includes_created_at}],
+            role_attributes: .roles,
+            role_memberships: .role_memberships,
+            schema_privileges: .schema_privileges,
+            table_acl_counts: ([.table_acl[]] | group_by(.grantee) | map({grantee: .[0].grantee, entries: length})),
+            effective_grant_counts: ([.grants[]] | group_by(.grantee) | map({grantee: .[0].grantee, tables_with_any_privilege: length})),
+            triggers: .triggers
+          }' "$schema_file"
+
       - name: Check migration drift
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is required to inspect linked migration history."
+            exit 1
+          fi
+
+          migration_list="$(supabase migration list)"
+          printf '%s\n' "$migration_list"
+          duplicate_versions="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | awk -F_ '{count[$1]++} END {for (version in count) if (count[version] > 1) print version}' | sort)"
+
+          migration_differences="$(printf '%s\n' "$migration_list" | awk -F'|' -v duplicate_versions="$duplicate_versions" '
+            function trim(value) {
+              gsub(/`/, "", value)
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+              return value
+            }
+            BEGIN {
+              count = split(duplicate_versions, versions, "\n")
+              for (i = 1; i <= count; i++) if (versions[i] != "") duplicates[versions[i]] = 1
+            }
+            {
+              local_version=trim($1)
+              remote_version=trim($2)
+              if (length(local_version) >= 8 && local_version ~ /^[0-9]+$/ && remote_version == "")
+                print (local_version in duplicates ? "DUPLICATE_LOCAL " : "LOCAL_ONLY ") local_version
+              else if (length(remote_version) >= 8 && remote_version ~ /^[0-9]+$/ && local_version == "")
+                print "REMOTE_ONLY " remote_version
+              else if (length(local_version) >= 8 && length(remote_version) >= 8 && local_version != remote_version)
+                print "DIVERGED " local_version " " remote_version
+            }
+          ')"
+
+          if [[ -n "$duplicate_versions" ]]; then
+            duplicate_differences="$(printf '%s\n' "$duplicate_versions" | sed 's/^/DUPLICATE_LOCAL /')"
+            migration_differences="$(printf '%s\n%s\n' "$migration_differences" "$duplicate_differences" | sed '/^$/d' | sort -u)"
+          fi
+
+          if [[ -n "$migration_differences" ]]; then
+            echo "Migration history differences found; this check does not apply migrations:"
+            printf '%s\n' "$migration_differences"
+            echo "Compare each entry with the migration files and remote schema before any apply decision."
+            exit 1
+          fi
+
+          echo "Migration history in sync"
+
+      - name: Upload redacted Supabase schema inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-schema-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/kbai-supabase-schema-audit.json
+          if-no-files-found: warn
+          retention-days: 1
+
+      - name: Run linked Supabase security and performance advisors
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db advisors --linked --type all --level info --fail-on none
+
+  vercel-read-only-audit:
+    name: Read-only Vercel project audit
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Inspect Vercel project, environment names, deployments, and domains
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         shell: bash
         run: |
           set -euo pipefail
 
-          migration_list="$(supabase migration list)"
-          printf '%s\n' "$migration_list"
+          identity_response="$(curl --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
+            "https://api.vercel.com/v2/user")"
+          identity_status="${identity_response##*$'\n'}"
+          identity_body="${identity_response%$'\n'*}"
+          printf 'vercel_identity_http=%s\n' "$identity_status"
+          printf '%s\n' "$identity_body" | jq '{id, username, error: .error.code, message: .error.message}'
 
-          pending_migrations="$(printf '%s\n' "$migration_list" | awk -F'|' '
-            function trim(value) {
-              gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-              return value
-            }
-            /^[[:space:]]*[0-9]{8,}[[:space:]]*\|/ {
-              local=trim($1)
-              remote=trim($2)
-              if (remote == "") print local
-            }
-          ')"
+          team_response="$(curl --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
+            "https://api.vercel.com/v2/teams/${VERCEL_ORG_ID}")"
+          team_status="${team_response##*$'\n'}"
+          team_body="${team_response%$'\n'*}"
+          printf 'vercel_team_http=%s\n' "$team_status"
+          printf '%s\n' "$team_body" | jq '{id, name, slug, error: .error.code, message: .error.message}'
 
-          if [[ -n "$pending_migrations" ]]; then
-            echo "Migration drift detected: these local migration files are not marked as applied remotely:"
-            printf '%s\n' "$pending_migrations"
-            echo "Apply and verify migrations using docs/RUNBOOK_MIGRATION_APPLY.md before merging."
+          project="$(curl --silent --show-error \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")"
+          project_status="${project##*$'\n'}"
+          project="${project%$'\n'*}"
+          if [[ "$project_status" != "200" ]]; then
+            printf 'vercel_project_http=%s\n' "$project_status"
+            printf '%s\n' "$project" | jq '{error: .error.code, message: .error.message}'
             exit 1
           fi
+          printf '%s\n' "$project" | jq '{id, name, framework, buildCommand, outputDirectory, installCommand, rootDirectory, nodeVersion, commandForIgnoringBuildStep, git: (.link | if . == null then null else {type, org, repo, productionBranch} end)}'
 
-          echo "Schema in sync"
+          environments="$(curl --fail --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --data-urlencode "teamId=${VERCEL_ORG_ID}" \
+            --data-urlencode "decrypt=false" \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env")"
+          printf '%s\n' "$environments" | jq '[if type == "array" then .[] else .envs[]? end | {key, target, type, gitBranch, createdAt}]'
+
+          deployments="$(curl --fail --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --data-urlencode "teamId=${VERCEL_ORG_ID}" \
+            --data-urlencode "projectId=${VERCEL_PROJECT_ID}" \
+            --data-urlencode "target=production" \
+            --data-urlencode "limit=10" \
+            "https://api.vercel.com/v6/deployments")"
+          printf '%s\n' "$deployments" | jq '[.deployments[]? | {uid, url, createdAt, readyState, target, source, commit: .meta.githubCommitSha, ref: .meta.githubCommitRef}]'
+
+          domains="$(curl --fail --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --data-urlencode "teamId=${VERCEL_ORG_ID}" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/domains")"
+          printf '%s\n' "$domains" | jq '[if type == "array" then .[] else .domains[]? end | {name, verified, redirect, gitBranch}]'

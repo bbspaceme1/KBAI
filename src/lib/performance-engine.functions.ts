@@ -1,5 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Existing Supabase schema typings omit analytics views used by this feature. */
+import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+const performanceSummarySchema = z
+  .object({
+    fromDate: z.string().date(),
+    toDate: z.string().date(),
+    benchmarkSymbol: z.string().min(1).max(12).default("IHSG"),
+  })
+  .refine((input) => input.fromDate <= input.toDate, {
+    message: "fromDate must be on or before toDate",
+    path: ["fromDate"],
+  });
 
 type Snapshot = { date: string; total_value: number };
 type CashFlow = { flow_date: string; amount: number };
@@ -59,12 +72,13 @@ export function calculateAlpha(userTwr: number | null, benchmarkReturn: number |
   return userTwr == null || benchmarkReturn == null ? null : userTwr - benchmarkReturn;
 }
 
-export async function getPortfolioPerformanceSummary(
-  userId: string,
-  fromDate: string,
-  toDate: string,
-  benchmarkSymbol = "IHSG",
-) {
+export async function getPortfolioPerformanceSummary(rawInput: {
+  fromDate: string;
+  toDate: string;
+  benchmarkSymbol?: string;
+}) {
+  const { userId } = await requireSupabaseAuth();
+  const { fromDate, toDate, benchmarkSymbol } = performanceSummarySchema.parse(rawInput);
   const db = supabaseAdmin as any;
   const [{ data: snapshots, error: snapshotError }, { data: cashFlows, error: flowError }] =
     await Promise.all([

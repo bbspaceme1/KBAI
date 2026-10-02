@@ -10,6 +10,13 @@ on:
         default: "false"
         type: boolean
 
+permissions:
+  contents: read
+
+concurrency:
+  group: idx-data-pipeline
+  cancel-in-progress: false
+
 jobs:
   initial-load:
     runs-on: ubuntu-latest

@@ -62,7 +62,7 @@ export const Route = createFileRoute("/api/telegram/verify")({
             { status: "ERROR", action: "RETRY", website_access: false },
             { status: 502 },
           );
-        const result = await verifyTelegramMembership(auth.userId, identity.telegramUserId);
+        const result = await verifyTelegramMembership(identity.telegramUserId);
         return Response.json(result, { status: result.status === "ERROR" ? 502 : 200 });
       },
     },

@@ -5,7 +5,7 @@ if (typeof window !== "undefined") {
     api_host: "https://app.posthog.com",
     autocapture: false, // Manual capture for control
     capture_pageview: true,
-    persistence: "localStorage",
+    persistence: "memory",
     loaded: (posthog) => {
       if (import.meta.env.DEV) console.log("PostHog loaded");
     },

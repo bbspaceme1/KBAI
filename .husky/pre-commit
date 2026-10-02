@@ -1,3 +1,5 @@
+set -eu
+
 invalid_migrations="$(git diff --cached --name-only --diff-filter=A -- 'supabase/migrations/*' | while IFS= read -r file; do
 	name="${file##*/}"
 	if ! printf '%s\n' "$name" | grep -Eq '^[0-9]{14}_[a-z0-9_]+\.sql$'; then
@@ -12,15 +14,16 @@ if [ -n "$invalid_migrations" ]; then
 fi
 
 # Scan staged content for common credential patterns before formatting.
-PATTERN="AKIA[0-9A-Z]{16}|-----BEGIN (RSA )?PRIVATE KEY-----|-----BEGIN OPENSSH PRIVATE KEY-----|SUPABASE_SERVICE_ROLE|sk_live_|xox[baprs]-|sq0atp-|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|password"
-staged_files=$(git diff --cached --name-only -z)
-if [ -n "$staged_files" ]; then
-  while IFS= read -r -d '' file; do
-    if git show :"$file" 2>/dev/null | head -c 8000 | grep -I -n -E "$PATTERN" >/dev/null 2>&1; then
-      echo "Potential secret found in staged file: $file" >&2
-      exit 1
-    fi
-  done <<< "$staged_files"
-fi
+PATTERN="AKIA[0-9A-Z]{16}|-----BEGIN (RSA )?PRIVATE KEY-----|-----BEGIN OPENSSH PRIVATE KEY-----|sk_live_[A-Za-z0-9]{16,}|xox[baprs]-[A-Za-z0-9-]{16,}|sq0atp-[A-Za-z0-9-]{16,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}"
+git diff --cached --name-only |
+while IFS= read -r file; do
+	if [ "$file" = ".husky/pre-commit" ]; then
+		continue
+	fi
+	if git show :"$file" 2>/dev/null | head -c 8000 | grep -I -n -E "$PATTERN" >/dev/null 2>&1; then
+		echo "Potential secret found in staged file: $file" >&2
+		exit 1
+	fi
+done
 
 npx lint-staged

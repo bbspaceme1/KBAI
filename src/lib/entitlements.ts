@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Existing Supabase schema typings do not include legacy entitlement relations. */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAdminAccess } from "@/lib/rbac";
 
 async function findEntitlement(userId: string, featureCode: string) {
   const db = supabaseAdmin as any;
@@ -33,6 +35,9 @@ export async function getEntitlementLimit(
 }
 
 export async function getFinanceKpis() {
+  const { userId } = await requireSupabaseAuth();
+  await requireAdminAccess(userId);
+
   const db = supabaseAdmin as any;
   const month = new Date();
   const firstDay = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1))

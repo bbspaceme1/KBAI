@@ -9,7 +9,17 @@ import {
 
 type Theme = "system" | "light" | "dark";
 
-const STORAGE_KEY = "kbai-theme";
+const COOKIE_KEY = "kbai-theme";
+
+function readThemeCookie(): Theme | null {
+  const match = document.cookie.match(/(?:^|; )kbai-theme=(system|light|dark)(?:;|$)/);
+  return (match?.[1] as Theme | undefined) ?? null;
+}
+
+function writeThemeCookie(theme: Theme) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${COOKIE_KEY}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+}
 
 function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
@@ -29,19 +39,19 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "dark";
+    const stored = readThemeCookie() ?? "dark";
     setThemeState(stored);
     applyTheme(stored);
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     const onChange = () => {
-      if ((localStorage.getItem(STORAGE_KEY) as Theme | null) === "system") applyTheme("system");
+      if (readThemeCookie() === "system") applyTheme("system");
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
   const setTheme = (t: Theme) => {
-    localStorage.setItem(STORAGE_KEY, t);
+    writeThemeCookie(t);
     setThemeState(t);
     applyTheme(t);
   };
