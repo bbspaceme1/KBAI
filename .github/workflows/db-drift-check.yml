@@ -64,6 +64,116 @@ jobs:
           test -n "$project_ref"
           supabase link --project-ref "$project_ref"
 
+      - name: Inspect Supabase project and schema (read-only)
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          project_ref="$(awk -F'"' '/^project_id/ {print $2}' supabase/config.toml)"
+
+          project="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${project_ref}")"
+          printf '%s\n' "$project" | jq '{id, name, organization_id, region, status}'
+
+          schema_query="$(cat <<'SQL'
+          SELECT jsonb_build_object(
+            'tables', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object('table', table_name) ORDER BY table_name)
+              FROM information_schema.tables
+              WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+            ), '[]'::jsonb),
+            'columns', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', table_name, 'column', column_name, 'type', data_type,
+                'nullable', is_nullable, 'position', ordinal_position
+              ) ORDER BY table_name, ordinal_position)
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+            ), '[]'::jsonb),
+            'indexes', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', tablename, 'name', indexname, 'definition', indexdef
+              ) ORDER BY tablename, indexname)
+              FROM pg_indexes WHERE schemaname = 'public'
+            ), '[]'::jsonb),
+            'constraints', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'name', con.conname, 'type', con.contype,
+                'definition', pg_get_constraintdef(con.oid)
+              ) ORDER BY cls.relname, con.conname)
+              FROM pg_constraint con
+              JOIN pg_class cls ON cls.oid = con.conrelid
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              WHERE ns.nspname = 'public'
+            ), '[]'::jsonb),
+            'rls', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'enabled', cls.relrowsecurity,
+                'forced', cls.relforcerowsecurity
+              ) ORDER BY cls.relname)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+            ), '[]'::jsonb),
+            'policies', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', tablename, 'name', policyname, 'roles', roles,
+                'command', cmd, 'permissive', permissive,
+                'using_hash', md5(COALESCE(qual, '')),
+                'check_hash', md5(COALESCE(with_check, ''))
+              ) ORDER BY tablename, policyname)
+              FROM pg_policies WHERE schemaname = 'public'
+            ), '[]'::jsonb),
+            'functions', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'name', proc.proname,
+                'arguments', pg_get_function_identity_arguments(proc.oid),
+                'language', lang.lanname, 'security_definer', proc.prosecdef,
+                'settings', proc.proconfig,
+                'definition_hash', md5(pg_get_functiondef(proc.oid)),
+                'anon_execute', has_function_privilege('anon', proc.oid, 'EXECUTE'),
+                'authenticated_execute', has_function_privilege('authenticated', proc.oid, 'EXECUTE'),
+                'service_role_execute', has_function_privilege('service_role', proc.oid, 'EXECUTE')
+              ) ORDER BY proc.proname, pg_get_function_identity_arguments(proc.oid))
+              FROM pg_proc proc
+              JOIN pg_namespace ns ON ns.oid = proc.pronamespace
+              JOIN pg_language lang ON lang.oid = proc.prolang
+              WHERE ns.nspname = 'public' AND proc.prokind IN ('f', 'p')
+            ), '[]'::jsonb),
+            'triggers', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'name', trg.tgname,
+                'enabled', trg.tgenabled, 'function', proc.proname
+              ) ORDER BY cls.relname, trg.tgname)
+              FROM pg_trigger trg
+              JOIN pg_class cls ON cls.oid = trg.tgrelid
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              JOIN pg_proc proc ON proc.oid = trg.tgfoid
+              WHERE ns.nspname = 'public' AND NOT trg.tgisinternal
+            ), '[]'::jsonb),
+            'grants', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', table_name, 'grantee', grantee,
+                'privilege', privilege_type, 'grantable', is_grantable
+              ) ORDER BY table_name, grantee, privilege_type)
+              FROM information_schema.role_table_grants
+              WHERE table_schema = 'public'
+                AND grantee IN ('anon', 'authenticated', 'service_role')
+            ), '[]'::jsonb)
+          ) AS schema_metadata;
+          SQL
+          )"
+          request_body="$(jq -n --arg query "$schema_query" '{query: $query, read_only: true}')"
+          schema_metadata="$(curl --fail --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data "$request_body" \
+            "https://api.supabase.com/v1/projects/${project_ref}/database/query")"
+          printf '%s\n' "$schema_metadata" | jq '.[0].schema_metadata'
+
       - name: Check migration drift
         shell: bash
         env:
@@ -98,7 +208,7 @@ jobs:
             exit 1
           fi
 
-          echo "Schema in sync"
+          echo "Migration history in sync"
 
   vercel-read-only-audit:
     name: Read-only Vercel project audit
@@ -117,9 +227,35 @@ jobs:
         run: |
           set -euo pipefail
 
-          project="$(curl --fail --silent --show-error \
+          identity_response="$(curl --silent --show-error --get \
             -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
+            "https://api.vercel.com/v2/user")"
+          identity_status="${identity_response##*$'\n'}"
+          identity_body="${identity_response%$'\n'*}"
+          printf 'vercel_identity_http=%s\n' "$identity_status"
+          printf '%s\n' "$identity_body" | jq '{id, username, error: .error.code, message: .error.message}'
+
+          team_response="$(curl --silent --show-error --get \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
+            "https://api.vercel.com/v2/teams/${VERCEL_ORG_ID}")"
+          team_status="${team_response##*$'\n'}"
+          team_body="${team_response%$'\n'*}"
+          printf 'vercel_team_http=%s\n' "$team_status"
+          printf '%s\n' "$team_body" | jq '{id, name, slug, error: .error.code, message: .error.message}'
+
+          project="$(curl --silent --show-error \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            --write-out '\n%{http_code}' \
             "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")"
+          project_status="${project##*$'\n'}"
+          project="${project%$'\n'*}"
+          if [[ "$project_status" != "200" ]]; then
+            printf 'vercel_project_http=%s\n' "$project_status"
+            printf '%s\n' "$project" | jq '{error: .error.code, message: .error.message}'
+            exit 1
+          fi
           printf '%s\n' "$project" | jq '{id, name, framework, buildCommand, outputDirectory, installCommand, rootDirectory, nodeVersion, commandForIgnoringBuildStep, git: (.link | if . == null then null else {type, org, repo, productionBranch} end)}'
 
           environments="$(curl --fail --silent --show-error --get \
