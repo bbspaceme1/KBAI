@@ -148,6 +148,18 @@ jobs:
                   SELECT 1 FROM pg_depend dep
                   WHERE dep.classid = 'pg_proc'::regclass AND dep.objid = proc.oid AND dep.deptype = 'e'
                 ),
+                'auth_uid_reference', position('auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'owner_guard_signature',
+                  position('auth.uid() <> p_user_id' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('auth.uid() <> p_user' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'for_update_lock', position('for update' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_positive_lot',
+                  position('p_lot <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_lot < 1' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_nonnegative_price', position('p_price < 0' in lower(pg_get_functiondef(proc.oid))) > 0,
+                'validates_positive_tokens',
+                  position('p_tokens <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_tokens < 1' in lower(pg_get_functiondef(proc.oid))) > 0,
                 'settings', proc.proconfig,
                 'definition_hash', md5(pg_get_functiondef(proc.oid)),
                 'anon_execute', has_function_privilege('anon', proc.oid, 'EXECUTE'),
@@ -257,6 +269,7 @@ jobs:
             rls_disabled: [.rls[] | select(.enabled == false) | .table],
             public_unrestricted_policies: [.policies[] | select((.roles | index("public")) and ((.using_unrestricted == true) or (.check_unrestricted == true))) | {table, name, command, using_unrestricted, check_unrestricted}],
             application_function_security: [.functions[] | select(.extension_owned == false) | {name, arguments, security_definer, anon_execute, authenticated_execute, settings}],
+            critical_rpc_guards: [.functions[] | select(.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "adjust_cash_balance" or .name == "try_consume_ai_quota") | {name, arguments, security_definer, anon_execute, authenticated_execute, auth_uid_reference, owner_guard_signature, for_update_lock, validates_positive_lot, validates_nonnegative_price, validates_positive_tokens}],
             role_attributes: .roles,
             role_memberships: .role_memberships,
             schema_privileges: .schema_privileges,
