@@ -242,42 +242,28 @@ jobs:
             -H 'Content-Type: application/json' \
             --data "$request_body" \
             "https://api.supabase.com/v1/projects/${project_ref}/database/query")"
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+          schema_file="$RUNNER_TEMP/kbai-supabase-schema-audit.json"
+          printf '%s\n' "$schema_metadata" | jq '.[0].schema_metadata' > "$schema_file"
+          jq -c '{
             counts: {
               tables: (.tables | length), columns: (.columns | length),
               indexes: (.indexes | length), constraints: (.constraints | length),
               rls_tables: (.rls | length), policies: (.policies | length),
               functions: (.functions | length), triggers: (.triggers | length),
-              grants: (.grants | length)
-            }, tables: [.tables[].table]
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            columns_by_table: [.columns | group_by(.table)[] | {
-              table: .[0].table, columns: map({column, type, nullable})
-            }]
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            indexes: [.indexes[] | {table, name, definition}]
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            constraints: [.constraints[] | {table, name, type, definition}]
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            rls: .rls, policies: .policies
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            functions: [.functions[] | select(.extension_owned == false)]
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+              grants: (.grants | length), table_acl_entries: (.table_acl | length)
+            },
+            tables: [.tables[].table],
+            domain_tables: [.tables[].table | select(test("emergency|company|approval|feature_flags|plans|features|payments|revenue"; "i"))],
+            rls_disabled: [.rls[] | select(.enabled == false) | .table],
+            public_unrestricted_policies: [.policies[] | select((.roles | index("public")) and ((.using_unrestricted == true) or (.check_unrestricted == true))) | {table, name, command, using_unrestricted, check_unrestricted}],
+            application_function_security: [.functions[] | select(.extension_owned == false) | {name, arguments, security_definer, anon_execute, authenticated_execute, settings}],
+            role_attributes: .roles,
+            role_memberships: .role_memberships,
+            schema_privileges: .schema_privileges,
+            table_acl_counts: ([.table_acl[]] | group_by(.grantee) | map({grantee: .[0].grantee, entries: length})),
+            effective_grant_counts: ([.grants[]] | group_by(.grantee) | map({grantee: .[0].grantee, tables_with_any_privilege: length})),
             triggers: .triggers
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            grants: .grants
-          }'
-          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            roles: .roles, role_memberships: .role_memberships,
-            schema_privileges: .schema_privileges, table_acl: .table_acl
-          }'
+          }' "$schema_file"
 
       - name: Check migration drift
         shell: bash
@@ -330,6 +316,15 @@ jobs:
           fi
 
           echo "Migration history in sync"
+
+      - name: Upload redacted Supabase schema inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-schema-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/kbai-supabase-schema-audit.json
+          if-no-files-found: warn
+          retention-days: 1
 
   vercel-read-only-audit:
     name: Read-only Vercel project audit
