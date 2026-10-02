@@ -13,9 +13,9 @@ Pembaruan status: 2026-10-02
 | Item                                        | Hasil                                                                                                                                    |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Repository / base                           | `bbspaceme1/KBAI`, `main`                                                                                                                |
-| Baseline HEAD                               | `1bbadaf`                                                                                                                                |
+| Baseline HEAD                               | `0248d7f` (PR #17 merged into `main`)                                                                                                    |
 | Local vs remote main                        | Sinkron, divergence `0/0` setelah fetch                                                                                                  |
-| Branch kerja                                | `copilot/full-access-reconciliation`, sudah dipush; Draft PR #17 ke `main`                                                               |
+| Branch kerja                                | `feature/reconciliation-release-readiness`; PR #17 sudah merged ke `main`                                                                |
 | Remote branches belum merged                | Tidak ada yang terdeteksi                                                                                                                |
 | Worktree awal                               | `package-lock.json` telah berubah sebelum audit (26 baris ditambahkan); dipertahankan tanpa edit                                         |
 | HEAD saat verifikasi 2026-10-02             | `00d9ae8`; report/feature-flag working changes belum di-commit                                                                           |
@@ -109,7 +109,7 @@ Vercel secrets hadir tetapi auth API mengembalikan `/v2/user` 404 `User not foun
 | `npm ci`                | Berhasil; Node 24 memberi `EBADENGINE` karena project meminta Node 22; audit install melaporkan 50 advisories termasuk dev dependencies                                            |
 | `npm run type-check`    | PASS                                                                                                                                                                               |
 | `npm run lint:ci`       | PASS                                                                                                                                                                               |
-| `npm run test:run`      | 21 file passed, 1 file skipped; 136 passed, 5 skipped, 3 todo. Skipped RLS tidak dihitung lulus                                                                                    |
+| `npm run test:run`      | 20 file passed, 1 file skipped; 131 passed, 5 skipped, 3 todo. Skipped RLS tidak dihitung lulus                                                                                    |
 | `npm run test:coverage` | Lines/statements 18.85%; functions 32.34%; branches 64.25%; target 60% belum terpenuhi                                                                                             |
 | `npm run test:rls`      | BLOCKED: 5 skipped, 3 todo karena Supabase/RLS staging env tidak tersedia                                                                                                          |
 | `CI=1 npm run test:e2e` | BLOCKED: browser diunduh, tetapi host libraries hilang; 78 gagal diluncurkan, 39 tidak berjalan                                                                                    |
@@ -142,7 +142,7 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 - Billing notification belum terbukti terhubung ke route/webhook idempotent; entitlement billing belum direkonsiliasi.
 - Telegram replay protection dan membership sync live belum dibuktikan.
 - E2E/RLS, accessibility, mobile viewport dan performance gates belum lulus/berjalan; CI quality/build run `37013281043` lulus, integration/E2E dilewati pada event PR.
-- PR #17 tetap draft; audit database gagal pada history differences yang benar-benar terdeteksi, sedangkan Vercel audit gagal authorization. Deployment check Vercel dilabeli `Ignored`.
+- PR #17 sudah merged ke `main` pada commit `0248d7f`; migration-history differences dan Vercel authorization tetap menjadi release blockers yang belum terselesaikan. Deployment metadata production belum dapat diverifikasi.
 
 ## Manual Owner Actions
 
@@ -155,7 +155,7 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 
 ## Recommended Next PR Order
 
-1. Review/merge security boundary dan workflow hardening pada branch ini setelah pemeriksaan manusia; pastikan semua GitHub checks hijau.
+1. Review perubahan branch ini dan buka/merge PR setelah pemeriksaan manusia; PR #17 sebelumnya sudah merged ke `main`, tetapi database/Vercel gates masih merah.
 2. PR database staging untuk Emergency Fund dan Company Operations: schema, seed, grants, RLS, transition/approval invariants dan test; production tetap menunggu approval manual.
 3. PR per-domain server-function contract untuk portfolio, admin/advisor, entitlement dan billing; identity session-derived, Zod, scope, rate limit, idempotency, audit.
 4. PR privacy/billing/Telegram reconciliation: webhook signatures/idempotency, export/delete matrix, replay protection dan lifecycle.
@@ -164,4 +164,4 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 
 ## Git Completion
 
-Read-only audit workflow commits telah dipush ke `copilot/full-access-reconciliation`; pre-report HEAD `00d9ae8`. Draft PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) tetap terhadap `main` dan belum di-merge. Perubahan staged pengguna pada `package-lock.json` dipertahankan identik dan tidak dimasukkan ke commit report. Feature-flag adapter/test masih berupa working changes terpisah. Tidak ada push ke `main`, migration production, deployment, penghapusan data, atau perubahan live provider.
+Read-only audit findings were previously merged via PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) at `0248d7f75a5e69bd924c701684dd51892b86f130`. This update is prepared on `feature/reconciliation-release-readiness`. No production migration, deployment mutation, data deletion, or live provider change has been performed. The original package-lock change was preserved according to the prior audit record.
