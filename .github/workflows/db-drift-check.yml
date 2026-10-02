@@ -195,6 +195,43 @@ jobs:
                   has_table_privilege(principals.role_name, cls.oid, 'TRIGGER')
                 )
             ), '[]'::jsonb)
+            , 'schema_privileges', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'role', principals.role_name,
+                'usage', has_schema_privilege(principals.role_name, 'public', 'USAGE'),
+                'create', has_schema_privilege(principals.role_name, 'public', 'CREATE')
+              ) ORDER BY principals.role_name)
+              FROM (VALUES ('anon'), ('authenticated'), ('service_role')) AS principals(role_name)
+            ), '[]'::jsonb)
+            , 'roles', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'name', rolname, 'superuser', rolsuper, 'bypass_rls', rolbypassrls,
+                'inherit', rolinherit, 'create_role', rolcreaterole, 'create_db', rolcreatedb
+              ) ORDER BY rolname)
+              FROM pg_roles WHERE rolname IN ('anon', 'authenticated', 'service_role')
+            ), '[]'::jsonb)
+            , 'role_memberships', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'member', member.rolname, 'granted_role', granted.rolname,
+                'admin_option', membership.admin_option
+              ) ORDER BY member.rolname, granted.rolname)
+              FROM pg_auth_members membership
+              JOIN pg_roles member ON member.oid = membership.member
+              JOIN pg_roles granted ON granted.oid = membership.roleid
+              WHERE member.rolname IN ('anon', 'authenticated', 'service_role')
+            ), '[]'::jsonb)
+            , 'table_acl', COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'table', cls.relname, 'grantee', COALESCE(grantee.rolname, 'PUBLIC'),
+                'privilege', acl.privilege_type, 'grantable', acl.is_grantable
+              ) ORDER BY cls.relname, COALESCE(grantee.rolname, 'PUBLIC'), acl.privilege_type)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              CROSS JOIN LATERAL aclexplode(COALESCE(cls.relacl, acldefault('r', cls.relowner))) acl
+              LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+                AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated', 'service_role'))
+            ), '[]'::jsonb)
           ) AS schema_metadata;
           SQL
           )"
@@ -236,6 +273,10 @@ jobs:
           }'
           printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
             grants: .grants
+          }'
+          printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
+            roles: .roles, role_memberships: .role_memberships,
+            schema_privileges: .schema_privileges, table_acl: .table_acl
           }'
 
       - name: Check migration drift
