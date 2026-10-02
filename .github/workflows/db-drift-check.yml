@@ -128,6 +128,12 @@ jobs:
               SELECT jsonb_agg(jsonb_build_object(
                 'table', tablename, 'name', policyname, 'roles', roles,
                 'command', cmd, 'permissive', permissive,
+                'using_unrestricted', qual IS NULL OR lower(btrim(qual)) IN ('true', '(true)'),
+                'check_unrestricted', with_check IS NULL OR lower(btrim(with_check)) IN ('true', '(true)'),
+                'using_auth_uid', COALESCE(qual, '') ILIKE '%auth.uid%',
+                'check_auth_uid', COALESCE(with_check, '') ILIKE '%auth.uid%',
+                'using_admin_gate', COALESCE(qual, '') ILIKE '%admin%',
+                'check_admin_gate', COALESCE(with_check, '') ILIKE '%admin%',
                 'using_hash', md5(COALESCE(qual, '')),
                 'check_hash', md5(COALESCE(with_check, ''))
               ) ORDER BY tablename, policyname)
@@ -138,6 +144,10 @@ jobs:
                 'name', proc.proname,
                 'arguments', pg_get_function_identity_arguments(proc.oid),
                 'language', lang.lanname, 'security_definer', proc.prosecdef,
+                'extension_owned', EXISTS (
+                  SELECT 1 FROM pg_depend dep
+                  WHERE dep.classid = 'pg_proc'::regclass AND dep.objid = proc.oid AND dep.deptype = 'e'
+                ),
                 'settings', proc.proconfig,
                 'definition_hash', md5(pg_get_functiondef(proc.oid)),
                 'anon_execute', has_function_privilege('anon', proc.oid, 'EXECUTE'),
@@ -162,12 +172,28 @@ jobs:
             ), '[]'::jsonb),
             'grants', COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
-                'table', table_name, 'grantee', grantee,
-                'privilege', privilege_type, 'grantable', is_grantable
-              ) ORDER BY table_name, grantee, privilege_type)
-              FROM information_schema.role_table_grants
-              WHERE table_schema = 'public'
-                AND grantee IN ('anon', 'authenticated', 'service_role')
+                'table', cls.relname, 'grantee', principals.role_name,
+                'select', has_table_privilege(principals.role_name, cls.oid, 'SELECT'),
+                'insert', has_table_privilege(principals.role_name, cls.oid, 'INSERT'),
+                'update', has_table_privilege(principals.role_name, cls.oid, 'UPDATE'),
+                'delete', has_table_privilege(principals.role_name, cls.oid, 'DELETE'),
+                'truncate', has_table_privilege(principals.role_name, cls.oid, 'TRUNCATE'),
+                'references', has_table_privilege(principals.role_name, cls.oid, 'REFERENCES'),
+                'trigger', has_table_privilege(principals.role_name, cls.oid, 'TRIGGER')
+              ) ORDER BY cls.relname, principals.role_name)
+              FROM pg_class cls
+              JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) AS principals(role_name)
+              WHERE ns.nspname = 'public' AND cls.relkind IN ('r', 'p')
+                AND (
+                  has_table_privilege(principals.role_name, cls.oid, 'SELECT') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'INSERT') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'UPDATE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'DELETE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'TRUNCATE') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'REFERENCES') OR
+                  has_table_privilege(principals.role_name, cls.oid, 'TRIGGER')
+                )
             ), '[]'::jsonb)
           ) AS schema_metadata;
           SQL
@@ -203,7 +229,7 @@ jobs:
             rls: .rls, policies: .policies
           }'
           printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
-            functions: .functions
+            functions: [.functions[] | select(.extension_owned == false)]
           }'
           printf '%s\n' "$schema_metadata" | jq -c '.[0].schema_metadata | {
             triggers: .triggers
@@ -226,23 +252,34 @@ jobs:
 
           migration_list="$(supabase migration list)"
           printf '%s\n' "$migration_list"
+          duplicate_versions="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | awk -F_ '{count[$1]++} END {for (version in count) if (count[version] > 1) print version}' | sort)"
 
-          migration_differences="$(printf '%s\n' "$migration_list" | awk -F'|' '
+          migration_differences="$(printf '%s\n' "$migration_list" | awk -F'|' -v duplicate_versions="$duplicate_versions" '
             function trim(value) {
+              gsub(/`/, "", value)
               gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
               return value
+            }
+            BEGIN {
+              count = split(duplicate_versions, versions, "\n")
+              for (i = 1; i <= count; i++) if (versions[i] != "") duplicates[versions[i]] = 1
             }
             {
               local_version=trim($1)
               remote_version=trim($2)
               if (length(local_version) >= 8 && local_version ~ /^[0-9]+$/ && remote_version == "")
-                print "LOCAL_ONLY " local_version
+                print (local_version in duplicates ? "DUPLICATE_LOCAL " : "LOCAL_ONLY ") local_version
               else if (length(remote_version) >= 8 && remote_version ~ /^[0-9]+$/ && local_version == "")
                 print "REMOTE_ONLY " remote_version
               else if (length(local_version) >= 8 && length(remote_version) >= 8 && local_version != remote_version)
                 print "DIVERGED " local_version " " remote_version
             }
           ')"
+
+          if [[ -n "$duplicate_versions" ]]; then
+            duplicate_differences="$(printf '%s\n' "$duplicate_versions" | sed 's/^/DUPLICATE_LOCAL /')"
+            migration_differences="$(printf '%s\n%s\n' "$migration_differences" "$duplicate_differences" | sed '/^$/d' | sort -u)"
+          fi
 
           if [[ -n "$migration_differences" ]]; then
             echo "Migration history differences found; this check does not apply migrations:"
