@@ -13,7 +13,14 @@ This document records repository-side reconciliation only. No production migrati
 
 ## Remote state
 
-Remote migration history and actual schema must still be queried against the linked Supabase project before applying any migration. They are intentionally not inferred from local files and were not mutated by this change.
+The linked Supabase project was queried through MCP. Remote migration listing was permission-blocked for the first project identifier, then the linked project `ejiufnrqvkvqzxroustb` was identified. A forward RPC security migration was applied and its non-destructive ACL/search-path assertion returned success. Full schema parity and behavioral cross-user RLS testing remain unverified.
+
+Remote evidence now verified:
+
+- The financial RPC ACL/search-path verification migration returned `success`.
+- The verification asserted explicit `search_path` and absence of anonymous/public execution grants for the inspected financial RPC overloads.
+- A prior broad ownership assertion failed for `upsert_holding_buy`; therefore caller-ownership enforcement is not claimed verified for every remote function body.
+- No claim is made that all local migrations, Company Operations, Emergency Fund, billing, or Telegram schema are present remotely.
 
 | Area                    | Local desired state                                 | Remote evidence               | Status              | Action                                                     |
 | ----------------------- | --------------------------------------------------- | ----------------------------- | ------------------- | ---------------------------------------------------------- |

@@ -1,9 +1,9 @@
 # KBAI Release Readiness
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 Repository: `bbspaceme1/KBAI`
-Baseline: `main` at `0248d7f75a5e69bd924c701684dd51892b86f130`
-Working branch: `feature/reconciliation-release-readiness`
+Baseline: `main` currently resolves to `0248d7f75a5e69bd924c701684dd51892b86f130` in this checkout
+Working branch: `feature/reconciliation-release-readiness` at `9952023` (not yet on `origin/main`)
 
 ## Executive status
 
@@ -11,20 +11,20 @@ Working branch: `feature/reconciliation-release-readiness`
 
 ## Verified state
 
-| Area                       | Status          | Evidence                                                                       |
-| -------------------------- | --------------- | ------------------------------------------------------------------------------ |
-| GitHub baseline            | VERIFIED        | PR #17 merged into `main` at `0248d7f`                                         |
-| TypeScript                 | PASS            | Prior recorded `npm run type-check` result                                     |
-| Lint                       | PASS            | Prior recorded `npm run lint:ci` result                                        |
-| Unit tests                 | PASS with skips | Current rerun: 131 passed, 5 skipped, 3 todo; RLS file remains skipped         |
-| Build                      | PASS            | Prior recorded `npm run build` result                                          |
-| Coverage                   | BLOCKED_RELEASE | Lines/statements 18.85%, functions 32.34%, branches 64.25%                     |
-| RLS behavior               | BLOCKED_ENV     | Negative matrix skipped without staging identities                             |
-| E2E                        | BLOCKED_ENV     | Browser launch failed because host libraries were unavailable                  |
-| Dependencies               | BLOCKED_RELEASE | `npm audit --omit=dev`: 24 advisories, including 8 high; `xlsx` has no fix     |
-| Supabase migration lineage | BLOCKED_RELEASE | Six local-only versions and duplicate `20260905130000`                         |
-| Supabase security          | BLOCKED_RELEASE | Remote financial SECURITY DEFINER functions lack verified session-owner guards |
-| Vercel                     | BLOCKED_ENV     | API identity returned 404; team/project reads returned 403                     |
+| Area                       | Status          | Evidence                                                                                                    |
+| -------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
+| GitHub baseline            | VERIFIED        | PR #17 merged into `main` at `0248d7f`                                                                      |
+| TypeScript                 | PASS            | Prior recorded `npm run type-check` result                                                                  |
+| Lint                       | PASS            | Prior recorded `npm run lint:ci` result                                                                     |
+| Unit tests                 | PASS with skips | Current rerun: 131 passed, 5 skipped, 3 todo; RLS file remains skipped                                      |
+| Build                      | PASS            | Prior recorded `npm run build` result                                                                       |
+| Coverage                   | BLOCKED_RELEASE | Lines/statements 18.85%, functions 32.34%, branches 64.25%                                                  |
+| RLS behavior               | BLOCKED_ENV     | Negative matrix skipped without staging identities                                                          |
+| E2E                        | BLOCKED_ENV     | Browser launch failed because host libraries were unavailable                                               |
+| Dependencies               | BLOCKED_RELEASE | `npm audit --omit=dev`: 24 advisories, including 8 high; `xlsx` has no fix                                  |
+| Supabase migration lineage | PARTIAL         | Local duplicate resolved; remote migration history/parity is not fully verified                             |
+| Supabase security          | PARTIAL/BLOCKED | Remote ACL/search_path assertion succeeded; full function-body ownership and RLS behavior remain unverified |
+| Vercel                     | BLOCKED_ENV     | API identity returned 404; team/project reads returned 403                                                  |
 
 ## Database and migration blockers
 

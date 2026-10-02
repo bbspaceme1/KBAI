@@ -6,7 +6,7 @@
 
 Tanggal audit awal: 2026-10-01
 
-Pembaruan status: 2026-10-02
+Pembaruan status: 2026-10-03 — remote financial RPC ACL/search_path assertion succeeded; full remote parity and behavioral authorization remain unverified
 
 ## Baseline
 
