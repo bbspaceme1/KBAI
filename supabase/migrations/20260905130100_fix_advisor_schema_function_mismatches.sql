@@ -12,6 +12,10 @@ AS $$
 DECLARE
   v_new_balance numeric;
 BEGIN
+  IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
   UPDATE public.cash_balances
   SET balance = balance + p_delta,
       updated_at = now()
@@ -44,6 +48,13 @@ DECLARE
   v_current_cost numeric;
   v_new_avg_price numeric;
 BEGIN
+  IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+  IF p_lot <= 0 OR p_price < 0 OR p_ticker IS NULL OR btrim(p_ticker) = '' THEN
+    RAISE EXCEPTION 'invalid holding transaction';
+  END IF;
+
   SELECT total_lot, (avg_price * total_lot)
     INTO v_current_lot, v_current_cost
   FROM public.holdings
@@ -73,6 +84,10 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
   UPDATE auth.users
   SET raw_user_meta_data = jsonb_set(
     COALESCE(raw_user_meta_data, '{}'::jsonb),
