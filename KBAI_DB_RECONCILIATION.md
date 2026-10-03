@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document records repository-side reconciliation only. No production migration or destructive database operation was executed in this pass.
+This document records repository and linked Supabase evidence separately. The linked project `ejiufnrqvkvqzxroustb` received forward-only RLS and financial-RPC hardening through the Supabase MCP; no destructive data operation or reset was executed.
 
 ## Local migration inventory
 
@@ -22,14 +22,14 @@ Remote evidence now verified:
 - A prior broad ownership assertion failed for `upsert_holding_buy`; therefore caller-ownership enforcement is not claimed verified for every remote function body.
 - No claim is made that all local migrations, Company Operations, Emergency Fund, billing, or Telegram schema are present remotely.
 
-| Area                    | Local desired state                                 | Remote evidence               | Status              | Action                                                     |
-| ----------------------- | --------------------------------------------------- | ----------------------------- | ------------------- | ---------------------------------------------------------- |
-| Migration lineage       | Unique ordered versions                             | Not yet captured in this pass | `PENDING_MIGRATION` | Compare remote history before apply                        |
-| Financial RPC ownership | `auth.uid()` must equal `p_user_id`                 | Not yet behaviorally verified | `PENDING_MIGRATION` | Inspect `pg_proc`, grants, then stage/apply corrective SQL |
-| Financial RPC grants    | Revoke `PUBLIC`/`anon`; grant only required callers | Not yet captured              | `PENDING_MIGRATION` | Verify `proacl` and apply additive grant repair if needed  |
-| RLS                     | Owner/scope policies with negative tests            | Not yet behaviorally verified | `PENDING_MIGRATION` | Run separate-identity RLS matrix                           |
-| Company Operations      | Tables, roles, permissions, approval, audit, RLS    | Not yet reconciled            | `PENDING_MIGRATION` | Compare schema and prepare additive migration              |
-| Emergency Fund          | Persistence, history, version, owner RLS            | Not yet reconciled            | `PENDING_MIGRATION` | Compare schema and prepare additive migration              |
+| Area                    | Local desired state                                 | Remote evidence                                                              | Status              | Action                                                             |
+| ----------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------ |
+| Migration lineage       | Unique ordered versions                             | Local duplicate check passed; remote history not fully captured              | `PARTIAL`           | Compare remote history before any further apply                    |
+| Financial RPC ownership | `auth.uid()` must equal `p_user_id`                 | ACL/search_path verified; full remote body ownership not proven              | `PARTIAL`           | Inspect exact overload bodies and run authenticated negative tests |
+| Financial RPC grants    | Revoke `PUBLIC`/`anon`; grant only required callers | Forward ACL assertion succeeded via MCP                                      | `VERIFIED STATIC`   | Add behavioral cross-user RPC tests                                |
+| RLS                     | Owner/scope policies with negative tests            | Forward advisor/compliance policy correction applied; identities unavailable | `BLOCKED_ENV`       | Run separate-identity RLS matrix                                   |
+| Company Operations      | Tables, roles, permissions, approval, audit, RLS    | Not yet reconciled                                                           | `PENDING_MIGRATION` | Compare schema and prepare additive migration                      |
+| Emergency Fund          | Persistence, history, version, owner RLS            | Not yet reconciled                                                           | `PENDING_MIGRATION` | Compare schema and prepare additive migration                      |
 
 ## Financial conflict decision
 

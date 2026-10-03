@@ -2,8 +2,8 @@
 
 Updated: 2026-10-03
 Repository: `bbspaceme1/KBAI`
-Baseline: `main` currently resolves to `0248d7f75a5e69bd924c701684dd51892b86f130` in this checkout
-Working branch: `feature/reconciliation-release-readiness` at `9952023` (not yet on `origin/main`)
+Baseline: verify with `git rev-parse origin/main` at release time; this working branch contains the current reconciliation changes
+Working branch: `feature/reconciliation-release-readiness`
 
 ## Executive status
 
@@ -22,8 +22,8 @@ Working branch: `feature/reconciliation-release-readiness` at `9952023` (not yet
 | RLS behavior               | BLOCKED_ENV     | Negative matrix skipped without staging identities                                                          |
 | E2E                        | BLOCKED_ENV     | Browser launch failed because host libraries were unavailable                                               |
 | Dependencies               | BLOCKED_RELEASE | `npm audit --omit=dev`: 24 advisories, including 8 high; `xlsx` has no fix                                  |
-| Supabase migration lineage | PARTIAL         | Local duplicate resolved; remote migration history/parity is not fully verified                             |
-| Supabase security          | PARTIAL/BLOCKED | Remote ACL/search_path assertion succeeded; full function-body ownership and RLS behavior remain unverified |
+| Supabase migration lineage | PARTIAL         | Local duplicate check passes; remote migration history/parity is not fully captured                         |
+| Supabase security          | PARTIAL/BLOCKED | RPC ACL/search_path and forward RLS correction applied; body ownership and behavioral RLS remain unverified |
 | Vercel                     | BLOCKED_ENV     | API identity returned 404; team/project reads returned 403                                                  |
 
 ## Database and migration blockers

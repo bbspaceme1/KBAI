@@ -30,11 +30,7 @@ export const emergencyFundInputSchema = z.object({
 
 export type EmergencyFundInput = z.input<typeof emergencyFundInputSchema>;
 export type EmergencyFundLevel =
-  | "critical"
-  | "vulnerable"
-  | "near_target"
-  | "resilient"
-  | "strong_reserve";
+  "critical" | "vulnerable" | "near_target" | "resilient" | "strong_reserve";
 
 export const DEFAULT_EMERGENCY_FUND_CONFIG = {
   targetMonths: { min: 3, max: 6 },
