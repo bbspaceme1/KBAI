@@ -3,8 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 function getSupabaseConfig() {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey =
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const missing = [
     ...(!url ? ["VITE_SUPABASE_URL"] : []),
     ...(!publishableKey ? ["VITE_SUPABASE_PUBLISHABLE_KEY"] : []),
