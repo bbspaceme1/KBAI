@@ -11,20 +11,20 @@ Working branch: `feature/reconciliation-release-readiness`
 
 ## Verified state
 
-| Area                       | Status          | Evidence                                                                                                    |
-| -------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
-| GitHub baseline            | VERIFIED        | PR #17 merged into `main` at `0248d7f`                                                                      |
-| TypeScript                 | PASS            | Prior recorded `npm run type-check` result                                                                  |
-| Lint                       | PASS            | Prior recorded `npm run lint:ci` result                                                                     |
-| Unit tests                 | PASS with skips | Current rerun: 131 passed, 5 skipped, 3 todo; RLS file remains skipped                                      |
-| Build                      | PASS            | Prior recorded `npm run build` result                                                                       |
-| Coverage                   | BLOCKED_RELEASE | Lines/statements 18.85%, functions 32.34%, branches 64.25%                                                  |
-| RLS behavior               | BLOCKED_ENV     | Negative matrix skipped without staging identities                                                          |
-| E2E                        | BLOCKED_ENV     | Browser launch failed because host libraries were unavailable                                               |
-| Dependencies               | BLOCKED_RELEASE | `npm audit --omit=dev`: 24 advisories, including 8 high; `xlsx` has no fix                                  |
-| Supabase migration lineage | PARTIAL         | Local duplicate check passes; remote migration history/parity is not fully captured                         |
-| Supabase security          | PARTIAL/BLOCKED | RPC ACL/search_path and forward RLS correction applied; body ownership and behavioral RLS remain unverified |
-| Vercel                     | BLOCKED_ENV     | API identity returned 404; team/project reads returned 403                                                  |
+| Area                       | Status          | Evidence                                                                                                         |
+| -------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| GitHub baseline            | VERIFIED        | Current release branch and `origin/main` resolve to the reconciliation branch tip; verify final SHA after commit |
+| TypeScript                 | PASS            | Prior recorded `npm run type-check` result                                                                       |
+| Lint                       | PASS            | Prior recorded `npm run lint:ci` result                                                                          |
+| Unit tests                 | PASS with skips | Current rerun: 131 passed, 5 skipped, 3 todo; RLS file remains skipped                                           |
+| Build                      | PASS            | Prior recorded `npm run build` result                                                                            |
+| Coverage                   | BLOCKED_RELEASE | Lines/statements 18.85%, functions 32.34%, branches 64.25%                                                       |
+| RLS behavior               | BLOCKED_ENV     | Negative matrix skipped without staging identities                                                               |
+| E2E                        | BLOCKED_ENV     | Browser launch failed because host libraries were unavailable                                                    |
+| Dependencies               | BLOCKED_RELEASE | `npm audit --omit=dev`: 24 advisories, including 8 high; `xlsx` has no fix                                       |
+| Supabase migration lineage | PARTIAL         | Local duplicate check passes; remote migration history/parity is not fully captured                              |
+| Supabase security          | PARTIAL/BLOCKED | RPC ACL/search_path and forward RLS correction applied; body ownership and behavioral RLS remain unverified      |
+| Vercel                     | BLOCKED_ENV     | API identity returned 404; team/project reads returned 403                                                       |
 
 ## Database and migration blockers
 
@@ -40,7 +40,7 @@ The repository contains the calculation engine and UI foundation. Persistence, h
 
 ## Entitlement and billing
 
-Runtime entitlement and billing/webhook reconciliation are not production-verified. Remote schema comparison did not verify the expected Company Operations/billing tables. No payment or entitlement production state was changed.
+Runtime entitlement uses `company_subscriptions`; Midtrans settlement processing now validates the order-bound UUID, matches the amount to an active canonical plan, and persists `company_subscriptions` plus idempotent `payments`. This is source-verified and covered by billing/entitlement unit tests, but remains `PARTIAL`: the generated Supabase types are stale, the two-record webhook write is not yet a single database transaction, and live signature/replay/payment lifecycle tests were not executed.
 
 ## Telegram and market data
 
@@ -59,8 +59,9 @@ Repository workflows include quality/build and production deployment paths, but 
 5. Make entitlement/billing runtime enforcement and webhook idempotency executable and tested.
 6. Restore Vercel team/project read authorization and verify deployment-to-commit mapping.
 7. Install browser host dependencies and run critical E2E/a11y/mobile checks.
-8. Remediate or formally accept production dependency advisories.
-9. Raise meaningful security/domain coverage; do not inflate metrics.
+8. Reconcile generated Supabase types and move billing settlement persistence into an atomic server-side transaction/RPC.
+9. Remediate or formally accept production dependency advisories.
+10. Raise meaningful security/domain coverage; do not inflate metrics.
 
 ## Rollback and safety
 

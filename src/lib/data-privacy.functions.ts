@@ -120,7 +120,8 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
     "watchlists",
     "price_alerts",
     "portfolio_snapshots",
-    "subscriptions",
+    "company_subscriptions",
+    "payments",
     "user_roles",
     "ai_usage_logs",
   ];
