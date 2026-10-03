@@ -63,8 +63,8 @@ function EkonomiLayout() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Ekonomi Terminal</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Monitoring makroekonomi nasional & global. Sumber data publik: World Bank, Yahoo Finance,
-          FRED. Selalu validasi sebelum mengambil keputusan investasi.
+          Monitoring makroekonomi nasional & global. Sumber data: World Bank, FRED, dan provider
+          resmi KBAI. Selalu validasi sebelum mengambil keputusan investasi.
         </p>
       </header>
 

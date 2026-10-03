@@ -23,7 +23,7 @@ function KomoditasPage() {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
-          Komoditas Global · Yahoo Finance
+          Komoditas Global · Provider Resmi
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">

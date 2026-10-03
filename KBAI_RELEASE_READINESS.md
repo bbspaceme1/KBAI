@@ -42,6 +42,10 @@ The repository contains the calculation engine and UI foundation. Persistence, h
 
 Runtime entitlement uses `company_subscriptions`; Midtrans settlement processing now validates the order-bound UUID, matches the amount to an active canonical plan, and persists `company_subscriptions` plus idempotent `payments`. This is source-verified and covered by billing/entitlement unit tests, but remains `PARTIAL`: the generated Supabase types are stale, the two-record webhook write is not yet a single database transaction, and live signature/replay/payment lifecycle tests were not executed.
 
+## Market data
+
+IDX production paths now use the configured official provider directly, write `source: "official"`, fail closed when no official provider is configured, and no longer include Yahoo-based portfolio/price fallbacks. Global commodity/economic screens remain dependent on the official provider's supported symbol contract and require runtime verification.
+
 ## Telegram and market data
 
 Telegram replay protection, membership synchronization, webhook behavior, and invite lifecycle remain unverified against live staging. Official IDX provider configuration and freshness behavior remain unverified; the application is fail-closed when the official provider is not configured.

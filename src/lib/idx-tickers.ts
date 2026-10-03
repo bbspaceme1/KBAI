@@ -1430,11 +1430,3 @@ export const IDX_EMITEN: IdxEmiten[] = [
 ];
 
 export const IDX_TICKERS: string[] = IDX_EMITEN.map((e) => e.code);
-
-export function toYahoo(ticker: string): string {
-  return `${ticker.toUpperCase().replace(/\.JK$/, "")}.JK`;
-}
-
-export function fromYahoo(symbol: string): string {
-  return symbol.replace(/\.JK$/, "");
-}

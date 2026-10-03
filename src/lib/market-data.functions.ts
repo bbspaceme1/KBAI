@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { IDX_TICKERS, toYahoo, fromYahoo } from "@/lib/idx-tickers";
+import { IDX_TICKERS } from "@/lib/idx-tickers";
 import { getAdminDatabaseClient } from "@/lib/backend-client.server";
 import { fetchMarketQuotes, fetchMarketChart } from "@/lib/market-data-provider";
 import { requireAdminAccess } from "@/lib/rbac";
@@ -20,8 +20,7 @@ async function fetchBtcSpotUsd(): Promise<number | null> {
     const j = (await res.json()) as { bitcoin?: { usd?: number } };
     return typeof j.bitcoin?.usd === "number" ? j.bitcoin.usd : null;
   } catch {
-    const yahoo = await fetchMarketQuotes(["BTC-USD"]);
-    return yahoo["BTC-USD"] ?? null;
+    return null;
   }
 }
 
@@ -29,9 +28,7 @@ async function fetchBtcDailyUsd(
   fromUnix: number,
   toUnix: number,
 ): Promise<Array<{ date: string; close: number }>> {
-  const yahooBars = await fetchMarketChart("BTC-USD", fromUnix, toUnix);
-  if (yahooBars.length > 0) return yahooBars;
-
+  // CoinGecko is used only for the non- IDX BTC benchmark; IDX data remains official-provider-only.
   // CoinGecko free tier: max 365 days history.
   // Chunk into 80-day windows to ensure daily granularity (range <90d returns hourly).
   const ONE_YEAR_SEC = 365 * 24 * 60 * 60;
@@ -143,30 +140,29 @@ export async function refreshIntradayPrices(data: unknown = {}) {
   const heldTickers = (holdings ?? []).map((h) => h.ticker);
   const allTickers = Array.from(new Set([...heldTickers, ...IDX_TICKERS]));
   const batchSize = 80;
-  const yahooSymbols = allTickers.map(toYahoo);
   const quotes: Record<string, number> = {};
-  for (let i = 0; i < yahooSymbols.length; i += batchSize) {
-    const batch = yahooSymbols.slice(i, i + batchSize);
-    const got = await fetchMarketQuotes([...batch, "^JKSE"]);
+  for (let i = 0; i < allTickers.length; i += batchSize) {
+    const batch = allTickers.slice(i, i + batchSize);
+    const got = await fetchMarketQuotes([...batch, "IHSG"]);
     Object.assign(quotes, got);
   }
   const eodRows = Object.entries(quotes)
-    .filter(([sym]) => sym.endsWith(".JK"))
-    .map(([sym, close]) => ({
-      ticker: fromYahoo(sym),
+    .filter(([symbol]) => allTickers.includes(symbol))
+    .map(([ticker, close]) => ({
+      ticker,
       date: today,
       close,
-      source: "yahoo-intraday",
+      source: "official-intraday",
     }));
   if (eodRows.length > 0) {
     const { error } = await db.from("eod_prices").upsert(eodRows, { onConflict: "ticker,date" });
     if (error) throw new Error(error.message);
   }
   let ihsgUpdated = false;
-  if (quotes["^JKSE"]) {
+  if (quotes["IHSG"]) {
     const { error } = await db
       .from("benchmark_prices")
-      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["^JKSE"] }], {
+      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["IHSG"] }], {
         onConflict: "symbol,date",
       });
     if (!error) ihsgUpdated = true;
@@ -193,7 +189,7 @@ export async function refreshIntradayPrices(data: unknown = {}) {
   }
   return {
     updated: eodRows.length,
-    ihsg: ihsgUpdated ? quotes["^JKSE"] : null,
+    ihsg: ihsgUpdated ? quotes["IHSG"] : null,
     gold: goldUpdated ? goldQuote["GC=F"] : null,
     btc: btcUpdated ? btcSpot : null,
     timestamp: new Date().toISOString(),
@@ -210,7 +206,7 @@ export async function backfillEodFromApril(data: unknown = {}) {
   const toUnix = Math.floor(new Date(toDate + "T23:59:59Z").getTime() / 1000);
 
   // 1. Backfill IHSG benchmark
-  const ihsgBars = await fetchMarketChart("^JKSE", fromUnix, toUnix);
+  const ihsgBars = await fetchMarketChart("IHSG", fromUnix, toUnix);
   let ihsgInserted = 0;
   if (ihsgBars.length > 0) {
     const rows = ihsgBars.map((b) => ({
@@ -258,13 +254,13 @@ export async function backfillEodFromApril(data: unknown = {}) {
     const batch = IDX_TICKERS.slice(i, i + concurrency);
     const results = await Promise.allSettled(
       batch.map(async (ticker) => {
-        const bars = await fetchMarketChart(toYahoo(ticker), fromUnix, toUnix);
+        const bars = await fetchMarketChart(ticker, fromUnix, toUnix);
         if (bars.length === 0) return { ticker, count: 0 };
         const rows = bars.map((b) => ({
           ticker,
           date: b.date,
           close: b.close,
-          source: "yahoo-eod",
+          source: "official-eod",
         }));
         const { error } = await db.from("eod_prices").upsert(rows, { onConflict: "ticker,date" });
         if (error) throw new Error(error.message);

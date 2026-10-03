@@ -4,7 +4,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getAdminDatabaseClient } from "@/lib/backend-client.server";
 import { requireAdminAccess } from "@/lib/rbac";
 import { fetchMarketQuotes } from "@/lib/market-data-provider";
-import { toYahoo, fromYahoo } from "@/lib/idx-tickers";
 import { insertAuditLog } from "@/lib/audit.functions";
 import { portfolioTransactionSchema } from "@/lib/validation";
 
@@ -88,20 +87,19 @@ export async function refreshEodPrices(data: { access_token?: string } = {}) {
     return { updated: 0, tickers: [], message: "No active holdings to update" };
   }
 
-  // 2. Fetch from market-data provider chain with Yahoo Finance as fallback
-  const yahooSymbols = tickers.map(toYahoo);
-  const benchmarkSymbols = ["^JKSE"]; // IHSG
-  const allSymbols = [...yahooSymbols, ...benchmarkSymbols];
+  // 2. Fetch through the configured official provider. No unofficial fallback.
+  const benchmarkSymbols = ["IHSG"];
+  const allSymbols = [...tickers, ...benchmarkSymbols];
   const quotes = await fetchMarketQuotes(allSymbols);
 
   // 3. Upsert eod_prices
   const eodRows = Object.entries(quotes)
-    .filter(([sym]) => sym.endsWith(".JK"))
-    .map(([sym, close]) => ({
-      ticker: fromYahoo(sym),
+    .filter(([symbol]) => tickers.includes(symbol))
+    .map(([ticker, close]) => ({
+      ticker,
       date: today,
       close,
-      source: "yahoo",
+      source: "official",
     }));
 
   if (eodRows.length > 0) {
@@ -110,10 +108,10 @@ export async function refreshEodPrices(data: { access_token?: string } = {}) {
   }
 
   // IHSG benchmark
-  if (quotes["^JKSE"]) {
+  if (quotes["IHSG"]) {
     await db
       .from("benchmark_prices")
-      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["^JKSE"] }], {
+      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["IHSG"] }], {
         onConflict: "symbol,date",
       });
   }
