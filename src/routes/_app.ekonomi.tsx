@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/ekonomi")({
     // Fallback to DB query if JWT claims don't have role info
     if (!isAllowed) {
       const { data: roles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", userData.user.id);
       isAllowed = !!roles?.some((r) => ["advisor", "admin"].includes(String(r.role)));

@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export async function requireRole(userId: string, role: string): Promise<string> {
   const { data, error } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("role")
     .eq("user_id", userId);
 
@@ -45,7 +45,7 @@ export async function requireCompanyResearchAccess(userId?: string): Promise<str
   }
 
   const { data, error } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("role")
     .eq("user_id", userId);
 

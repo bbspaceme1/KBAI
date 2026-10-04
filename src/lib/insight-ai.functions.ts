@@ -7,7 +7,10 @@ import { rateLimitMiddleware } from "@/lib/rate-limiter";
 
 async function requireAdvisor() {
   const { userId } = await requireSupabaseAuth();
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const { data: roles } = await supabase
+    .from("user_sub_roles")
+    .select("role")
+    .eq("user_id", userId);
   const rs = (roles ?? []).map((r) => String(r.role));
   if (!rs.includes("admin") && !rs.includes("advisor")) {
     throw new Error("Forbidden: admin or advisor role required");

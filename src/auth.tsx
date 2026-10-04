@@ -26,21 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(null);
 
   const fetchRoleAndProfile = async (user: User) => {
-    // Try to get roles from JWT claims first (more efficient)
-    const claims = user.app_metadata as { roles?: string[] } | undefined;
-    const jwtRoles = claims?.roles;
-
-    if (jwtRoles && jwtRoles.length > 0) {
-      setIsAdmin(jwtRoles.includes("admin"));
-      setIsAdvisor(jwtRoles.includes("advisor"));
-    } else {
-      // Fallback to DB query if claims not available
-      const [{ data: roles }] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
-      ]);
-      setIsAdmin(!!roles?.some((r) => String(r.role) === "admin"));
-      setIsAdvisor(!!roles?.some((r) => String(r.role) === "advisor"));
-    }
+    const { data: roles } = await supabase
+      .from("user_sub_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    setIsAdmin(!!roles?.some((r) => String(r.role) === "admin"));
+    setIsAdvisor(!!roles?.some((r) => String(r.role) === "advisor"));
 
     // Always fetch profile (username)
     const { data: profile } = await supabase
@@ -95,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check if user is privileged (admin/advisor) and needs MFA
     if (data.user) {
       const { data: roles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", data.user.id);
 

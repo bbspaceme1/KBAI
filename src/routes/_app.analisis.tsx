@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/analisis")({
 
     if (!allowed) {
       const { data: userRoles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", data.user.id);
       allowed = !!userRoles?.some((entry) => ["admin", "advisor"].includes(String(entry.role)));

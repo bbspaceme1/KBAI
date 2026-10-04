@@ -382,7 +382,7 @@ export async function listAllUsers() {
   const [{ data: profiles, error: profileErr }, { data: allRoles, error: rolesErr }, authUsers] =
     await Promise.all([
       supabaseAdmin.from("profiles").select("id, username, display_name, created_at"),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("user_sub_roles").select("user_id, role"),
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     ]);
   if (profileErr) throw new Error(profileErr.message);
@@ -414,12 +414,12 @@ export async function grantUserRole(data: {
 
   if (data.role !== "admin") {
     const { data: currentAdmins } = await supabaseAdmin
-      .from("user_roles")
+      .from("user_sub_roles")
       .select("user_id")
       .eq("role", "admin");
     const adminCount = currentAdmins?.length ?? 0;
     const { data: currentRoles } = await supabaseAdmin
-      .from("user_roles")
+      .from("user_sub_roles")
       .select("role")
       .eq("user_id", data.target_user_id);
     const targetIsAdmin = !!currentRoles?.some((r) => String(r.role) === "admin");
@@ -429,7 +429,7 @@ export async function grantUserRole(data: {
   }
 
   await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .upsert([{ user_id: data.target_user_id, role: data.role as never }], {
       onConflict: "user_id,role",
     });
@@ -444,13 +444,13 @@ export async function deleteUser(data: { target_user_id: string }) {
   await requireAdminAccess(userId);
 
   const { data: currentAdmins } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("user_id")
     .eq("role", "admin");
   const adminCount = currentAdmins?.length ?? 0;
 
   const { data: targetRoles } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("role")
     .eq("user_id", data.target_user_id);
   const targetIsAdmin = !!targetRoles?.some((r) => String(r.role) === "admin");
@@ -473,7 +473,7 @@ export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: 
   }
 
   const { data: existing } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("user_id")
     .eq("role", "admin")
     .limit(1);
@@ -481,7 +481,7 @@ export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: 
     throw new Error("Admin already exists");
   }
   await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .upsert([{ user_id: data.user_id, role: "admin" }], { onConflict: "user_id,role" });
   return { ok: true };
 }

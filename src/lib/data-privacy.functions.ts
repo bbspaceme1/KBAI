@@ -73,7 +73,7 @@ export async function restoreUser(_data: { userId: string }): Promise<{ ok: bool
   // If caller is not the same user, ensure caller is admin
   if (caller !== target) {
     const { data: roles } = await supabaseAdmin
-      .from("user_roles")
+      .from("user_sub_roles")
       .select("role")
       .eq("user_id", caller);
     const rs = (roles ?? []).map((r: UserRoleRow) => r.role);
@@ -106,7 +106,7 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
 
   if (caller !== target) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: roles } = await (supabaseAdmin.from("user_roles") as any)
+    const { data: roles } = await (supabaseAdmin.from("user_sub_roles") as any)
       .select("role")
       .eq("user_id", caller);
     const rs = (roles ?? []).map((r: Record<string, unknown>) => r.role);
@@ -122,7 +122,7 @@ export async function permanentlyDeleteUser(_data: { userId: string }): Promise<
     "portfolio_snapshots",
     "company_subscriptions",
     "payments",
-    "user_roles",
+    "user_sub_roles",
     "ai_usage_logs",
   ];
 
@@ -153,7 +153,7 @@ export async function archiveOldData(
 ): Promise<{ ok: boolean; deleted: Record<string, number> }> {
   const { userId } = await requireSupabaseAuth();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: roles } = await (supabaseAdmin.from("user_roles") as any)
+  const { data: roles } = await (supabaseAdmin.from("user_sub_roles") as any)
     .select("role")
     .eq("user_id", userId);
   const rs = (roles ?? []).map((r: Record<string, unknown>) => r.role);
