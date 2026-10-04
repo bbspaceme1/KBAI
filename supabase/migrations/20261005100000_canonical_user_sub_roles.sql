@@ -45,6 +45,7 @@ as $$
 $$;
 
 revoke all on table public.user_sub_roles from anon;
+revoke insert, update, delete, truncate, references, trigger on table public.user_sub_roles from authenticated;
 grant select on table public.user_sub_roles to authenticated;
 grant select, insert, update, delete on table public.user_sub_roles to service_role;
 
