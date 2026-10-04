@@ -19,6 +19,11 @@ vi.mock("@/integrations/supabase/client.server", async () => {
   );
   return {
     ...actual,
+    createSupabaseUserClient: vi.fn(() => ({
+      auth: {
+        getUser: vi.fn(),
+      },
+    })),
     supabaseAdmin: {
       auth: {
         getUser: vi.fn(),
