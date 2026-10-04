@@ -38,7 +38,8 @@ dist-ssr
 .vercel
 .env*.local
 
-# Test results
+# Test results and coverage artifacts
+coverage/
 playwright-report/
 test-results/
 .env*

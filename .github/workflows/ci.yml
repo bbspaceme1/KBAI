@@ -88,6 +88,8 @@ jobs:
           test -n "$SUPABASE_URL"
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           test -n "$SUPABASE_ANON_KEY"
+      - name: Install Playwright browsers and Linux dependencies
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: E2E tests
         run: npm run test:e2e
         env:
