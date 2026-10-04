@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getAdminDatabaseClient } from "@/lib/backend-client.server";
@@ -47,16 +48,22 @@ export function computeHoldingsFromTxns(txns: TxnInput[]) {
 
 type SupabaseRpcResult<T> = { data: T | null; error: { message?: string } | null };
 
-function rpcCall<T>(fnName: string, params?: object): Promise<SupabaseRpcResult<T>> {
-  const typedRpc = supabaseAdmin.rpc as unknown as <U = unknown>(
+type RpcClient = Pick<SupabaseClient, "rpc">;
+
+function rpcCall<T>(
+  client: RpcClient,
+  fnName: string,
+  params?: object,
+): Promise<SupabaseRpcResult<T>> {
+  const typedRpc = client.rpc as unknown as <U = unknown>(
     name: string,
     parameters?: object,
   ) => Promise<SupabaseRpcResult<U>>;
   return typedRpc(fnName, params);
 }
 
-async function atomicAdjustCash(userId: string, delta: number): Promise<number> {
-  const { data, error } = await rpcCall<number>("adjust_cash_balance", {
+async function atomicAdjustCash(client: RpcClient, userId: string, delta: number): Promise<number> {
+  const { data, error } = await rpcCall<number>(client, "adjust_cash_balance", {
     p_user_id: userId,
     p_delta: delta,
   });
@@ -230,7 +237,7 @@ export async function submitTransaction(data: {
   price: number;
   transacted_at: string;
 }) {
-  const { userId } = await requireSupabaseAuth();
+  const { supabase, userId } = await requireSupabaseAuth();
 
   // Validate input using Zod schema (ensures lot > 0, price > 0, ticker format, etc.)
   const validated = portfolioTransactionSchema.parse({
@@ -287,22 +294,24 @@ export async function submitTransaction(data: {
     occurred_at: data.transacted_at,
   });
 
-  const newBalance = await atomicAdjustCash(userId, delta);
+  const newBalance = await atomicAdjustCash(supabase, userId, delta);
 
   // IMP-02: Incremental holdings update via RPC instead of full recompute
   if (validated.type === "BUY") {
-    await rpcCall<unknown>("upsert_holding_buy", {
+    const { error: holdingError } = await rpcCall<unknown>(supabase, "upsert_holding_buy", {
       p_user_id: userId,
       p_ticker: validated.ticker,
       p_lot: validated.lot,
       p_price: validated.price,
     });
+    if (holdingError) throw new Error(holdingError.message ?? "Gagal memperbarui kepemilikan");
   } else {
-    await rpcCall<unknown>("upsert_holding_sell", {
+    const { error: holdingError } = await rpcCall<unknown>(supabase, "upsert_holding_sell", {
       p_user_id: userId,
       p_ticker: validated.ticker,
       p_lot: validated.lot,
     });
+    if (holdingError) throw new Error(holdingError.message ?? "Gagal memperbarui kepemilikan");
   }
 
   await insertAuditLog({
@@ -344,7 +353,7 @@ export async function adjustCash(data: {
     occurred_at: data.occurred_at,
     note: data.note ?? null,
   });
-  const newBalance = await atomicAdjustCash(userId, delta);
+  const newBalance = await atomicAdjustCash(supabase, userId, delta);
   return { balance: newBalance };
 }
 
