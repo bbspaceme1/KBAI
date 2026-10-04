@@ -75,7 +75,7 @@ function CommunityPage() {
     queryFn: async () => {
       // Hitung hanya akun dengan role 'user' (exclude admin & advisor)
       const { count, error } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("user_id", { count: "exact", head: true })
         .eq("role", "user");
       if (error) throw error;

@@ -13,6 +13,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 
 vi.mock("@/integrations/supabase/auth-middleware", () => ({
   requireSupabaseAuth: vi.fn(async () => ({
+    supabase: { rpc: rpcMock },
     userId: "user-1",
   })),
 }));

@@ -638,7 +638,7 @@ export type Database = {
         };
         Relationships: [];
       };
-      user_roles: {
+      user_sub_roles: {
         Row: {
           created_at: string;
           id: string;

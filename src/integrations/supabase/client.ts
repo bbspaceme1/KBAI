@@ -2,48 +2,28 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
-function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_URL ||
-    import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
+function getSupabaseConfig() {
+  const url = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
+    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const missing = [
+    ...(!url ? ["VITE_SUPABASE_URL"] : []),
+    ...(!publishableKey ? ["VITE_SUPABASE_PUBLISHABLE_KEY"] : []),
+  ];
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["VITE_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY
-        ? [
-            "VITE_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or SUPABASE_PUBLISHABLE_KEY",
-          ]
-        : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Set these values in your Vercel or local environment before building.`;
-    console.error(`[Supabase] ${message}`);
+  return { url, publishableKey, missing };
+}
 
-    return createClient<Database>(
-      SUPABASE_URL || "https://placeholder.supabase.co",
-      SUPABASE_PUBLISHABLE_KEY || "placeholder-key",
-      {
-        auth: {
-          storage: typeof window !== "undefined" ? localStorage : undefined,
-          persistSession: true,
-          autoRefreshToken: true,
-        },
-      },
+function createSupabaseClient() {
+  const { url, publishableKey, missing } = getSupabaseConfig();
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing Supabase environment variable(s): ${missing.join(", ")}. Configure the canonical Vite variables before using authentication.`,
     );
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(url, publishableKey, {
     auth: {
       storage: typeof window !== "undefined" ? localStorage : undefined,
       persistSession: true,
@@ -54,34 +34,11 @@ function createSupabaseClient() {
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
-const SUPABASE_CONFIG_ERROR = (() => {
-  const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_URL ||
-    import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY;
-
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ["VITE_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL"] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY
-        ? [
-            "VITE_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or SUPABASE_PUBLISHABLE_KEY",
-          ]
-        : []),
-    ];
-    return `Missing Supabase environment variable(s): ${missing.join(", ")}. Set these values in your Vercel or local environment before building.`;
-  }
-
-  return null;
-})();
+const { missing: missingSupabaseConfig } = getSupabaseConfig();
+const SUPABASE_CONFIG_ERROR =
+  missingSupabaseConfig.length > 0
+    ? `Missing Supabase environment variable(s): ${missingSupabaseConfig.join(", ")}. Configure the canonical Vite variables before using authentication.`
+    : null;
 
 export const supabaseConfigError = SUPABASE_CONFIG_ERROR;
 

@@ -151,8 +151,8 @@ function AdminPricesPage() {
         <CardHeader>
           <CardTitle>Market Data Engine</CardTitle>
           <CardDescription>
-            Sumber: Penyedia data pasar terverifikasi dengan fallback ke Yahoo Finance saat
-            diperlukan.
+            Sumber: Penyedia data pasar resmi. Sistem fail-closed jika provider resmi tidak
+            tersedia.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

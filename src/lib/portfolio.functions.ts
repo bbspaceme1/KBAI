@@ -1,10 +1,10 @@
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getAdminDatabaseClient } from "@/lib/backend-client.server";
 import { requireAdminAccess } from "@/lib/rbac";
 import { fetchMarketQuotes } from "@/lib/market-data-provider";
-import { toYahoo, fromYahoo } from "@/lib/idx-tickers";
 import { insertAuditLog } from "@/lib/audit.functions";
 import { portfolioTransactionSchema } from "@/lib/validation";
 
@@ -48,16 +48,22 @@ export function computeHoldingsFromTxns(txns: TxnInput[]) {
 
 type SupabaseRpcResult<T> = { data: T | null; error: { message?: string } | null };
 
-function rpcCall<T>(fnName: string, params?: object): Promise<SupabaseRpcResult<T>> {
-  const typedRpc = supabaseAdmin.rpc as unknown as <U = unknown>(
+type RpcClient = Pick<SupabaseClient, "rpc">;
+
+function rpcCall<T>(
+  client: RpcClient,
+  fnName: string,
+  params?: object,
+): Promise<SupabaseRpcResult<T>> {
+  const typedRpc = client.rpc as unknown as <U = unknown>(
     name: string,
     parameters?: object,
   ) => Promise<SupabaseRpcResult<U>>;
   return typedRpc(fnName, params);
 }
 
-async function atomicAdjustCash(userId: string, delta: number): Promise<number> {
-  const { data, error } = await rpcCall<number>("adjust_cash_balance", {
+async function atomicAdjustCash(client: RpcClient, userId: string, delta: number): Promise<number> {
+  const { data, error } = await rpcCall<number>(client, "adjust_cash_balance", {
     p_user_id: userId,
     p_delta: delta,
   });
@@ -88,20 +94,19 @@ export async function refreshEodPrices(data: { access_token?: string } = {}) {
     return { updated: 0, tickers: [], message: "No active holdings to update" };
   }
 
-  // 2. Fetch from market-data provider chain with Yahoo Finance as fallback
-  const yahooSymbols = tickers.map(toYahoo);
-  const benchmarkSymbols = ["^JKSE"]; // IHSG
-  const allSymbols = [...yahooSymbols, ...benchmarkSymbols];
+  // 2. Fetch through the configured official provider. No unofficial fallback.
+  const benchmarkSymbols = ["IHSG"];
+  const allSymbols = [...tickers, ...benchmarkSymbols];
   const quotes = await fetchMarketQuotes(allSymbols);
 
   // 3. Upsert eod_prices
   const eodRows = Object.entries(quotes)
-    .filter(([sym]) => sym.endsWith(".JK"))
-    .map(([sym, close]) => ({
-      ticker: fromYahoo(sym),
+    .filter(([symbol]) => tickers.includes(symbol))
+    .map(([ticker, close]) => ({
+      ticker,
       date: today,
       close,
-      source: "yahoo",
+      source: "official",
     }));
 
   if (eodRows.length > 0) {
@@ -110,10 +115,10 @@ export async function refreshEodPrices(data: { access_token?: string } = {}) {
   }
 
   // IHSG benchmark
-  if (quotes["^JKSE"]) {
+  if (quotes["IHSG"]) {
     await db
       .from("benchmark_prices")
-      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["^JKSE"] }], {
+      .upsert([{ symbol: "IHSG" as const, date: today, value: quotes["IHSG"] }], {
         onConflict: "symbol,date",
       });
   }
@@ -232,7 +237,7 @@ export async function submitTransaction(data: {
   price: number;
   transacted_at: string;
 }) {
-  const { userId } = await requireSupabaseAuth();
+  const { supabase, userId } = await requireSupabaseAuth();
 
   // Validate input using Zod schema (ensures lot > 0, price > 0, ticker format, etc.)
   const validated = portfolioTransactionSchema.parse({
@@ -289,22 +294,24 @@ export async function submitTransaction(data: {
     occurred_at: data.transacted_at,
   });
 
-  const newBalance = await atomicAdjustCash(userId, delta);
+  const newBalance = await atomicAdjustCash(supabase, userId, delta);
 
   // IMP-02: Incremental holdings update via RPC instead of full recompute
   if (validated.type === "BUY") {
-    await rpcCall<unknown>("upsert_holding_buy", {
+    const { error: holdingError } = await rpcCall<unknown>(supabase, "upsert_holding_buy", {
       p_user_id: userId,
       p_ticker: validated.ticker,
       p_lot: validated.lot,
       p_price: validated.price,
     });
+    if (holdingError) throw new Error(holdingError.message ?? "Gagal memperbarui kepemilikan");
   } else {
-    await rpcCall<unknown>("upsert_holding_sell", {
+    const { error: holdingError } = await rpcCall<unknown>(supabase, "upsert_holding_sell", {
       p_user_id: userId,
       p_ticker: validated.ticker,
       p_lot: validated.lot,
     });
+    if (holdingError) throw new Error(holdingError.message ?? "Gagal memperbarui kepemilikan");
   }
 
   await insertAuditLog({
@@ -346,7 +353,7 @@ export async function adjustCash(data: {
     occurred_at: data.occurred_at,
     note: data.note ?? null,
   });
-  const newBalance = await atomicAdjustCash(userId, delta);
+  const newBalance = await atomicAdjustCash(supabase, userId, delta);
   return { balance: newBalance };
 }
 
@@ -384,7 +391,7 @@ export async function listAllUsers() {
   const [{ data: profiles, error: profileErr }, { data: allRoles, error: rolesErr }, authUsers] =
     await Promise.all([
       supabaseAdmin.from("profiles").select("id, username, display_name, created_at"),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("user_sub_roles").select("user_id, role"),
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     ]);
   if (profileErr) throw new Error(profileErr.message);
@@ -416,12 +423,12 @@ export async function grantUserRole(data: {
 
   if (data.role !== "admin") {
     const { data: currentAdmins } = await supabaseAdmin
-      .from("user_roles")
+      .from("user_sub_roles")
       .select("user_id")
       .eq("role", "admin");
     const adminCount = currentAdmins?.length ?? 0;
     const { data: currentRoles } = await supabaseAdmin
-      .from("user_roles")
+      .from("user_sub_roles")
       .select("role")
       .eq("user_id", data.target_user_id);
     const targetIsAdmin = !!currentRoles?.some((r) => String(r.role) === "admin");
@@ -431,7 +438,7 @@ export async function grantUserRole(data: {
   }
 
   await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .upsert([{ user_id: data.target_user_id, role: data.role as never }], {
       onConflict: "user_id,role",
     });
@@ -446,13 +453,13 @@ export async function deleteUser(data: { target_user_id: string }) {
   await requireAdminAccess(userId);
 
   const { data: currentAdmins } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("user_id")
     .eq("role", "admin");
   const adminCount = currentAdmins?.length ?? 0;
 
   const { data: targetRoles } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("role")
     .eq("user_id", data.target_user_id);
   const targetIsAdmin = !!targetRoles?.some((r) => String(r.role) === "admin");
@@ -475,7 +482,7 @@ export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: 
   }
 
   const { data: existing } = await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .select("user_id")
     .eq("role", "admin")
     .limit(1);
@@ -483,7 +490,7 @@ export async function bootstrapAdmin(data: { user_id: string; bootstrap_secret: 
     throw new Error("Admin already exists");
   }
   await supabaseAdmin
-    .from("user_roles")
+    .from("user_sub_roles")
     .upsert([{ user_id: data.user_id, role: "admin" }], { onConflict: "user_id,role" });
   return { ok: true };
 }

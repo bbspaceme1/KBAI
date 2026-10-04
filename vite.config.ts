@@ -5,10 +5,34 @@
 //     and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { loadEnv } from "vite";
 import { resolve } from "node:path";
+
+const env = loadEnv("development", process.cwd(), "");
+const supabaseUrl =
+  env.VITE_SUPABASE_URL ??
+  env.NEXT_PUBLIC_SUPABASE_URL ??
+  env.SUPABASE_URL ??
+  process.env.VITE_SUPABASE_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  process.env.SUPABASE_URL;
+const supabasePublishableKey =
+  env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  env.SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.SUPABASE_PUBLISHABLE_KEY;
 
 export default defineConfig({
   vite: {
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(supabasePublishableKey),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY":
+        JSON.stringify(supabasePublishableKey),
+    },
     resolve: {
       alias: [
         {
@@ -16,35 +40,6 @@ export default defineConfig({
           replacement: resolve(__dirname, "src/shims/node-async-hooks.ts"),
         },
       ],
-    },
-    envPrefix: ["VITE_", "NEXT_PUBLIC_"],
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes("node_modules")) {
-              // Consolidate all core vendor libraries into single chunk to avoid circular deps
-              if (
-                id.includes("@tanstack/react-router") ||
-                id.includes("@tanstack/react-start") ||
-                id.includes("@radix-ui")
-              ) {
-                return "vendor-core";
-              }
-              if (id.includes("recharts")) {
-                return "charts";
-              }
-              if (
-                id.includes("date-fns") ||
-                id.includes("clsx") ||
-                id.includes("class-variance-authority")
-              ) {
-                return "utils";
-              }
-            }
-          },
-        },
-      },
     },
   },
 });

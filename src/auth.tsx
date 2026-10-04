@@ -26,21 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(null);
 
   const fetchRoleAndProfile = async (user: User) => {
-    // Try to get roles from JWT claims first (more efficient)
-    const claims = user.app_metadata as { roles?: string[] } | undefined;
-    const jwtRoles = claims?.roles;
-
-    if (jwtRoles && jwtRoles.length > 0) {
-      setIsAdmin(jwtRoles.includes("admin"));
-      setIsAdvisor(jwtRoles.includes("advisor"));
-    } else {
-      // Fallback to DB query if claims not available
-      const [{ data: roles }] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
-      ]);
-      setIsAdmin(!!roles?.some((r) => String(r.role) === "admin"));
-      setIsAdvisor(!!roles?.some((r) => String(r.role) === "advisor"));
-    }
+    const { data: roles } = await supabase
+      .from("user_sub_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    setIsAdmin(!!roles?.some((r) => String(r.role) === "admin"));
+    setIsAdvisor(!!roles?.some((r) => String(r.role) === "advisor"));
 
     // Always fetch profile (username)
     const { data: profile } = await supabase
@@ -52,33 +43,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        // Defer DB calls to avoid deadlock
-        setTimeout(() => {
-          fetchRoleAndProfile(newSession.user).finally(() => setIsLoading(false));
-        }, 0);
-      } else {
+    let cancelled = false;
+    let latestRequest = 0;
+
+    const applySession = async (nextSession: Session | null) => {
+      const request = ++latestRequest;
+      if (cancelled) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      if (!nextSession?.user) {
         setIsAdmin(false);
         setIsAdvisor(false);
         setUsername(null);
         setIsLoading(false);
+        return;
       }
+
+      setIsLoading(true);
+      try {
+        await fetchRoleAndProfile(nextSession.user);
+      } finally {
+        if (!cancelled && request === latestRequest) setIsLoading(false);
+      }
+    };
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void applySession(nextSession);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) {
-        fetchRoleAndProfile(data.session.user).finally(() => setIsLoading(false));
-      } else {
-        setIsLoading(false);
-      }
-    });
+    void supabase.auth.getSession().then(({ data }) => applySession(data.session));
 
-    return () => subscription.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -88,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check if user is privileged (admin/advisor) and needs MFA
     if (data.user) {
       const { data: roles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", data.user.id);
 

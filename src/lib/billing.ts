@@ -31,56 +31,77 @@ export function mapAmountToTier(grossAmount: number): { tier: string; durationDa
  * Expected `order_id` format: "order_{userId}_{random}" or supply `user_id` in payload.
  */
 export async function processMidtransNotification(payload: MidtransNotificationPayload) {
+  // Billing tables are introduced by the Company Operations migration; regenerate Supabase types before removing this compatibility cast.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
   const status = asString(payload.transaction_status || payload.status_code || payload.status);
   const orderId = asString(payload.order_id || payload.orderId);
   const grossAmount = Number(payload.gross_amount || payload.grossAmount || payload.amount || 0);
   const transactionTime =
     asString(payload.transaction_time || payload.transactionTime) || new Date().toISOString();
 
-  // Try to extract user id from payload or order id
-  let userId = asString(payload.user_id ?? payload.userId);
-  if (!userId && typeof orderId === "string") {
-    const parts = orderId.split("_");
-    // If order format: order_{userId}_{nonce}
-    if (parts.length >= 3 && parts[0] === "order") {
-      userId = parts[1];
-    }
-  }
+  const orderParts = orderId.split("_");
+  const userId = orderParts[0] === "order" ? orderParts[1] : "";
+  const userIdPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  if (!userId) {
-    // Log and skip if we don't know which user
-    console.warn("billing: cannot determine user for order", orderId);
-    return { ok: false, reason: "unknown_user" };
+  if (!userIdPattern.test(userId)) {
+    console.warn("billing: order does not contain a valid server-bound user id", orderId);
+    return { ok: false, reason: "invalid_order_owner" };
   }
-
-  // Map amount to tier using extracted function
-  const { tier, durationDays } = mapAmountToTier(grossAmount);
 
   if (String(status).toLowerCase() === "settlement" || String(status) === "200") {
+    const { data: plan, error: planError } = await db
+      .from("plans")
+      .select("id, price_annual")
+      .eq("is_active", true)
+      .eq("price_annual", grossAmount)
+      .maybeSingle();
+
+    if (planError) throw new Error(`billing: plan lookup failed: ${planError.message}`);
+    if (!plan) return { ok: false, reason: "amount_does_not_match_active_plan" };
+
     const startsAt = new Date(transactionTime);
-    const endsAt = new Date(startsAt);
-    endsAt.setUTCDate(endsAt.getUTCDate() + durationDays);
-
+    const expiresAt = new Date(startsAt);
+    expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
     const now = new Date().toISOString();
-    const { error } = await supabaseAdmin.from("subscriptions").upsert(
-      {
-        user_id: userId,
-        tier,
-        status: "active",
-        payment_gateway: "midtrans",
-        order_id: orderId,
-        started_at: startsAt.toISOString(),
-        ends_at: endsAt.toISOString(),
-        updated_at: now,
-        created_at: now,
-      },
-      { onConflict: "user_id" },
-    );
 
-    if (error) {
-      throw new Error(`billing: subscription upsert failed: ${error.message}`);
+    const { data: subscription, error: subscriptionError } = await db
+      .from("company_subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          plan_id: plan.id,
+          status: "active",
+          started_at: startsAt.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          updated_at: now,
+        },
+        { onConflict: "user_id" },
+      )
+      .select("id")
+      .single();
+
+    if (subscriptionError || !subscription) {
+      throw new Error(
+        `billing: company subscription upsert failed: ${subscriptionError?.message ?? "missing subscription"}`,
+      );
     }
 
+    const { error: paymentError } = await db.from("payments").upsert(
+      {
+        subscription_id: subscription.id,
+        amount: grossAmount,
+        currency: "IDR",
+        status: "paid",
+        payment_method: "midtrans",
+        external_reference: orderId,
+        paid_at: startsAt.toISOString(),
+      },
+      { onConflict: "external_reference" },
+    );
+
+    if (paymentError) throw new Error(`billing: payment upsert failed: ${paymentError.message}`);
     return { ok: true, userId, orderId };
   }
 

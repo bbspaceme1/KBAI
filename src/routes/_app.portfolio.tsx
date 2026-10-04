@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_app/portfolio")({
     // Fallback to DB query if JWT claims don't have role info
     if (!isAdmin && !isAdvisor) {
       const { data: roles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", userData.user.id);
       isAdmin = !!roles?.some((r) => String(r.role) === "admin");

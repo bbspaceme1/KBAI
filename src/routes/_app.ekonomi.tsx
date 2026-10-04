@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/ekonomi")({
     // Fallback to DB query if JWT claims don't have role info
     if (!isAllowed) {
       const { data: roles } = await supabase
-        .from("user_roles")
+        .from("user_sub_roles")
         .select("role")
         .eq("user_id", userData.user.id);
       isAllowed = !!roles?.some((r) => ["advisor", "admin"].includes(String(r.role)));
@@ -63,8 +63,8 @@ function EkonomiLayout() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Ekonomi Terminal</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Monitoring makroekonomi nasional & global. Sumber data publik: World Bank, Yahoo Finance,
-          FRED. Selalu validasi sebelum mengambil keputusan investasi.
+          Monitoring makroekonomi nasional & global. Sumber data: World Bank, FRED, dan provider
+          resmi KBAI. Selalu validasi sebelum mengambil keputusan investasi.
         </p>
       </header>
 

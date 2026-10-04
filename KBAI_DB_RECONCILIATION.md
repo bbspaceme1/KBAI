@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document records repository and linked Supabase evidence separately. The linked project `ejiufnrqvkvqzxroustb` received forward-only RLS and financial-RPC hardening through the Supabase MCP; no destructive data operation or reset was executed.
+This document records repository and linked Supabase evidence separately. The linked project `ejiufnrqvkvqzxroustb` received forward-only RLS and financial-RPC hardening through the Supabase MCP; no destructive data operation or reset was executed. This pass also removed unofficial Yahoo market-data paths from IDX production refreshes; official-provider runtime verification remains required.
 
 ## Local migration inventory
 

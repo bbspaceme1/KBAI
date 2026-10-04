@@ -2,7 +2,7 @@
 // browser Supabase client on the client side, and validates Bearer tokens on the
 // server side using the Supabase service role client.
 import { supabase } from "./client";
-import { supabaseAdmin } from "./client.server";
+import { createSupabaseUserClient, supabaseAdmin } from "./client.server";
 import { getStartContext } from "@tanstack/start-storage-context";
 
 function parseBearerToken(header: string | null | undefined) {
@@ -27,7 +27,7 @@ export async function requireSupabaseAuth() {
     }
 
     return {
-      supabase,
+      supabase: createSupabaseUserClient(token),
       userId: user.id,
       claims: { sub: user.id, app_metadata: user.app_metadata ?? {} },
     };

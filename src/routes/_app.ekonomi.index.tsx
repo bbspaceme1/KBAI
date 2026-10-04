@@ -169,8 +169,8 @@ function EkonomiDashboard() {
       </section>
 
       <p className="text-[11px] text-muted-foreground">
-        Data World Bank merupakan tahunan dengan delay publikasi. Data global Yahoo Finance untuk
-        keperluan informasi, bukan execution venue. Bukan rekomendasi investasi.
+        Data World Bank merupakan tahunan dengan delay publikasi. Data global hanya ditampilkan jika
+        provider resmi tersedia. Bukan rekomendasi investasi.
       </p>
     </div>
   );
