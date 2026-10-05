@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch: {}
+  workflow_call: {}
 
 permissions:
   contents: read
@@ -56,7 +57,7 @@ jobs:
 
   integration:
     name: Integration and E2E
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
