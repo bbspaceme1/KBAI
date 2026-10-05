@@ -25,6 +25,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -57,7 +59,7 @@ jobs:
 
   integration:
     name: Integration and E2E
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     environment: production
     steps:
