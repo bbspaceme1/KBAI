@@ -34,7 +34,6 @@ import { toast } from "sonner";
 import { RefreshCw, Activity, Database, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/_app/admin/prices")({
   component: AdminPricesPage,
@@ -133,13 +132,28 @@ function AdminPricesPage() {
   const exportMut = useMutation({
     mutationFn: () => exportAllMarketData(accessToken ? { access_token: accessToken } : undefined),
     onSuccess: (res) => {
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.eod), "EOD Prices");
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(res.benchmark), "Benchmarks");
-      XLSX.writeFile(
-        wb,
-        `kbai-market-data-${format(new Date(), "yyyyMMdd-HHmm", { locale: idLocale })}.xlsx`,
-      );
+      const rows = [
+        ...res.eod.map((row) => ({ dataset: "EOD Prices", ...row })),
+        ...res.benchmark.map((row) => ({ dataset: "Benchmarks", ...row })),
+      ];
+      const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+      const escapeCsv = (value: unknown) => {
+        const text = value == null ? "" : String(value);
+        return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      };
+      const csv = [
+        headers.join(","),
+        ...rows.map((row) =>
+          headers.map((header) => escapeCsv(row[header as keyof typeof row])).join(","),
+        ),
+      ].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `kbai-market-data-${format(new Date(), "yyyyMMdd-HHmm", { locale: idLocale })}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
       toast.success(`Export OK: ${res.eod.length} EOD + ${res.benchmark.length} benchmark`);
     },
     onError: (e) => toast.error(e.message),
