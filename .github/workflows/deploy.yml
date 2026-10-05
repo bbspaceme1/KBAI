@@ -46,8 +46,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Deploy to Vercel (production)
-        run: npx vercel deploy --prod --token=$VERCEL_TOKEN --yes
+        id: vercel-deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vercel deploy --prod --token="$VERCEL_TOKEN" --yes 2>&1 | tee "$RUNNER_TEMP/vercel-deploy.log"
+          deployment_url="$(grep -Eo 'https://[^[:space:]]+\.vercel\.app' "$RUNNER_TEMP/vercel-deploy.log" | tail -n 1)"
+          if [[ -z "$deployment_url" ]]; then
+            echo "::error::Vercel did not return a deployment URL"
+            exit 1
+          fi
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Verify deployed commit and public smoke paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run smoke:production
+          deployment_json="$(npx vercel inspect "$SMOKE_BASE_URL" --token="$VERCEL_TOKEN" --json)"
+          ready_state="$(printf '%s' "$deployment_json" | jq -r '.readyState // .state // empty')"
+          commit_sha="$(printf '%s' "$deployment_json" | jq -r '.meta.githubCommitSha // .meta.githubCommitRef // empty')"
+          [[ "$ready_state" == "READY" ]] || { echo "::error::Deployment state is $ready_state"; exit 1; }
+          [[ "$commit_sha" == "$EXPECTED_COMMIT" ]] || { echo "::error::Deployment commit $commit_sha does not match $EXPECTED_COMMIT"; exit 1; }
+        env:
+          SMOKE_BASE_URL: ${{ steps.vercel-deploy.outputs.deployment_url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

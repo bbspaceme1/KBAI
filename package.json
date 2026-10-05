@@ -43,7 +43,8 @@
     "auto-fix:check": "node scripts/auto-fix-engine.js --check-only",
     "monitor:vercel": "node scripts/vercel-monitor.js --watch",
     "monitor:check": "node scripts/vercel-monitor.js --check-latest",
-    "monitor:report": "node scripts/vercel-monitor.js --get-logs"
+    "monitor:report": "node scripts/vercel-monitor.js --get-logs",
+    "smoke:production": "bash scripts/production-smoke.sh"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,md}": [
