@@ -8,6 +8,12 @@ const userAId = process.env.RLS_TEST_USER_A_ID;
 const userBId = process.env.RLS_TEST_USER_B_ID;
 const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
 
+if (process.env.CI === "true" && !enabled) {
+  throw new Error(
+    "Behavioral RLS tests require isolated staging credentials: SUPABASE_URL, SUPABASE_ANON_KEY, RLS_TEST_USER_A_TOKEN, RLS_TEST_USER_A_ID, and RLS_TEST_USER_B_ID",
+  );
+}
+
 describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
   const client = (): SupabaseClient => createClient(url!, anonKey!);
 
