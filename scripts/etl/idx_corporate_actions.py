@@ -10,6 +10,7 @@ from typing import List
 
 import pandas as pd
 from supabase import create_client, Client
+from idx_fetch import IDXFetcher
 
 log = logging.getLogger(__name__)
 
@@ -20,19 +21,15 @@ supabase: Client = create_client(
 
 
 def fetch_corporate_actions_for_ticker(ticker: str) -> List[dict]:
-    """Placeholder fetcher — extend to use official IDX or company filings.
-    Currently tries to read dividend history from yfinance via CSV fallback if available.
-    """
-    # Minimal placeholder: mark that we've checked and store a 'checked' action
-    return [
-        {
-            "ticker": ticker,
-            "action_type": "checked",
-            "announcement_date": datetime.utcnow().strftime("%Y-%m-%d"),
-            "effective_date": None,
-            "details": {"note": "placeholder - extend fetcher to real sources"},
-        }
-    ]
+    """Return official IDX issued-history rows for one ticker."""
+    rows = IDXFetcher.get_corporate_actions()
+    return [{
+        "ticker": row.get("KodeEmiten", ticker).upper(),
+        "action_type": row.get("JenisTindakan"),
+        "announcement_date": row.get("TanggalPengumuman") or row.get("TanggalPencatatan"),
+        "effective_date": row.get("TanggalPencatatan"),
+        "details": row,
+    } for row in rows if row.get("KodeEmiten", ticker).upper() == ticker.upper()]
 
 
 def fetch_and_store_corporate_actions(tickers: List[str]) -> int:
@@ -56,7 +53,7 @@ def fetch_and_store_corporate_actions(tickers: List[str]) -> int:
 if __name__ == "__main__":
     import dotenv
     dotenv.load_dotenv()
-    # example: read tickers from file or call IDXFetcher
-    tickers = ["BBCA.JK", "TLKM.JK"]
+    # Example tickers are IDX codes without Yahoo suffixes.
+    tickers = ["BBCA", "TLKM"]
     stored = fetch_and_store_corporate_actions(tickers)
     print(f"Stored {stored} corporate actions")

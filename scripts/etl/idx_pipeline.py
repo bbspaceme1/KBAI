@@ -13,8 +13,7 @@ from typing import List, Tuple
 import pandas as pd
 from supabase import create_client, Client
 
-from idx_fetch import IDXFetcher, YFinanceFetcher
-from idx_fundamentals import FundamentalDataPipeline, log_etl_execution as log_fundamentals
+from idx_fetch import IDXFetcher
 
 # ─── SETUP ───────────────────────────────────────────────────
 logging.basicConfig(
@@ -94,7 +93,7 @@ def reconcile_price_universe(expected_tickers: List[str], run_date: str):
         threshold = float(os.environ.get("IDX_ETL_PARTIAL_THRESHOLD", "0.02"))
         status = "success" if not missing and not duplicates else ("partial" if ratio <= threshold else "failed")
         result = supabase.table("idx_etl_logs").insert({
-            "run_date": run_date, "source": "yfinance_reconciliation", "status": status,
+            "run_date": run_date, "source": "idx_eod_reconciliation", "status": status,
             "records_fetched": len(received), "records_stored": len(received),
             "expected_count": len(expected), "missing_count": len(missing), "duplicate_count": duplicates,
         }).execute()
@@ -123,14 +122,14 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
             batch = tickers[i:i + batch_size]
             
             try:
-                df = YFinanceFetcher.get_multiple_stocks(batch, start_date)
+                df = IDXFetcher.get_multiple_stocks(batch, start_date)
                 
                 if df.empty:
                     log.warning(f"  ⚠️  Batch {i//batch_size + 1}: no data")
                     continue
                 
                 # Clean data
-                df["date"] = df["date"].dt.strftime("%Y-%m-%d")
+                df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
                 df["volume"] = df["volume"].fillna(0).astype(int)
                 df = df.where(pd.notna(df), None)  # Convert NaN to None
                 
@@ -152,14 +151,14 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
         
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
-        log_etl_execution("yfinance_prices", "success", total_stored, duration=duration)
+        log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
         
         return total_stored
         
     except Exception as e:
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 2 failed: {e}")
-        log_etl_execution("yfinance_prices", "failed", total_stored, error=str(e), duration=duration)
+        log_etl_execution("idx_eod_prices", "failed", total_stored, error=str(e), duration=duration)
         return total_stored
 
 
@@ -173,33 +172,17 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
     total_stored = 0
     
     try:
-        indices = {
-            "COMPOSITE": "^JKSE",
-            "LQ45":      "^JKLQ45",
-        }
-        
         start_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         records = []
-        
-        for idx_code, yf_symbol in indices.items():
+        for date in pd.date_range(start=start_date, end=datetime.now().strftime("%Y-%m-%d"), freq="B"):
             try:
-                df = YFinanceFetcher.get_index_data(yf_symbol, start_date)
-                
+                df = IDXFetcher.get_index_summary(date.strftime("%Y-%m-%d"))
                 if df.empty:
-                    log.warning(f"  ⚠️  No data for {idx_code}")
                     continue
-                
-                df["index_code"] = idx_code
-                df["date"] = df["date"].dt.strftime("%Y-%m-%d")
-                df["volume"] = df["volume"].fillna(0).astype(int)
-                df = df.where(pd.notna(df), None)
-                
                 records.extend(df.to_dict(orient="records"))
-                log.info(f"  ✓ {idx_code}: {len(df)} records")
-                
+                log.info(f"  ✓ {date.date()}: {len(df)} indices")
             except Exception as e:
-                log.warning(f"  ⚠️  Failed to fetch {idx_code}: {e}")
-        
+                log.warning(f"  ⚠️  Failed to fetch indices for {date.date()}: {e}")
         # Upsert to database
         if records:
             for i in range(0, len(records), 500):
@@ -238,25 +221,18 @@ def step_4_compute_ratios(tickers: List[str], limit: int = 200) -> int:
         
         for i, ticker in enumerate(priority_tickers):
             try:
-                info = YFinanceFetcher.get_stock_info(ticker)
-                
-                if not info or not info.get("current_price"):
-                    continue
-                
-                record = {
-                    "ticker":           ticker,
-                    "date":             today,
-                    "per":              info.get("per"),
-                    "pbv":              info.get("pbv"),
-                    "dividend_yield":   info.get("dividend_yield"),
-                    "roe":              info.get("roe"),
-                    "roa":              info.get("roa"),
-                    "revenue_growth":   info.get("revenue_growth"),
-                    "earnings_growth":  info.get("earnings_growth"),
-                    "market_cap":       info.get("market_cap"),
-                }
-                
-                records.append(record)
+                for quarter in range(1, 5):
+                    for row in IDXFetcher.get_financial_ratios(datetime.now().year, quarter):
+                        if str(row.get("code", "")).strip().upper() != ticker.upper():
+                            continue
+                        records.append({
+                            "ticker": ticker, "date": today,
+                            "per": row.get("per"), "pbv": row.get("priceBV"),
+                            "roe": row.get("roe"), "roa": row.get("roa"),
+                            "npm": row.get("npm"), "book_value": row.get("bookValue"),
+                            "de_ratio": row.get("deRatio"),
+                        })
+                        break
                 
                 if (i + 1) % 50 == 0:
                     log.info(f"  Processed {i + 1}/{len(priority_tickers)} stocks")
@@ -389,7 +365,7 @@ def run_daily_pipeline(
     
     # Step 5: Fetch fundamentals (NEW — addresses audit DATA-02)
     if fetch_fundamentals:
-        step_5_fetch_fundamentals(tickers, limit=200)
+        log.info("Official IDX financial ratios are fetched in STEP 4; external fundamentals are disabled.")
 
     # Step 6: Fetch corporate actions (dividends, splits, rights)
     try:

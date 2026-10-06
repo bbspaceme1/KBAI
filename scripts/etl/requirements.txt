@@ -2,7 +2,6 @@
 # Install: pip install -r requirements.txt
 
 # Data fetching & processing
-yfinance==0.2.32
 pandas==2.2.0
 requests==2.31.0
 python-dateutil==2.8.2
