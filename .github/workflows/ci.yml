@@ -26,9 +26,12 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Dependency security audit (production surface)
-        # Dev-only tooling (Vercel CLI, Vitest, Playwright) is not shipped to users.
         # Gate the dependency surface that runs in the deployed application.
         run: npm audit --omit=dev --audit-level=high
+      - name: Dependency security audit (full CI tree)
+        # Keep CI/dev tooling visible without confusing it with runtime exposure.
+        continue-on-error: true
+        run: npm audit --audit-level=high
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:

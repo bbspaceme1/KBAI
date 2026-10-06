@@ -92,7 +92,29 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     expect(error).toBeTruthy();
   });
 
-  it.todo("User A cannot select User B holdings, transactions, or portfolios");
+  it("denies User A access to User B holdings, transactions, and portfolios", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const results = await Promise.all([
+      authenticated.from("holdings").select("*").eq("user_id", userBId),
+      authenticated.from("transactions").select("*").eq("user_id", userBId),
+      authenticated.from("portfolios").select("*").eq("user_id", userBId),
+    ]);
+
+    for (const result of results) {
+      expect(result.error ?? result.data).toBeTruthy();
+      expect(result.data?.some((row) => Object.values(row).includes(userBId))).toBe(false);
+    }
+  });
+
+  it("rejects a normal user from admin-only RPC authorization", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { error } = await authenticated.rpc("rls_auto_enable");
+    expect(error).toBeTruthy();
+  });
+
   it.todo("Advisor A can select assigned clients but not unassigned clients");
-  it.todo("A user-role session cannot call admin-only RPC functions");
 });
