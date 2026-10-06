@@ -6,6 +6,10 @@ const anonKey = process.env.SUPABASE_ANON_KEY_2 ?? process.env.SUPABASE_ANON_KEY
 const userAToken = process.env.RLS_TEST_USER_A_TOKEN;
 const userAId = process.env.RLS_TEST_USER_A_ID;
 const userBId = process.env.RLS_TEST_USER_B_ID;
+const advisorToken = process.env.RLS_TEST_ADVISOR_TOKEN;
+const advisorId = process.env.RLS_TEST_ADVISOR_ID;
+const assignedClientId = process.env.RLS_TEST_ASSIGNED_CLIENT_ID;
+const unassignedClientId = process.env.RLS_TEST_UNASSIGNED_CLIENT_ID;
 const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
 
 if (process.env.CI === "true" && !enabled) {
@@ -116,5 +120,25 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     expect(error).toBeTruthy();
   });
 
-  it.todo("Advisor A can select assigned clients but not unassigned clients");
+  it("allows Advisor A to select assigned clients but not unassigned clients", async () => {
+    if (!advisorToken || !advisorId || !assignedClientId || !unassignedClientId) {
+      throw new Error(
+        "Advisor RLS tests require RLS_TEST_ADVISOR_TOKEN, RLS_TEST_ADVISOR_ID, RLS_TEST_ASSIGNED_CLIENT_ID, and RLS_TEST_UNASSIGNED_CLIENT_ID",
+      );
+    }
+
+    const advisor = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${advisorToken}` } },
+    });
+    const [assigned, unassigned] = await Promise.all([
+      advisor.from("holdings").select("user_id").eq("user_id", assignedClientId),
+      advisor.from("holdings").select("user_id").eq("user_id", unassignedClientId),
+    ]);
+
+    expect(assigned.error).toBeNull();
+    expect(assigned.data?.every((row) => row.user_id === assignedClientId)).toBe(true);
+    expect(unassigned.error).toBeNull();
+    expect(unassigned.data).toHaveLength(0);
+    void advisorId;
+  });
 });

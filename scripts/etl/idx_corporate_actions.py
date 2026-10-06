@@ -53,7 +53,7 @@ def fetch_and_store_corporate_actions(tickers: List[str]) -> int:
 if __name__ == "__main__":
     import dotenv
     dotenv.load_dotenv()
-    # Example tickers are IDX codes without Yahoo suffixes.
+    # Example tickers are official IDX issuer codes.
     tickers = ["BBCA", "TLKM"]
     stored = fetch_and_store_corporate_actions(tickers)
     print(f"Stored {stored} corporate actions")
