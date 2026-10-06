@@ -55,8 +55,19 @@ class IDXFetcher:
         raise RuntimeError(f"IDX request failed after {attempts} attempts: {path}") from last_error
 
     @staticmethod
+    def _paged(path: str, params: dict, page_size: int = 500) -> list:
+        rows = []
+        start = 0
+        while True:
+            page = IDXFetcher._get(path, {**params, "start": start, "length": page_size})
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            start += page_size
+
+    @staticmethod
     def get_constituents() -> List[dict]:
-        rows = IDXFetcher._get("/ListedCompany/GetCompanyProfiles", {"start": 0, "length": 9999})
+        rows = IDXFetcher._paged("/ListedCompany/GetCompanyProfiles", {})
         return [{
             "ticker": str(row.get("KodeEmiten", "")).strip().upper(),
             "name": str(row.get("NamaEmiten", "")).strip(),
@@ -70,8 +81,8 @@ class IDXFetcher:
 
     @staticmethod
     def get_stock_summary(date_str: Optional[str] = None) -> pd.DataFrame:
-        rows = IDXFetcher._get("/TradingSummary/GetStockSummary", {
-            "date": date_str or datetime.now().strftime("%Y-%m-%d"), "start": 0, "length": 9999,
+        rows = IDXFetcher._paged("/TradingSummary/GetStockSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
         })
         normalized = []
         for row in rows:
@@ -110,8 +121,8 @@ class IDXFetcher:
 
     @staticmethod
     def get_index_summary(date_str: Optional[str] = None) -> pd.DataFrame:
-        rows = IDXFetcher._get("/TradingSummary/GetIndexSummary", {
-            "date": date_str or datetime.now().strftime("%Y-%m-%d"), "start": 0, "length": 9999,
+        rows = IDXFetcher._paged("/TradingSummary/GetIndexSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
         })
         return pd.DataFrame([{
             "index_code": row.get("IndexCode"), "index_name": row.get("IndexName"),
@@ -123,12 +134,19 @@ class IDXFetcher:
         } for row in rows if row.get("IndexCode")])
 
     @staticmethod
-    def get_financial_ratios(period_year: int, period_quarter: int, page_size: int = 9999) -> List[dict]:
-        return IDXFetcher._get("/DigitalStatistic/GetApiDataPaginated", {
-            "urlName": "LINK_FINANCIAL_DATA_RATIO", "periodYear": period_year,
-            "periodQuarter": period_quarter, "type": "Q", "cumulative": "false",
-            "pageSize": page_size, "pageNumber": 1,
-        })
+    def get_financial_ratios(period_year: int, period_quarter: int, page_size: int = 500) -> List[dict]:
+        rows = []
+        page = 1
+        while True:
+            batch = IDXFetcher._get("/DigitalStatistic/GetApiDataPaginated", {
+                "urlName": "LINK_FINANCIAL_DATA_RATIO", "periodYear": period_year,
+                "periodQuarter": period_quarter, "type": "Q", "cumulative": "false",
+                "pageSize": page_size, "pageNumber": page,
+            })
+            rows.extend(batch)
+            if len(batch) < page_size:
+                return rows
+            page += 1
 
     @staticmethod
     def get_corporate_actions(date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[dict]:

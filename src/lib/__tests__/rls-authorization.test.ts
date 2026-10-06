@@ -130,11 +130,21 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     const advisor = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${advisorToken}` } },
     });
-    const [assigned, unassigned] = await Promise.all([
+    const [identity, assignment, assigned, unassigned] = await Promise.all([
+      advisor.from("user_sub_roles").select("user_id, sub_role").eq("user_id", advisorId),
+      advisor
+        .from("advisor_clients")
+        .select("client_id")
+        .eq("advisor_id", advisorId)
+        .eq("client_id", assignedClientId),
       advisor.from("holdings").select("user_id").eq("user_id", assignedClientId),
       advisor.from("holdings").select("user_id").eq("user_id", unassignedClientId),
     ]);
 
+    expect(identity.error).toBeNull();
+    expect(identity.data?.some((row) => row.user_id === advisorId)).toBe(true);
+    expect(assignment.error).toBeNull();
+    expect(assignment.data).toHaveLength(1);
     expect(assigned.error).toBeNull();
     expect(assigned.data?.every((row) => row.user_id === assignedClientId)).toBe(true);
     expect(unassigned.error).toBeNull();

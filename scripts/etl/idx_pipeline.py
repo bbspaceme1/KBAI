@@ -118,42 +118,21 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
     failed_batches = []
     
     try:
-        # Process in batches
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i:i + batch_size]
-            
-            try:
-                df = IDXFetcher.get_multiple_stocks(batch, start_date)
-                
-                if df.empty:
-                    log.warning(f"  ⚠️  Batch {i//batch_size + 1}: no data")
-                    continue
-                
-                # Clean data
-                df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-                df["volume"] = df["volume"].fillna(0).astype(int)
-                df = df.where(pd.notna(df), None)  # Convert NaN to None
-                
-                records = df.to_dict(orient="records")
-                
-                # Upsert in sub-batches (Supabase limit)
-                for j in range(0, len(records), 500):
-                    subbatch = records[j:j + 500]
-                    supabase.table("idx_stock_prices").upsert(
-                        subbatch, on_conflict="ticker,date"
-                    ).execute()
-                    total_stored += len(subbatch)
-                
-                log.info(f"  Batch {i//batch_size + 1}/{(len(tickers)-1)//batch_size + 1}: OK ({len(df)} records)")
-                time.sleep(0.5)
-                
-            except Exception as e:
-                batch_number = i // batch_size + 1
-                failed_batches.append(batch_number)
-                log.error(f"  ❌ Batch {batch_number} failed: {e}")
-
-        if failed_batches:
-            raise RuntimeError(f"Price ingestion failed for batches: {failed_batches}")
+        # One date-first request per trading date returns the full IDX universe.
+        df = IDXFetcher.get_multiple_stocks(tickers, start_date)
+        if df.empty:
+            raise RuntimeError("IDX returned no EOD rows for the requested range")
+        try:
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            df["volume"] = df["volume"].fillna(0).astype(int)
+            df = df.where(pd.notna(df), None)
+            records = df.to_dict(orient="records")
+            for j in range(0, len(records), 500):
+                subbatch = records[j:j + 500]
+                supabase.table("idx_stock_prices").upsert(subbatch, on_conflict="ticker,date").execute()
+                total_stored += len(subbatch)
+        except Exception:
+            raise
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
         log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
@@ -163,7 +142,7 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 2 failed: {e}")
         log_etl_execution("idx_eod_prices", "failed", total_stored, error=str(e), duration=duration)
-        return total_stored
+        raise
 
 
 def step_3_fetch_indices(days_back: int = 30) -> int:
@@ -210,10 +189,10 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 3 failed: {e}")
         log_etl_execution("index_prices", "failed", total_stored, error=str(e), duration=duration)
-        return total_stored
+        raise
 
 
-def step_4_compute_ratios(tickers: List[str], limit: int = 200) -> int:
+def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
     """Step 4: Compute and store financial ratios."""
     log.info("\n" + "="*60)
     log.info("STEP 4: COMPUTE FINANCIAL RATIOS")
@@ -356,8 +335,7 @@ def run_daily_pipeline(
     # Step 1: Sync companies
     tickers = step_1_sync_companies()
     if not tickers:
-        log.error("❌ Pipeline failed: No companies to process")
-        return
+        raise RuntimeError("Pipeline failed: no IDX companies were synchronized")
     
     # Step 2: Fetch prices
     start_date = "2019-01-01" if full_history else (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -404,8 +382,12 @@ if __name__ == "__main__":
     no_ratios = "--no-ratios" in sys.argv
     no_fundamentals = "--no-fundamentals" in sys.argv
     
-    run_daily_pipeline(
-        full_history=full_history,
-        compute_ratios=not no_ratios,
-        fetch_fundamentals=not no_fundamentals
-    )
+    try:
+        run_daily_pipeline(
+            full_history=full_history,
+            compute_ratios=not no_ratios,
+            fetch_fundamentals=not no_fundamentals
+        )
+    except Exception:
+        log.exception("IDX ETL terminated with a critical failure")
+        sys.exit(1)
