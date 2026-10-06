@@ -111,6 +111,10 @@ jobs:
           test -n "$RLS_TEST_USER_A_TOKEN"
           test -n "$RLS_TEST_USER_A_ID"
           test -n "$RLS_TEST_USER_B_ID"
+          test -n "$RLS_TEST_ADVISOR_TOKEN"
+          test -n "$RLS_TEST_ADVISOR_ID"
+          test -n "$RLS_TEST_ASSIGNED_CLIENT_ID"
+          test -n "$RLS_TEST_UNASSIGNED_CLIENT_ID"
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:

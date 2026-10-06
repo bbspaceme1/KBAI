@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL", ""),
-    os.environ.get("SUPABASE_SERVICE_KEY", ""),
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY", ""),
 )
 
 # ─── PIPELINE STEPS ──────────────────────────────────────────
@@ -115,6 +115,7 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
     
     start = time.time()
     total_stored = 0
+    failed_batches = []
     
     try:
         # Process in batches
@@ -147,12 +148,15 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
                 time.sleep(0.5)
                 
             except Exception as e:
-                log.error(f"  ❌ Batch {i//batch_size + 1} failed: {e}")
-        
+                batch_number = i // batch_size + 1
+                failed_batches.append(batch_number)
+                log.error(f"  ❌ Batch {batch_number} failed: {e}")
+
+        if failed_batches:
+            raise RuntimeError(f"Price ingestion failed for batches: {failed_batches}")
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
         log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
-        
         return total_stored
         
     except Exception as e:
@@ -174,7 +178,9 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
     try:
         start_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         records = []
-        for date in pd.date_range(start=start_date, end=datetime.now().strftime("%Y-%m-%d"), freq="B"):
+        failed_dates = []
+        requested_dates = list(pd.date_range(start=start_date, end=datetime.now().strftime("%Y-%m-%d"), freq="B"))
+        for date in requested_dates:
             try:
                 df = IDXFetcher.get_index_summary(date.strftime("%Y-%m-%d"))
                 if df.empty:
@@ -182,7 +188,10 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
                 records.extend(df.to_dict(orient="records"))
                 log.info(f"  ✓ {date.date()}: {len(df)} indices")
             except Exception as e:
-                log.warning(f"  ⚠️  Failed to fetch indices for {date.date()}: {e}")
+                failed_dates.append(date.strftime("%Y-%m-%d"))
+                log.error(f"  ❌ Failed to fetch indices for {date.date()}: {e}")
+        if failed_dates:
+            raise RuntimeError(f"Index ingestion failed for dates: {failed_dates}")
         # Upsert to database
         if records:
             for i in range(0, len(records), 500):

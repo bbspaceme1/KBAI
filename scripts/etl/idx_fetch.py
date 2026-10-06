@@ -1,5 +1,6 @@
 """Official IDX data acquisition for the KBAI ETL pipeline."""
 import logging
+import time
 from datetime import datetime
 from typing import Optional, List, Dict
 
@@ -35,12 +36,23 @@ class IDXFetcher:
     """Fetch raw and normalized datasets from official IDX endpoints only."""
 
     @staticmethod
-    def _get(path: str, params: dict) -> list:
-        response = requests.get(
-            f"{IDX_BASE}{path}", headers=IDX_HEADERS, params=params, timeout=45
-        )
-        response.raise_for_status()
-        return _records(response.json())
+    def _get(path: str, params: dict, attempts: int = 4) -> list:
+        last_error = None
+        for attempt in range(attempts):
+            try:
+                response = requests.get(
+                    f"{IDX_BASE}{path}", headers=IDX_HEADERS, params=params, timeout=45
+                )
+                response.raise_for_status()
+                return _records(response.json())
+            except (requests.RequestException, ValueError) as exc:
+                last_error = exc
+                if attempt == attempts - 1:
+                    break
+                delay = min(8.0, 0.75 * (2 ** attempt))
+                log.warning("IDX request failed (%s/%s) for %s: %s; retrying in %.1fs", attempt + 1, attempts, path, exc, delay)
+                time.sleep(delay)
+        raise RuntimeError(f"IDX request failed after {attempts} attempts: {path}") from last_error
 
     @staticmethod
     def get_constituents() -> List[dict]:
