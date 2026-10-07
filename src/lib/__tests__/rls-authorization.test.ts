@@ -6,13 +6,11 @@ const anonKey = process.env.SUPABASE_ANON_KEY_2 ?? process.env.SUPABASE_ANON_KEY
 const userAToken = process.env.RLS_TEST_USER_A_TOKEN;
 const userAId = process.env.RLS_TEST_USER_A_ID;
 const userBId = process.env.RLS_TEST_USER_B_ID;
+const advisorToken = process.env.RLS_TEST_ADVISOR_TOKEN;
+const advisorId = process.env.RLS_TEST_ADVISOR_ID;
+const assignedClientId = process.env.RLS_TEST_ASSIGNED_CLIENT_ID;
+const unassignedClientId = process.env.RLS_TEST_UNASSIGNED_CLIENT_ID;
 const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
-
-if (process.env.CI === "true" && !enabled) {
-  throw new Error(
-    "Behavioral RLS tests require isolated staging credentials: SUPABASE_URL, SUPABASE_ANON_KEY, RLS_TEST_USER_A_TOKEN, RLS_TEST_USER_A_ID, and RLS_TEST_USER_B_ID",
-  );
-}
 
 describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
   const client = (): SupabaseClient => createClient(url!, anonKey!);
@@ -92,7 +90,59 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     expect(error).toBeTruthy();
   });
 
-  it.todo("User A cannot select User B holdings, transactions, or portfolios");
-  it.todo("Advisor A can select assigned clients but not unassigned clients");
-  it.todo("A user-role session cannot call admin-only RPC functions");
+  it("denies User A access to User B holdings, transactions, and portfolios", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const results = await Promise.all([
+      authenticated.from("holdings").select("*").eq("user_id", userBId),
+      authenticated.from("transactions").select("*").eq("user_id", userBId),
+      authenticated.from("portfolios").select("*").eq("user_id", userBId),
+    ]);
+
+    for (const result of results) {
+      expect(result.error ?? result.data).toBeTruthy();
+      expect(result.data?.some((row) => Object.values(row).includes(userBId))).toBe(false);
+    }
+  });
+
+  it("rejects a normal user from admin-only RPC authorization", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { error } = await authenticated.rpc("rls_auto_enable");
+    expect(error).toBeTruthy();
+  });
+
+  it("allows Advisor A to select assigned clients but not unassigned clients", async () => {
+    if (!advisorToken || !advisorId || !assignedClientId || !unassignedClientId) {
+      throw new Error(
+        "Advisor RLS tests require RLS_TEST_ADVISOR_TOKEN, RLS_TEST_ADVISOR_ID, RLS_TEST_ASSIGNED_CLIENT_ID, and RLS_TEST_UNASSIGNED_CLIENT_ID",
+      );
+    }
+
+    const advisor = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${advisorToken}` } },
+    });
+    const [identity, assignment, assigned, unassigned] = await Promise.all([
+      advisor.from("user_sub_roles").select("user_id, sub_role").eq("user_id", advisorId),
+      advisor
+        .from("advisor_clients")
+        .select("client_id")
+        .eq("advisor_id", advisorId)
+        .eq("client_id", assignedClientId),
+      advisor.from("holdings").select("user_id").eq("user_id", assignedClientId),
+      advisor.from("holdings").select("user_id").eq("user_id", unassignedClientId),
+    ]);
+
+    expect(identity.error).toBeNull();
+    expect(identity.data?.some((row) => row.user_id === advisorId)).toBe(true);
+    expect(assignment.error).toBeNull();
+    expect(assignment.data).toHaveLength(1);
+    expect(assigned.error).toBeNull();
+    expect(assigned.data?.every((row) => row.user_id === assignedClientId)).toBe(true);
+    expect(unassigned.error).toBeNull();
+    expect(unassigned.data).toHaveLength(0);
+    void advisorId;
+  });
 });

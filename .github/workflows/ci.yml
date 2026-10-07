@@ -26,9 +26,12 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Dependency security audit (production surface)
-        # Dev-only tooling (Vercel CLI, Vitest, Playwright) is not shipped to users.
         # Gate the dependency surface that runs in the deployed application.
         run: npm audit --omit=dev --audit-level=high
+      - name: Dependency security audit (full CI tree)
+        # Keep CI/dev tooling visible without confusing it with runtime exposure.
+        continue-on-error: true
+        run: npm audit --audit-level=high
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -95,6 +98,10 @@ jobs:
           RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
           RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
           RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
         run: |
           test -n "$E2E_URL"
           test "$E2E_URL" != "http://localhost:3000"
@@ -104,6 +111,10 @@ jobs:
           test -n "$RLS_TEST_USER_A_TOKEN"
           test -n "$RLS_TEST_USER_A_ID"
           test -n "$RLS_TEST_USER_B_ID"
+          test -n "$RLS_TEST_ADVISOR_TOKEN"
+          test -n "$RLS_TEST_ADVISOR_ID"
+          test -n "$RLS_TEST_ASSIGNED_CLIENT_ID"
+          test -n "$RLS_TEST_UNASSIGNED_CLIENT_ID"
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:
@@ -112,6 +123,10 @@ jobs:
           RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
           RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
           RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
       - name: Install Playwright browsers and Linux dependencies
         run: npx playwright install --with-deps chromium firefox webkit
       - name: E2E tests

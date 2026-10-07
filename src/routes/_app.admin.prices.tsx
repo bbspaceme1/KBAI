@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fmtNum } from "@/lib/format";
+import { downloadCsv, toCsv } from "@/lib/csv-export";
 import { refreshEodPrices } from "@/lib/portfolio.functions";
 import {
   refreshIntradayPrices,
@@ -136,24 +137,11 @@ function AdminPricesPage() {
         ...res.eod.map((row) => ({ dataset: "EOD Prices", ...row })),
         ...res.benchmark.map((row) => ({ dataset: "Benchmarks", ...row })),
       ];
-      const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
-      const escapeCsv = (value: unknown) => {
-        const text = value == null ? "" : String(value);
-        return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-      };
-      const csv = [
-        headers.join(","),
-        ...rows.map((row) =>
-          headers.map((header) => escapeCsv(row[header as keyof typeof row])).join(","),
-        ),
-      ].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `kbai-market-data-${format(new Date(), "yyyyMMdd-HHmm", { locale: idLocale })}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const csv = toCsv(rows);
+      downloadCsv(
+        `kbai-market-data-${format(new Date(), "yyyyMMdd-HHmm", { locale: idLocale })}.csv`,
+        csv,
+      );
       toast.success(`Export OK: ${res.eod.length} EOD + ${res.benchmark.length} benchmark`);
     },
     onError: (e) => toast.error(e.message),

@@ -1,267 +1,168 @@
-"""
-idx_fetch.py - Fetch data from various IDX sources
-Part of BB Space × IDX Platform Integration
-"""
+"""Official IDX data acquisition for the KBAI ETL pipeline."""
 import logging
 import time
-from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Optional, List, Dict
 
-import requests
 import pandas as pd
-import yfinance as yf
+import requests
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+from idx_calendar import trading_dates
+
 log = logging.getLogger(__name__)
-
+IDX_BASE = "https://www.idx.co.id/primary"
 IDX_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "User-Agent": "KBAI-ETL/1.0 (+https://www.idx.co.id/)",
     "Referer": "https://www.idx.co.id/",
-    "Accept": "application/json, text/plain, */*",
+    "Accept": "application/json",
 }
 
-IDX_BASE = "https://www.idx.co.id/umbraco/Surface"
 
-# ─── IDX.co.id Internal Endpoints ────────────────────────────
+def _records(payload: dict) -> list:
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        raise ValueError("IDX response did not contain a data array")
+    return rows
+
+
+def _number(value):
+    if value in (None, "", "-"):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class IDXFetcher:
-    """Fetch data from IDX.co.id internal endpoints"""
-    
+    """Fetch raw and normalized datasets from official IDX endpoints only."""
+
+    @staticmethod
+    def _get(path: str, params: dict, attempts: int = 4) -> list:
+        last_error = None
+        for attempt in range(attempts):
+            try:
+                response = requests.get(
+                    f"{IDX_BASE}{path}", headers=IDX_HEADERS, params=params, timeout=45
+                )
+                response.raise_for_status()
+                return _records(response.json())
+            except (requests.RequestException, ValueError) as exc:
+                last_error = exc
+                if attempt == attempts - 1:
+                    break
+                delay = min(8.0, 0.75 * (2 ** attempt))
+                log.warning("IDX request failed (%s/%s) for %s: %s; retrying in %.1fs", attempt + 1, attempts, path, exc, delay)
+                time.sleep(delay)
+        raise RuntimeError(f"IDX request failed after {attempts} attempts: {path}") from last_error
+
+    @staticmethod
+    def _paged(path: str, params: dict, page_size: int = 500) -> list:
+        rows = []
+        start = 0
+        while True:
+            page = IDXFetcher._get(path, {**params, "start": start, "length": page_size})
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            start += page_size
+
     @staticmethod
     def get_constituents() -> List[dict]:
-        """Ambil daftar semua emiten IDX."""
-        log.info("📋 Fetching company list from IDX...")
-        
-        url = f"{IDX_BASE}/StockData/GetConstituent"
-        try:
-            resp = requests.get(url, headers=IDX_HEADERS, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            companies = []
-            for item in data.get("data", []):
-                ticker = item.get("Code", "").strip()
-                if len(ticker) >= 2:  # Filter valid tickers
-                    companies.append({
-                        "ticker":       ticker,
-                        "name":         item.get("Name", "").strip(),
-                        "sector":       item.get("Sector", "").strip(),
-                        "sub_sector":   item.get("SubSector", "").strip(),
-                        "board":        item.get("Board", "").strip(),
-                        "listing_date": item.get("ListingDate"),
-                        "is_active":    True,
-                    })
-            
-            log.info(f"✅ Found {len(companies)} active companies")
-            return companies
-            
-        except Exception as e:
-            log.error(f"❌ Failed to fetch constituents: {e}")
-            return []
-    
+        rows = IDXFetcher._paged("/ListedCompany/GetCompanyProfiles", {})
+        return [{
+            "ticker": str(row.get("KodeEmiten", "")).strip().upper(),
+            "name": str(row.get("NamaEmiten", "")).strip(),
+            "sector": row.get("Sektor"),
+            "sub_sector": row.get("SubSektor"),
+            "board": row.get("PapanPencatatan"),
+            "industry": row.get("Industri"),
+            "sub_industry": row.get("SubIndustri"),
+            "is_active": True,
+        } for row in rows if row.get("KodeEmiten")]
+
     @staticmethod
     def get_stock_summary(date_str: Optional[str] = None) -> pd.DataFrame:
-        """Ambil summary perdagangan semua saham."""
-        log.info("📊 Fetching daily stock summary...")
-        
-        url = f"{IDX_BASE}/ListedCompany/GetStockSummary"
-        params = {
-            "start":    0,
-            "length":   9999,
-            "exchange": "NYSE",  # Stay as NYSE despite being IDX
-            "language": "id-id",
-        }
-        if date_str:
-            params["date"] = date_str
-        
-        try:
-            resp = requests.get(url, headers=IDX_HEADERS, params=params, timeout=30)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            records = []
-            for item in data.get("data", []):
-                records.append({
-                    "ticker":       item.get("code", "").strip().upper(),
-                    "date":         date_str or datetime.now().strftime("%Y-%m-%d"),
-                    "close":        float(item.get("price", 0)) if item.get("price") else None,
-                    "volume":       int(item.get("volume", 0)) if item.get("volume") else None,
-                    "value":        int(item.get("value", 0)) if item.get("value") else None,
-                })
-            
-            return pd.DataFrame(records) if records else pd.DataFrame()
-            
-        except Exception as e:
-            log.error(f"❌ Failed to fetch stock summary: {e}")
-            return pd.DataFrame()
-    
+        rows = IDXFetcher._paged("/TradingSummary/GetStockSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
+        })
+        normalized = []
+        for row in rows:
+            ticker = str(row.get("StockCode", "")).strip().upper()
+            if not ticker:
+                continue
+            normalized.append({
+                "ticker": ticker, "date": row.get("Date") or date_str,
+                "open": _number(row.get("OpenPrice")), "high": _number(row.get("High")),
+                "low": _number(row.get("Low")), "close": _number(row.get("Close")),
+                "volume": _number(row.get("Volume")), "value": _number(row.get("Value")),
+                "frequency": _number(row.get("Frequency")), "previous": _number(row.get("Previous")),
+                "bid": _number(row.get("Bid")), "bid_volume": _number(row.get("BidVolume")),
+                "offer": _number(row.get("Offer")), "offer_volume": _number(row.get("OfferVolume")),
+                "listed_shares": _number(row.get("ListedShares")),
+                "tradable_shares": _number(row.get("TradebleShares")),
+                "foreign_buy": _number(row.get("ForeignBuy")), "foreign_sell": _number(row.get("ForeignSell")),
+                "non_regular_volume": _number(row.get("NonRegularVolume")),
+                "non_regular_value": _number(row.get("NonRegularValue")),
+                "non_regular_frequency": _number(row.get("NonRegularFrequency")),
+            })
+        return pd.DataFrame(normalized)
+
     @staticmethod
-    def get_financial_ratio(ticker: str) -> dict:
-        """Ambil rasio keuangan emiten."""
-        url = f"{IDX_BASE}/StockData/GetFinancialRatio"
-        params = {"emiten": ticker}
-        
-        try:
-            resp = requests.get(url, headers=IDX_HEADERS, params=params, timeout=30)
-            resp.raise_for_status()
-            return resp.json()
-        except Exception as e:
-            log.warning(f"⚠️  Could not fetch ratios for {ticker}: {e}")
-            return {}
+    def get_multiple_stocks(tickers: List[str], start_date: str, end_date: Optional[str] = None) -> pd.DataFrame:
+        """Fetch official daily EOD rows and filter to the requested universe."""
+        wanted = {ticker.upper().replace(".JK", "") for ticker in tickers}
+        end = end_date or datetime.now().strftime("%Y-%m-%d")
+        frames = []
+        for date in trading_dates(start_date, end):
+            daily = IDXFetcher.get_stock_summary(date)
+            if not daily.empty:
+                frames.append(daily[daily["ticker"].isin(wanted)])
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+    @staticmethod
+    def get_index_summary(date_str: Optional[str] = None) -> pd.DataFrame:
+        rows = IDXFetcher._paged("/TradingSummary/GetIndexSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
+        })
+        return pd.DataFrame([{
+            "index_code": row.get("IndexCode"), "index_name": row.get("IndexName"),
+            "date": row.get("Date") or date_str, "open": None,
+            "high": _number(row.get("Highest")), "low": _number(row.get("Lowest")),
+            "close": _number(row.get("Close")), "previous": _number(row.get("Previous")),
+            "volume": _number(row.get("Volume")), "value": _number(row.get("Value")),
+            "frequency": _number(row.get("Frequency")), "market_cap": _number(row.get("MarketCapital")),
+        } for row in rows if row.get("IndexCode")])
+
+    @staticmethod
+    def get_financial_ratios(period_year: int, period_quarter: int, page_size: int = 500) -> List[dict]:
+        rows = []
+        page = 1
+        while True:
+            batch = IDXFetcher._get("/DigitalStatistic/GetApiDataPaginated", {
+                "urlName": "LINK_FINANCIAL_DATA_RATIO", "periodYear": period_year,
+                "periodQuarter": period_quarter, "type": "Q", "cumulative": "false",
+                "pageSize": page_size, "pageNumber": page,
+            })
+            rows.extend(batch)
+            if len(batch) < page_size:
+                return rows
+            page += 1
+
+    @staticmethod
+    def get_corporate_actions(date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[dict]:
+        return IDXFetcher._paged("/ListingActivity/GetIssuedHistory", {
+            "dateFrom": date_from or "2019-01-01", "dateTo": date_to or datetime.now().strftime("%Y-%m-%d"),
+        })
+
+    @staticmethod
+    def get_broker_summary(date_str: Optional[str] = None) -> pd.DataFrame:
+        rows = IDXFetcher._paged("/TradingSummary/GetBrokerSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
+        })
+        return pd.DataFrame(rows)
 
 
-# ─── Yahoo Finance Data (Unofficial, but reliable for historical) ────
-class YFinanceFetcher:
-    """Fetch data from Yahoo Finance (covers IDX tickers)"""
-    
-    @staticmethod
-    def get_historical_price(
-        ticker: str,
-        start_date: str,
-        end_date: Optional[str] = None
-    ) -> pd.DataFrame:
-        """
-        Ambil data historis harga saham IDX dari Yahoo Finance.
-        
-        Args:
-            ticker: Kode ticker IDX (tanpa .JK), misal 'BBCA'
-            start_date: Format 'YYYY-MM-DD'
-            end_date: Format 'YYYY-MM-DD', default hari ini
-        """
-        yf_ticker = f"{ticker}.JK"
-        
-        try:
-            stock = yf.Ticker(yf_ticker)
-            df = stock.history(start=start_date, end=end_date, interval="1d")
-            
-            if df.empty:
-                log.warning(f"⚠️  No data for {ticker}")
-                return pd.DataFrame()
-            
-            df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-            df.index = pd.to_datetime(df.index).tz_localize(None)
-            df.index.name = "date"
-            df.columns = ["open", "high", "low", "close", "volume"]
-            df["ticker"] = ticker
-            
-            return df.reset_index().dropna(subset=["close"])
-            
-        except Exception as e:
-            log.warning(f"⚠️  Failed to fetch {ticker}: {e}")
-            return pd.DataFrame()
-    
-    @staticmethod
-    def get_multiple_stocks(
-        tickers: List[str],
-        start_date: str,
-        end_date: Optional[str] = None
-    ) -> pd.DataFrame:
-        """Ambil data historis banyak saham sekaligus (lebih efisien)."""
-        log.info(f"📈 Downloading price history for {len(tickers)} stocks...")
-        
-        yf_tickers = [f"{t}.JK" for t in tickers]
-        
-        try:
-            raw = yf.download(
-                tickers=yf_tickers,
-                start=start_date,
-                end=end_date,
-                interval="1d",
-                group_by="ticker",
-                auto_adjust=True,
-                threads=True,
-                progress=False,
-            )
-            
-            dfs = []
-            for yf_t, idx_t in zip(yf_tickers, tickers):
-                try:
-                    if len(yf_tickers) == 1:
-                        df = raw[["Open", "High", "Low", "Close", "Volume"]].copy()
-                    else:
-                        df = raw[yf_t][["Open", "High", "Low", "Close", "Volume"]].copy()
-                    
-                    df.index = pd.to_datetime(df.index).tz_localize(None)
-                    df.columns = ["open", "high", "low", "close", "volume"]
-                    df["ticker"] = idx_t
-                    df.index.name = "date"
-                    
-                    dfs.append(df.reset_index().dropna(subset=["close"]))
-                    
-                except Exception as e:
-                    log.warning(f"  ⚠️  Skip {idx_t}: {e}")
-                    time.sleep(0.1)
-            
-            return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
-            
-        except Exception as e:
-            log.error(f"❌ Failed to download prices: {e}")
-            return pd.DataFrame()
-    
-    @staticmethod
-    def get_stock_info(ticker: str) -> dict:
-        """Ambil data fundamental saham."""
-        try:
-            stock = yf.Ticker(f"{ticker}.JK")
-            info = stock.info
-            
-            return {
-                "ticker":           ticker,
-                "name":             info.get("longName", ""),
-                "sector":           info.get("sector", ""),
-                "industry":         info.get("industry", ""),
-                "market_cap":       info.get("marketCap"),
-                "current_price":    info.get("currentPrice"),
-                "per":              info.get("trailingPE"),
-                "pbv":              info.get("priceToBook"),
-                "dividend_yield":   info.get("dividendYield"),
-                "roe":              info.get("returnOnEquity"),
-                "roa":              info.get("returnOnAssets"),
-                "revenue_growth":   info.get("revenueGrowth"),
-                "earnings_growth":  info.get("earningsGrowth"),
-                "beta":             info.get("beta"),
-                "52w_high":         info.get("fiftyTwoWeekHigh"),
-                "52w_low":          info.get("fiftyTwoWeekLow"),
-            }
-        except Exception as e:
-            log.warning(f"⚠️  Could not fetch info for {ticker}: {e}")
-            return {}
-    
-    @staticmethod
-    def get_index_data(index_symbol: str, start_date: str, end_date: Optional[str] = None) -> pd.DataFrame:
-        """Ambil data historis indeks (COMPOSITE, LQ45, dll)."""
-        try:
-            df = yf.download(index_symbol, start=start_date, end=end_date, progress=False)
-            df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
-            df.columns = ["open", "high", "low", "close", "volume"]
-            df.index = pd.to_datetime(df.index).tz_localize(None)
-            df.index.name = "date"
-            
-            return df.reset_index()
-        except Exception as e:
-            log.warning(f"⚠️  Could not fetch index {index_symbol}: {e}")
-            return pd.DataFrame()
-
-
-# ─── Test Functions ─────────────────────────────────────────
 if __name__ == "__main__":
-    import pprint
-    
-    # Test IDX fetcher
-    companies = IDXFetcher.get_constituents()
-    print(f"\n📋 Found {len(companies)} companies")
-    if companies:
-        pprint.pprint(companies[:2])
-    
-    # Test Yahoo Finance
-    df = YFinanceFetcher.get_historical_price("BBCA", "2024-01-01", "2024-01-31")
-    print(f"\n📈 BBCA price data: {len(df)} rows")
-    print(df.head())
-    
-    # Test multiple stocks
-    df_multi = YFinanceFetcher.get_multiple_stocks(["BBCA", "TLKM"], "2024-01-01")
-    print(f"\n📊 Multiple stocks: {len(df_multi)} rows")
-    print(df_multi.head())
+    print(f"IDX constituents: {len(IDXFetcher.get_constituents())}")
+    print(f"IDX EOD rows: {len(IDXFetcher.get_stock_summary())}")

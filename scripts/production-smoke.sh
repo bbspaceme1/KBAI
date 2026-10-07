@@ -8,7 +8,7 @@ if [[ -z "$base_url" ]]; then
 fi
 base_url="${base_url%/}"
 
-paths=("/" "/login")
+paths=("/" "/login" "/market")
 for path in "${paths[@]}"; do
   status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' --max-time 20 "$base_url$path")"
   printf 'smoke path=%s status=%s\n' "$path" "$status"
@@ -22,8 +22,3 @@ printf 'Production public smoke check passed for %s\n' "$base_url"
 
 # Authenticated and authorization scenarios must run in the staging/E2E suite;
 # this check intentionally never accepts credentials or logs sensitive responses.
-if [[ "${REQUIRE_PUBLIC_MARKET_SMOKE:-false}" == "true" ]]; then
-  status="$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' --max-time 20 "$base_url/market")"
-  printf 'smoke path=/market status=%s\n' "$status"
-  [[ "$status" == 2* || "$status" == 3* ]]
-fi

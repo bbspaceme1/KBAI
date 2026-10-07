@@ -13,8 +13,8 @@ from typing import List, Tuple
 import pandas as pd
 from supabase import create_client, Client
 
-from idx_fetch import IDXFetcher, YFinanceFetcher
-from idx_fundamentals import FundamentalDataPipeline, log_etl_execution as log_fundamentals
+from idx_fetch import IDXFetcher
+from idx_calendar import trading_dates
 
 # ─── SETUP ───────────────────────────────────────────────────
 logging.basicConfig(
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL", ""),
-    os.environ.get("SUPABASE_SERVICE_KEY", ""),
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY", ""),
 )
 
 # ─── PIPELINE STEPS ──────────────────────────────────────────
@@ -94,7 +94,7 @@ def reconcile_price_universe(expected_tickers: List[str], run_date: str):
         threshold = float(os.environ.get("IDX_ETL_PARTIAL_THRESHOLD", "0.02"))
         status = "success" if not missing and not duplicates else ("partial" if ratio <= threshold else "failed")
         result = supabase.table("idx_etl_logs").insert({
-            "run_date": run_date, "source": "yfinance_reconciliation", "status": status,
+            "run_date": run_date, "source": "idx_eod_reconciliation", "status": status,
             "records_fetched": len(received), "records_stored": len(received),
             "expected_count": len(expected), "missing_count": len(missing), "duplicate_count": duplicates,
         }).execute()
@@ -116,51 +116,34 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
     
     start = time.time()
     total_stored = 0
+    failed_batches = []
     
     try:
-        # Process in batches
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i:i + batch_size]
-            
-            try:
-                df = YFinanceFetcher.get_multiple_stocks(batch, start_date)
-                
-                if df.empty:
-                    log.warning(f"  ⚠️  Batch {i//batch_size + 1}: no data")
-                    continue
-                
-                # Clean data
-                df["date"] = df["date"].dt.strftime("%Y-%m-%d")
-                df["volume"] = df["volume"].fillna(0).astype(int)
-                df = df.where(pd.notna(df), None)  # Convert NaN to None
-                
-                records = df.to_dict(orient="records")
-                
-                # Upsert in sub-batches (Supabase limit)
-                for j in range(0, len(records), 500):
-                    subbatch = records[j:j + 500]
-                    supabase.table("idx_stock_prices").upsert(
-                        subbatch, on_conflict="ticker,date"
-                    ).execute()
-                    total_stored += len(subbatch)
-                
-                log.info(f"  Batch {i//batch_size + 1}/{(len(tickers)-1)//batch_size + 1}: OK ({len(df)} records)")
-                time.sleep(0.5)
-                
-            except Exception as e:
-                log.error(f"  ❌ Batch {i//batch_size + 1} failed: {e}")
-        
+        # One date-first request per trading date returns the full IDX universe.
+        df = IDXFetcher.get_multiple_stocks(tickers, start_date)
+        if df.empty:
+            raise RuntimeError("IDX returned no EOD rows for the requested range")
+        try:
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            df["volume"] = df["volume"].fillna(0).astype(int)
+            df = df.where(pd.notna(df), None)
+            records = df.to_dict(orient="records")
+            for j in range(0, len(records), 500):
+                subbatch = records[j:j + 500]
+                supabase.table("idx_stock_prices").upsert(subbatch, on_conflict="ticker,date").execute()
+                total_stored += len(subbatch)
+        except Exception:
+            raise
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
-        log_etl_execution("yfinance_prices", "success", total_stored, duration=duration)
-        
+        log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
         return total_stored
         
     except Exception as e:
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 2 failed: {e}")
-        log_etl_execution("yfinance_prices", "failed", total_stored, error=str(e), duration=duration)
-        return total_stored
+        log_etl_execution("idx_eod_prices", "failed", total_stored, error=str(e), duration=duration)
+        raise
 
 
 def step_3_fetch_indices(days_back: int = 30) -> int:
@@ -173,33 +156,22 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
     total_stored = 0
     
     try:
-        indices = {
-            "COMPOSITE": "^JKSE",
-            "LQ45":      "^JKLQ45",
-        }
-        
         start_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         records = []
-        
-        for idx_code, yf_symbol in indices.items():
+        failed_dates = []
+        requested_dates = trading_dates(start_date, datetime.now().strftime("%Y-%m-%d"))
+        for date in requested_dates:
             try:
-                df = YFinanceFetcher.get_index_data(yf_symbol, start_date)
-                
+                df = IDXFetcher.get_index_summary(date)
                 if df.empty:
-                    log.warning(f"  ⚠️  No data for {idx_code}")
                     continue
-                
-                df["index_code"] = idx_code
-                df["date"] = df["date"].dt.strftime("%Y-%m-%d")
-                df["volume"] = df["volume"].fillna(0).astype(int)
-                df = df.where(pd.notna(df), None)
-                
                 records.extend(df.to_dict(orient="records"))
-                log.info(f"  ✓ {idx_code}: {len(df)} records")
-                
+                log.info(f"  ✓ {date}: {len(df)} indices")
             except Exception as e:
-                log.warning(f"  ⚠️  Failed to fetch {idx_code}: {e}")
-        
+                failed_dates.append(date.strftime("%Y-%m-%d"))
+                log.error(f"  ❌ Failed to fetch indices for {date.date()}: {e}")
+        if failed_dates:
+            raise RuntimeError(f"Index ingestion failed for dates: {failed_dates}")
         # Upsert to database
         if records:
             for i in range(0, len(records), 500):
@@ -218,10 +190,10 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 3 failed: {e}")
         log_etl_execution("index_prices", "failed", total_stored, error=str(e), duration=duration)
-        return total_stored
+        raise
 
 
-def step_4_compute_ratios(tickers: List[str], limit: int = 200) -> int:
+def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
     """Step 4: Compute and store financial ratios."""
     log.info("\n" + "="*60)
     log.info("STEP 4: COMPUTE FINANCIAL RATIOS")
@@ -231,39 +203,33 @@ def step_4_compute_ratios(tickers: List[str], limit: int = 200) -> int:
     total_stored = 0
     
     try:
-        # Limit to top stocks to save API calls
-        priority_tickers = tickers[:limit]
-        today = datetime.now().strftime("%Y-%m-%d")
+        priority_tickers = {
+            ticker.upper().replace(".JK", "")
+            for index, ticker in enumerate(tickers)
+            if limit is None or index < limit
+        }
+        fiscal_year = datetime.now().year
         records = []
-        
-        for i, ticker in enumerate(priority_tickers):
-            try:
-                info = YFinanceFetcher.get_stock_info(ticker)
-                
-                if not info or not info.get("current_price"):
+
+        # Fetch each fiscal period once, then map the complete response to tickers.
+        for quarter in range(1, 5):
+            period_rows = IDXFetcher.get_financial_ratios(fiscal_year, quarter)
+            for row in period_rows:
+                ticker = str(row.get("code", "")).strip().upper()
+                if ticker not in priority_tickers:
                     continue
-                
-                record = {
-                    "ticker":           ticker,
-                    "date":             today,
-                    "per":              info.get("per"),
-                    "pbv":              info.get("pbv"),
-                    "dividend_yield":   info.get("dividend_yield"),
-                    "roe":              info.get("roe"),
-                    "roa":              info.get("roa"),
-                    "revenue_growth":   info.get("revenue_growth"),
-                    "earnings_growth":  info.get("earnings_growth"),
-                    "market_cap":       info.get("market_cap"),
-                }
-                
-                records.append(record)
-                
-                if (i + 1) % 50 == 0:
-                    log.info(f"  Processed {i + 1}/{len(priority_tickers)} stocks")
-                    time.sleep(0.2)
-                
-            except Exception as e:
-                log.warning(f"  ⚠️  {ticker}: {e}")
+                records.append({
+                    "ticker": ticker,
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "fiscal_year": fiscal_year,
+                    "fiscal_quarter": quarter,
+                    "reporting_period": f"{fiscal_year}-Q{quarter}",
+                    "per": row.get("per"), "pbv": row.get("priceBV"),
+                    "roe": row.get("roe"), "roa": row.get("roa"),
+                    "npm": row.get("npm"), "book_value": row.get("bookValue"),
+                    "de_ratio": row.get("deRatio"),
+                })
+            log.info("  Loaded fiscal period %s-Q%s: %s rows", fiscal_year, quarter, len(period_rows))
         
         # Upsert to database
         if records:
@@ -273,7 +239,7 @@ def step_4_compute_ratios(tickers: List[str], limit: int = 200) -> int:
                 batch = [{k: (None if v is None or (isinstance(v, float) and pd.isna(v)) else v)
                           for k, v in r.items()} for r in batch]
                 supabase.table("idx_financial_ratios").upsert(
-                    batch, on_conflict="ticker,date"
+                    batch, on_conflict="ticker,fiscal_year,fiscal_quarter"
                 ).execute()
                 total_stored += len(batch)
         
@@ -371,8 +337,7 @@ def run_daily_pipeline(
     # Step 1: Sync companies
     tickers = step_1_sync_companies()
     if not tickers:
-        log.error("❌ Pipeline failed: No companies to process")
-        return
+        raise RuntimeError("Pipeline failed: no IDX companies were synchronized")
     
     # Step 2: Fetch prices
     start_date = "2019-01-01" if full_history else (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -389,7 +354,7 @@ def run_daily_pipeline(
     
     # Step 5: Fetch fundamentals (NEW — addresses audit DATA-02)
     if fetch_fundamentals:
-        step_5_fetch_fundamentals(tickers, limit=200)
+        log.info("Official IDX financial ratios are fetched in STEP 4; external fundamentals are disabled.")
 
     # Step 6: Fetch corporate actions (dividends, splits, rights)
     try:
@@ -419,8 +384,12 @@ if __name__ == "__main__":
     no_ratios = "--no-ratios" in sys.argv
     no_fundamentals = "--no-fundamentals" in sys.argv
     
-    run_daily_pipeline(
-        full_history=full_history,
-        compute_ratios=not no_ratios,
-        fetch_fundamentals=not no_fundamentals
-    )
+    try:
+        run_daily_pipeline(
+            full_history=full_history,
+            compute_ratios=not no_ratios,
+            fetch_fundamentals=not no_fundamentals
+        )
+    except Exception:
+        log.exception("IDX ETL terminated with a critical failure")
+        sys.exit(1)
