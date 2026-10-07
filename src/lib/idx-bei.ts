@@ -164,41 +164,53 @@ export async function fetchIdxDataset<T>(
   return payload;
 }
 
+export async function fetchIdxPaginated<T>(
+  path: string,
+  params: Record<string, string | number | undefined>,
+  fetcher: typeof fetch = fetch,
+  pageSize = 500,
+): Promise<IdxEnvelope<T>> {
+  const rows: T[] = [];
+  let start = 0;
+  let expected: number | undefined;
+  while (true) {
+    const page = await fetchIdxDataset<T>(path, { ...params, start, length: pageSize }, fetcher);
+    const pageRows = page.data ?? [];
+    rows.push(...pageRows);
+    expected = page.recordsFiltered ?? page.recordsTotal ?? expected;
+    const completeByCount = expected !== undefined && rows.length >= expected;
+    if (completeByCount || pageRows.length < pageSize) {
+      return {
+        ...page,
+        data: rows,
+        recordsFiltered: expected ?? rows.length,
+        recordsTotal: page.recordsTotal ?? expected ?? rows.length,
+      };
+    }
+    start += pageRows.length;
+    if (pageRows.length === 0) throw new Error(`IDX pagination stalled for ${path}`);
+  }
+}
+
 export const idxEndpoints = endpointMap;
 
 export async function fetchIdxStockSummary(date: string, fetcher?: typeof fetch) {
-  return fetchIdxDataset<IdxStockSummary>(
-    endpointMap.stockSummary,
-    { date, start: 0, length: 9999 },
-    fetcher,
-  );
+  return fetchIdxPaginated<IdxStockSummary>(endpointMap.stockSummary, { date }, fetcher);
 }
 
 export async function fetchIdxBrokerSummary(date: string, fetcher?: typeof fetch) {
-  return fetchIdxDataset<IdxBrokerSummary>(
-    endpointMap.brokerSummary,
-    { date, start: 0, length: 9999 },
-    fetcher,
-  );
+  return fetchIdxPaginated<IdxBrokerSummary>(endpointMap.brokerSummary, { date }, fetcher);
 }
 
 export async function fetchIdxIndexSummary(date: string, fetcher?: typeof fetch) {
-  return fetchIdxDataset<IdxIndexSummary>(
-    endpointMap.indexSummary,
-    { date, start: 0, length: 9999 },
-    fetcher,
-  );
+  return fetchIdxPaginated<IdxIndexSummary>(endpointMap.indexSummary, { date }, fetcher);
 }
 
 export async function fetchIdxCorporateActions(
   params: { caType: string; dateFrom?: string; dateTo?: string },
   fetcher?: typeof fetch,
 ) {
-  return fetchIdxDataset<IdxCorporateAction>(
-    endpointMap.corporateActions,
-    { ...params, start: 0, length: 9999 },
-    fetcher,
-  );
+  return fetchIdxPaginated<IdxCorporateAction>(endpointMap.corporateActions, params, fetcher);
 }
 
 export async function fetchIdxAnnouncements(
