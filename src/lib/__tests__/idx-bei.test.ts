@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildIdxUrl, deriveStockMetrics, fetchIdxStockSummary, idxEndpoints } from "../idx-bei";
+import {
+  buildIdxUrl,
+  deriveStockMetrics,
+  fetchIdxPaginated,
+  fetchIdxStockSummary,
+  idxEndpoints,
+} from "../idx-bei";
 
 describe("IDX-BEI acquisition contract", () => {
   it("derives metrics without confusing them with raw fields", () => {
@@ -44,10 +50,38 @@ describe("IDX-BEI acquisition contract", () => {
     const url = buildIdxUrl(idxEndpoints.stockSummary, {
       date: "20260807",
       start: 0,
-      length: 9999,
+      length: 500,
     });
     expect(url).toContain("/primary/TradingSummary/GetStockSummary");
     expect(url).toContain("date=20260807");
+  });
+
+  it("fetches every page using IDX record metadata", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: [{ StockCode: "AAA" }], recordsFiltered: 2, recordsTotal: 2 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: [{ StockCode: "BBB" }], recordsFiltered: 2, recordsTotal: 2 }),
+          { status: 200 },
+        ),
+      );
+
+    const result = await fetchIdxPaginated(
+      "/TradingSummary/GetStockSummary",
+      { date: "20260807" },
+      fetcher,
+      1,
+    );
+
+    expect(result.data).toHaveLength(2);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(String(fetcher.mock.calls[1][0])).toContain("start=1");
   });
 
   it("rejects malformed upstream payloads", async () => {
