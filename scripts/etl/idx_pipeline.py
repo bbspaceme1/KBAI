@@ -14,6 +14,7 @@ import pandas as pd
 from supabase import create_client, Client
 
 from idx_fetch import IDXFetcher
+from idx_calendar import trading_dates
 
 # ─── SETUP ───────────────────────────────────────────────────
 logging.basicConfig(
@@ -158,14 +159,14 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
         start_date = (datetime.now() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         records = []
         failed_dates = []
-        requested_dates = list(pd.date_range(start=start_date, end=datetime.now().strftime("%Y-%m-%d"), freq="B"))
+        requested_dates = trading_dates(start_date, datetime.now().strftime("%Y-%m-%d"))
         for date in requested_dates:
             try:
-                df = IDXFetcher.get_index_summary(date.strftime("%Y-%m-%d"))
+                df = IDXFetcher.get_index_summary(date)
                 if df.empty:
                     continue
                 records.extend(df.to_dict(orient="records"))
-                log.info(f"  ✓ {date.date()}: {len(df)} indices")
+                log.info(f"  ✓ {date}: {len(df)} indices")
             except Exception as e:
                 failed_dates.append(date.strftime("%Y-%m-%d"))
                 log.error(f"  ❌ Failed to fetch indices for {date.date()}: {e}")
@@ -202,32 +203,33 @@ def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
     total_stored = 0
     
     try:
-        # Limit to top stocks to save API calls
-        priority_tickers = tickers[:limit]
-        today = datetime.now().strftime("%Y-%m-%d")
+        priority_tickers = {
+            ticker.upper().replace(".JK", "")
+            for index, ticker in enumerate(tickers)
+            if limit is None or index < limit
+        }
+        fiscal_year = datetime.now().year
         records = []
-        
-        for i, ticker in enumerate(priority_tickers):
-            try:
-                for quarter in range(1, 5):
-                    for row in IDXFetcher.get_financial_ratios(datetime.now().year, quarter):
-                        if str(row.get("code", "")).strip().upper() != ticker.upper():
-                            continue
-                        records.append({
-                            "ticker": ticker, "date": today,
-                            "per": row.get("per"), "pbv": row.get("priceBV"),
-                            "roe": row.get("roe"), "roa": row.get("roa"),
-                            "npm": row.get("npm"), "book_value": row.get("bookValue"),
-                            "de_ratio": row.get("deRatio"),
-                        })
-                        break
-                
-                if (i + 1) % 50 == 0:
-                    log.info(f"  Processed {i + 1}/{len(priority_tickers)} stocks")
-                    time.sleep(0.2)
-                
-            except Exception as e:
-                log.warning(f"  ⚠️  {ticker}: {e}")
+
+        # Fetch each fiscal period once, then map the complete response to tickers.
+        for quarter in range(1, 5):
+            period_rows = IDXFetcher.get_financial_ratios(fiscal_year, quarter)
+            for row in period_rows:
+                ticker = str(row.get("code", "")).strip().upper()
+                if ticker not in priority_tickers:
+                    continue
+                records.append({
+                    "ticker": ticker,
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "fiscal_year": fiscal_year,
+                    "fiscal_quarter": quarter,
+                    "reporting_period": f"{fiscal_year}-Q{quarter}",
+                    "per": row.get("per"), "pbv": row.get("priceBV"),
+                    "roe": row.get("roe"), "roa": row.get("roa"),
+                    "npm": row.get("npm"), "book_value": row.get("bookValue"),
+                    "de_ratio": row.get("deRatio"),
+                })
+            log.info("  Loaded fiscal period %s-Q%s: %s rows", fiscal_year, quarter, len(period_rows))
         
         # Upsert to database
         if records:
@@ -237,7 +239,7 @@ def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
                 batch = [{k: (None if v is None or (isinstance(v, float) and pd.isna(v)) else v)
                           for k, v in r.items()} for r in batch]
                 supabase.table("idx_financial_ratios").upsert(
-                    batch, on_conflict="ticker,date"
+                    batch, on_conflict="ticker,fiscal_year,fiscal_quarter"
                 ).execute()
                 total_stored += len(batch)
         

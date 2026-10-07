@@ -7,6 +7,8 @@ from typing import Optional, List, Dict
 import pandas as pd
 import requests
 
+from idx_calendar import trading_dates
+
 log = logging.getLogger(__name__)
 IDX_BASE = "https://www.idx.co.id/primary"
 IDX_HEADERS = {
@@ -111,10 +113,9 @@ class IDXFetcher:
         """Fetch official daily EOD rows and filter to the requested universe."""
         wanted = {ticker.upper().replace(".JK", "") for ticker in tickers}
         end = end_date or datetime.now().strftime("%Y-%m-%d")
-        dates = pd.date_range(start=start_date, end=end, freq="B")
         frames = []
-        for date in dates:
-            daily = IDXFetcher.get_stock_summary(date.strftime("%Y-%m-%d"))
+        for date in trading_dates(start_date, end):
+            daily = IDXFetcher.get_stock_summary(date)
             if not daily.empty:
                 frames.append(daily[daily["ticker"].isin(wanted)])
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -150,15 +151,14 @@ class IDXFetcher:
 
     @staticmethod
     def get_corporate_actions(date_from: Optional[str] = None, date_to: Optional[str] = None) -> List[dict]:
-        return IDXFetcher._get("/ListingActivity/GetIssuedHistory", {
+        return IDXFetcher._paged("/ListingActivity/GetIssuedHistory", {
             "dateFrom": date_from or "2019-01-01", "dateTo": date_to or datetime.now().strftime("%Y-%m-%d"),
-            "start": 0, "length": 9999,
         })
 
     @staticmethod
     def get_broker_summary(date_str: Optional[str] = None) -> pd.DataFrame:
-        rows = IDXFetcher._get("/TradingSummary/GetBrokerSummary", {
-            "date": date_str or datetime.now().strftime("%Y-%m-%d"), "start": 0, "length": 9999,
+        rows = IDXFetcher._paged("/TradingSummary/GetBrokerSummary", {
+            "date": date_str or datetime.now().strftime("%Y-%m-%d"),
         })
         return pd.DataFrame(rows)
 
