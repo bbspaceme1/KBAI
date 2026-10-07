@@ -168,8 +168,8 @@ def step_3_fetch_indices(days_back: int = 30) -> int:
                 records.extend(df.to_dict(orient="records"))
                 log.info(f"  ✓ {date}: {len(df)} indices")
             except Exception as e:
-                failed_dates.append(date.strftime("%Y-%m-%d"))
-                log.error(f"  ❌ Failed to fetch indices for {date.date()}: {e}")
+                failed_dates.append(date)
+                log.error(f"  ❌ Failed to fetch indices for {date}: {e}")
         if failed_dates:
             raise RuntimeError(f"Index ingestion failed for dates: {failed_dates}")
         # Upsert to database
@@ -218,6 +218,8 @@ def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
                 ticker = str(row.get("code", "")).strip().upper()
                 if ticker not in priority_tickers:
                     continue
+                if not ticker or not fiscal_year or quarter not in {1, 2, 3, 4}:
+                    raise ValueError(f"Invalid IDX ratio period for row: {row}")
                 records.append({
                     "ticker": ticker,
                     "date": datetime.now().strftime("%Y-%m-%d"),
@@ -253,7 +255,7 @@ def step_4_compute_ratios(tickers: List[str], limit: int = None) -> int:
         duration = int((time.time() - start) * 1000)
         log.error(f"❌ Step 4 failed: {e}")
         log_etl_execution("ratios", "failed", total_stored, error=str(e), duration=duration)
-        return total_stored
+        raise
 
 
 def step_5_fetch_fundamentals(tickers: List[str], limit: int = 200) -> int:
@@ -366,8 +368,9 @@ def run_daily_pipeline(
         log_etl_execution("corporate_actions", "success", stored)
         log.info(f"✅ Step 6 complete: {stored} corporate actions stored")
     except Exception as e:
-        log.warning(f"⚠️ Step 6 failed: {e}")
+        log.error(f"❌ Step 6 failed: {e}")
         log_etl_execution("corporate_actions", "failed", 0, error=str(e))
+        raise RuntimeError("Pipeline failed: corporate actions ingestion is incomplete") from e
     
     pipeline_duration = (time.time() - pipeline_start)
     log.info("\n" + "="*60)
