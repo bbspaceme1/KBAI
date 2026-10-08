@@ -108,18 +108,30 @@ def reconcile_price_universe(expected_tickers: List[str], run_date: str):
         raise
 
 
+def _claim_partition(job_id: str, partition_key: str, worker_id: str) -> bool:
+    result = supabase.rpc("claim_idx_etl_partition", {
+        "p_job_id": job_id,
+        "p_partition_key": partition_key,
+        "p_worker_id": worker_id,
+        "p_lease_seconds": 900,
+    }).execute()
+    return bool(result.data)
+
+
 def _checkpoint(job_id: str, partition_key: str, status: str, records_received: int = 0, expected_count: int = None, missing_count: int = 0, duplicate_count: int = 0, error_message: str = None):
-    supabase.table("idx_etl_checkpoints").upsert({
-        "job_id": job_id,
-        "partition_key": partition_key,
-        "status": status,
-        "records_received": records_received,
-        "expected_count": expected_count,
-        "missing_count": missing_count,
-        "duplicate_count": duplicate_count,
-        "error_message": error_message,
-        "updated_at": datetime.now().isoformat(),
-    }, on_conflict="job_id,partition_key").execute()
+    payload = {
+        "status": status, "records_received": records_received, "expected_count": expected_count,
+        "missing_count": missing_count, "duplicate_count": duplicate_count,
+        "error_message": error_message, "updated_at": datetime.now().isoformat(),
+    }
+    if status in {"SUCCESS", "PARTIAL", "FAILED"}:
+        payload["completed_at"] = datetime.now().isoformat()
+        payload["lease_until"] = None
+    try:
+        supabase.table("idx_etl_checkpoints").update(payload).eq("job_id", job_id).eq("partition_key", partition_key).execute()
+    except Exception as checkpoint_error:
+        log.error("Checkpoint update failed for %s/%s: %s", job_id, partition_key, checkpoint_error)
+        raise
 
 
 def _successful_partitions(job_id: str) -> set[str]:
@@ -138,7 +150,8 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
     failed_batches = []
     
     try:
-        job_id = f"idx-eod-{start_date}"
+        job_id = "idx-eod-full-history" if start_date == "2019-01-01" else "idx-eod-rolling"
+        worker_id = os.environ.get("HOSTNAME", "local-worker")
         successful = _successful_partitions(job_id)
         dates = trading_dates(start_date, datetime.now().strftime("%Y-%m-%d"))
         if not dates:
@@ -147,16 +160,22 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
             if partition_date in successful:
                 log.info("  ↪ Skipping completed partition %s", partition_date)
                 continue
-            _checkpoint(job_id, partition_date, "RUNNING")
+            if not _claim_partition(job_id, partition_date, worker_id):
+                log.info("  ↪ Partition %s is owned by another worker or already complete", partition_date)
+                continue
             try:
+                historical_tickers = supabase.table("idx_companies").select("ticker").lte("listing_date", partition_date).execute()
+                expected_tickers = {row["ticker"] for row in (historical_tickers.data or [])}
+                if not expected_tickers:
+                    raise RuntimeError(f"No historical IDX universe available for {partition_date}")
                 df = IDXFetcher.get_stock_summary(partition_date)
                 if df.empty:
                     raise RuntimeError(f"IDX returned no EOD rows for {partition_date}")
                 df["date"] = partition_date
                 df["volume"] = df["volume"].fillna(0).astype(int)
                 df = df.where(pd.notna(df), None)
-                records = df[df["ticker"].isin(tickers)].to_dict(orient="records")
-                expected = len(tickers)
+                records = df[df["ticker"].isin(expected_tickers)].to_dict(orient="records")
+                expected = len(expected_tickers)
                 received = len({row["ticker"] for row in records})
                 missing = expected - received
                 duplicates = len(records) - received
@@ -168,8 +187,20 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
                 if status != "SUCCESS":
                     raise RuntimeError(f"IDX partition {partition_date} incomplete: {missing} missing, {duplicates} duplicates")
             except Exception as exc:
-                _checkpoint(job_id, partition_date, "FAILED", error_message=str(exc))
+                log.error("IDX partition %s failed: %s", partition_date, exc)
+                try:
+                    current = supabase.table("idx_etl_checkpoints").select("status").eq("job_id", job_id).eq("partition_key", partition_date).single().execute().data or {}
+                    if current.get("status") != "PARTIAL":
+                        _checkpoint(job_id, partition_date, "FAILED", error_message=str(exc))
+                except Exception as checkpoint_error:
+                    log.error("Checkpoint failure while recording primary error for %s: %s", partition_date, checkpoint_error)
                 raise
+        checkpoint_rows = supabase.table("idx_etl_checkpoints").select("status,missing_count,duplicate_count").eq("job_id", job_id).execute().data or []
+        expected_partitions = len(dates)
+        successful_partitions = sum(row["status"] == "SUCCESS" for row in checkpoint_rows)
+        failed_partitions = [row for row in checkpoint_rows if row["status"] in {"FAILED", "PARTIAL", "RUNNING"}]
+        if len(checkpoint_rows) != expected_partitions or successful_partitions != expected_partitions or failed_partitions:
+            raise RuntimeError(f"IDX historical completeness certificate failed: {successful_partitions}/{expected_partitions} successful partitions")
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
         log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
