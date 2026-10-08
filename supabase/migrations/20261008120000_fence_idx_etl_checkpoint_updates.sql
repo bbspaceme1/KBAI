@@ -75,5 +75,5 @@ $$;
 REVOKE ALL ON FUNCTION public.claim_idx_etl_partition(TEXT, DATE, TEXT, INTEGER) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.update_idx_etl_checkpoint(TEXT, DATE, TEXT, INTEGER, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_idx_etl_partition(TEXT, DATE, TEXT, INTEGER) TO service_role;
-GRANT EXECUTE ON FUNCTION public.update_idx_etl_checkpoint(TEXT, DATE, TEXT, INTEGER, TEXT, INTEGER, INTEGER, INTEGER, TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.update_idx_etl_checkpoint(TEXT, DATE, TEXT, INTEGER, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, TEXT) TO service_role;
 DROP FUNCTION public.claim_idx_etl_partition_legacy(TEXT, DATE, TEXT, INTEGER);
