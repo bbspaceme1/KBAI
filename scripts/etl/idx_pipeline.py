@@ -108,6 +108,25 @@ def reconcile_price_universe(expected_tickers: List[str], run_date: str):
         raise
 
 
+def _checkpoint(job_id: str, partition_key: str, status: str, records_received: int = 0, expected_count: int = None, missing_count: int = 0, duplicate_count: int = 0, error_message: str = None):
+    supabase.table("idx_etl_checkpoints").upsert({
+        "job_id": job_id,
+        "partition_key": partition_key,
+        "status": status,
+        "records_received": records_received,
+        "expected_count": expected_count,
+        "missing_count": missing_count,
+        "duplicate_count": duplicate_count,
+        "error_message": error_message,
+        "updated_at": datetime.now().isoformat(),
+    }, on_conflict="job_id,partition_key").execute()
+
+
+def _successful_partitions(job_id: str) -> set[str]:
+    result = supabase.table("idx_etl_checkpoints").select("partition_key").eq("job_id", job_id).eq("status", "SUCCESS").execute()
+    return {row["partition_key"] for row in (result.data or [])}
+
+
 def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 50) -> int:
     """Step 2: Fetch and store price history."""
     log.info("\n" + "="*60)
@@ -119,21 +138,38 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
     failed_batches = []
     
     try:
-        # One date-first request per trading date returns the full IDX universe.
-        df = IDXFetcher.get_multiple_stocks(tickers, start_date)
-        if df.empty:
-            raise RuntimeError("IDX returned no EOD rows for the requested range")
-        try:
-            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-            df["volume"] = df["volume"].fillna(0).astype(int)
-            df = df.where(pd.notna(df), None)
-            records = df.to_dict(orient="records")
-            for j in range(0, len(records), 500):
-                subbatch = records[j:j + 500]
-                supabase.table("idx_stock_prices").upsert(subbatch, on_conflict="ticker,date").execute()
-                total_stored += len(subbatch)
-        except Exception:
-            raise
+        job_id = f"idx-eod-{start_date}"
+        successful = _successful_partitions(job_id)
+        dates = trading_dates(start_date, datetime.now().strftime("%Y-%m-%d"))
+        if not dates:
+            raise RuntimeError("IDX calendar returned no trading dates for the requested range")
+        for partition_date in dates:
+            if partition_date in successful:
+                log.info("  ↪ Skipping completed partition %s", partition_date)
+                continue
+            _checkpoint(job_id, partition_date, "RUNNING")
+            try:
+                df = IDXFetcher.get_stock_summary(partition_date)
+                if df.empty:
+                    raise RuntimeError(f"IDX returned no EOD rows for {partition_date}")
+                df["date"] = partition_date
+                df["volume"] = df["volume"].fillna(0).astype(int)
+                df = df.where(pd.notna(df), None)
+                records = df[df["ticker"].isin(tickers)].to_dict(orient="records")
+                expected = len(tickers)
+                received = len({row["ticker"] for row in records})
+                missing = expected - received
+                duplicates = len(records) - received
+                status = "SUCCESS" if missing == 0 and duplicates == 0 else "PARTIAL"
+                for j in range(0, len(records), 500):
+                    supabase.table("idx_stock_prices").upsert(records[j:j + 500], on_conflict="ticker,date").execute()
+                    total_stored += len(records[j:j + 500])
+                _checkpoint(job_id, partition_date, status, len(records), expected, missing, duplicates)
+                if status != "SUCCESS":
+                    raise RuntimeError(f"IDX partition {partition_date} incomplete: {missing} missing, {duplicates} duplicates")
+            except Exception as exc:
+                _checkpoint(job_id, partition_date, "FAILED", error_message=str(exc))
+                raise
         duration = int((time.time() - start) * 1000)
         log.info(f"✅ Step 2 complete: {total_stored} price records in {duration}ms")
         log_etl_execution("idx_eod_prices", "success", total_stored, duration=duration)
