@@ -108,29 +108,29 @@ def reconcile_price_universe(expected_tickers: List[str], run_date: str):
         raise
 
 
-def _claim_partition(job_id: str, partition_key: str, worker_id: str) -> bool:
+def _claim_partition(job_id: str, partition_key: str, worker_id: str) -> int:
     result = supabase.rpc("claim_idx_etl_partition", {
         "p_job_id": job_id,
         "p_partition_key": partition_key,
         "p_worker_id": worker_id,
         "p_lease_seconds": 900,
     }).execute()
-    return bool(result.data)
+    return int(result.data or 0)
 
 
-def _checkpoint(job_id: str, partition_key: str, status: str, records_received: int = 0, expected_count: int = None, missing_count: int = 0, duplicate_count: int = 0, error_message: str = None):
-    payload = {
-        "status": status, "records_received": records_received, "expected_count": expected_count,
-        "missing_count": missing_count, "duplicate_count": duplicate_count,
-        "error_message": error_message, "updated_at": datetime.now().isoformat(),
-    }
-    if status in {"SUCCESS", "PARTIAL", "FAILED"}:
-        payload["completed_at"] = datetime.now().isoformat()
-        payload["lease_until"] = None
+def _checkpoint(job_id: str, partition_key: str, worker_id: str, attempt: int, status: str, records_received: int = 0, expected_count: int = None, missing_count: int = 0, duplicate_count: int = 0, primary_error: str = None, checkpoint_error: str = None):
     try:
-        supabase.table("idx_etl_checkpoints").update(payload).eq("job_id", job_id).eq("partition_key", partition_key).execute()
+        updated = supabase.rpc("update_idx_etl_checkpoint", {
+            "p_job_id": job_id, "p_partition_key": partition_key, "p_worker_id": worker_id,
+            "p_attempt": attempt, "p_status": status, "p_records_received": records_received,
+            "p_expected_count": expected_count, "p_missing_count": missing_count,
+            "p_duplicate_count": duplicate_count, "p_primary_error": primary_error,
+            "p_checkpoint_error": checkpoint_error,
+        }).execute()
+        if updated.data is not True:
+            raise RuntimeError("checkpoint ownership lost before update")
     except Exception as checkpoint_error:
-        log.error("Checkpoint update failed for %s/%s: %s", job_id, partition_key, checkpoint_error)
+        log.error("Checkpoint update failed for %s/%s attempt %s: %s", job_id, partition_key, attempt, checkpoint_error)
         raise
 
 
@@ -160,7 +160,8 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
             if partition_date in successful:
                 log.info("  ↪ Skipping completed partition %s", partition_date)
                 continue
-            if not _claim_partition(job_id, partition_date, worker_id):
+            attempt = _claim_partition(job_id, partition_date, worker_id)
+            if attempt == 0:
                 log.info("  ↪ Partition %s is owned by another worker or already complete", partition_date)
                 continue
             try:
@@ -183,7 +184,7 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
                 for j in range(0, len(records), 500):
                     supabase.table("idx_stock_prices").upsert(records[j:j + 500], on_conflict="ticker,date").execute()
                     total_stored += len(records[j:j + 500])
-                _checkpoint(job_id, partition_date, status, len(records), expected, missing, duplicates)
+                _checkpoint(job_id, partition_date, worker_id, attempt, status, len(records), expected, missing, duplicates)
                 if status != "SUCCESS":
                     raise RuntimeError(f"IDX partition {partition_date} incomplete: {missing} missing, {duplicates} duplicates")
             except Exception as exc:
@@ -191,9 +192,13 @@ def step_2_fetch_prices(tickers: List[str], start_date: str, batch_size: int = 5
                 try:
                     current = supabase.table("idx_etl_checkpoints").select("status").eq("job_id", job_id).eq("partition_key", partition_date).single().execute().data or {}
                     if current.get("status") != "PARTIAL":
-                        _checkpoint(job_id, partition_date, "FAILED", error_message=str(exc))
+                        _checkpoint(job_id, partition_date, worker_id, attempt, "FAILED", primary_error=str(exc))
                 except Exception as checkpoint_error:
                     log.error("Checkpoint failure while recording primary error for %s: %s", partition_date, checkpoint_error)
+                    try:
+                        supabase.table("idx_etl_checkpoints").update({"checkpoint_error": str(checkpoint_error), "updated_at": datetime.now().isoformat()}).eq("job_id", job_id).eq("partition_key", partition_date).eq("worker_id", worker_id).eq("attempt", attempt).execute()
+                    except Exception as secondary_error:
+                        log.error("Unable to persist checkpoint_error for %s: %s", partition_date, secondary_error)
                 raise
         checkpoint_rows = supabase.table("idx_etl_checkpoints").select("status,missing_count,duplicate_count").eq("job_id", job_id).execute().data or []
         expected_partitions = len(dates)
