@@ -5,8 +5,8 @@ Project: `kbaiterminal` (`prj_CE5uqT2B3WAtHYZsXsNMz7TqFESA`), team `bb-space-s-p
 ## Actions performed
 
 - Added canonical browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for Production, Preview, and Development. The publishable key is intended for browser use; no service-role/secret key is used for this setting.
-- Converted the following Vercel variables from `encrypted` to `sensitive` without reading or printing their values: `SUPABASE_SECRET_KEY_3`, `SUPABASE_SECRET_KEY_2_2`, `SUPABASE_SECRET_KEY_2`, `TELEGRAM_BOT_TOKEN`, `JWT`, and `JWT_2`.
-- Verified the four Supabase secret-key variants are now `sensitive`; their Vercel security issue flags cleared. `SUPABASE_SECRET_KEY` was already `sensitive`.
+- Converted the following Vercel variables from `encrypted` to `sensitive` without reading or printing their values: `SUPABASE_SECRET_KEY_3`, `SUPABASE_SECRET_KEY_2_2`, `SUPABASE_SECRET_KEY_2`, `TELEGRAM_BOT_TOKEN`, `JWT`, `JWT_2`, and `VERCEL_PERSONAL_ACCESS_TOKEN`.
+- Verified the four Supabase secret-key variants, `TELEGRAM_BOT_TOKEN`, `JWT`, `JWT_2`, and `VERCEL_PERSONAL_ACCESS_TOKEN` are now `sensitive`; their Vercel security issue flags cleared. `SUPABASE_SECRET_KEY` was already `sensitive`.
 - Did not delete duplicated variables or rotate any token. A suffix in a variable name is not sufficient evidence that it is unused, and no evidence was found that a credential had been exposed publicly.
 
 ## Code/workflow references verified
@@ -18,7 +18,7 @@ Project: `kbaiterminal` (`prj_CE5uqT2B3WAtHYZsXsNMz7TqFESA`), team `bb-space-s-p
 
 ## Remaining findings
 
-- `SENTRY_AUTH_TOKEN` remains marked `readable-secret`. Vercel rejected changing its type because it is an integration-managed environment variable. Do not delete or overwrite it through the project environment-variable API; review the Sentry/Vercel integration owner and rotate/reconnect through the integration if access review indicates exposure.
+- `SENTRY_AUTH_TOKEN` is the only remaining variable currently marked `readable-secret`. Vercel rejected changing its type because it is an integration-managed environment variable. Do not delete or overwrite it through the project environment-variable API; review the Sentry/Vercel integration owner and rotate/reconnect through the integration if access review indicates exposure.
 - `JWT` and `JWT_2` were changed to `sensitive`, but their consumers are not yet proven from the repository search surface. Do not rotate them until their purpose is identified; if they are active signing secrets, coordinate a controlled rotation with session/token invalidation.
 - Other duplicated `SUPABASE_URL_*` and `SUPABASE_PUBLISHABLE_KEY_*` entries remain. Their source/consumers must be mapped before deletion.
 - No values were displayed in this report. Environment variable values must never be copied into issues, commits, or chat.
