@@ -1,0 +1,34 @@
+name: Local Migration Replay
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: Replay migrations on a clean local Supabase database
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start
+      - name: Replay every migration from an empty database
+        run: supabase db reset --local
+      - name: Verify local stack status
+        run: supabase status
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
