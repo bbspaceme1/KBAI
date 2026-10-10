@@ -1,8 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
-const url = process.env.SUPABASE_URL_2 ?? process.env.SUPABASE_URL;
-const anonKey = process.env.SUPABASE_ANON_KEY_2 ?? process.env.SUPABASE_ANON_KEY;
+// These integration tests must use an explicitly designated isolated database.
+// Do not fall back to generic/production environment variables.
+const isolatedEnvironment = process.env.RLS_TEST_ENVIRONMENT === "isolated";
+const url = isolatedEnvironment ? process.env.RLS_TEST_SUPABASE_URL : undefined;
+const anonKey = isolatedEnvironment ? process.env.RLS_TEST_SUPABASE_ANON_KEY : undefined;
 const userAToken = process.env.RLS_TEST_USER_A_TOKEN;
 const userAId = process.env.RLS_TEST_USER_A_ID;
 const userBId = process.env.RLS_TEST_USER_B_ID;
@@ -10,9 +13,9 @@ const advisorToken = process.env.RLS_TEST_ADVISOR_TOKEN;
 const advisorId = process.env.RLS_TEST_ADVISOR_ID;
 const assignedClientId = process.env.RLS_TEST_ASSIGNED_CLIENT_ID;
 const unassignedClientId = process.env.RLS_TEST_UNASSIGNED_CLIENT_ID;
-const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
+const enabled = Boolean(isolatedEnvironment && url && anonKey && userAToken && userAId && userBId);
 
-describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
+describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () => {
   const client = (): SupabaseClient => createClient(url!, anonKey!);
 
   it("does not allow an anonymous client to execute financial RPCs", async () => {
@@ -77,6 +80,33 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
     expect(sell.error).toBeTruthy();
   });
 
+
+  it("rejects AI quota consumption for another user's ID", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { data, error } = await authenticated.rpc("try_consume_ai_quota", {
+      p_user: userBId,
+      p_tokens: 1,
+    });
+
+    expect(error).toBeTruthy();
+    expect(data).not.toBe(true);
+  });
+
+  it.each([0, -1])("rejects invalid AI quota token count %i", async (tokens) => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { data, error } = await authenticated.rpc("try_consume_ai_quota", {
+      p_user: userAId,
+      p_tokens: tokens,
+    });
+
+    expect(error || data === false).toBeTruthy();
+    expect(data).not.toBe(true);
+  });
+
   it("does not expose compliance view data to anonymous clients", async () => {
     const { error } = await client().from("data_compliance_status").select("*").limit(1);
     expect(error).toBeTruthy();
@@ -125,7 +155,7 @@ describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
       global: { headers: { Authorization: `Bearer ${advisorToken}` } },
     });
     const [identity, assignment, assigned, unassigned] = await Promise.all([
-      advisor.from("user_sub_roles").select("user_id, sub_role").eq("user_id", advisorId),
+      advisor.from("user_sub_roles").select("user_id, role").eq("user_id", advisorId),
       advisor
         .from("advisor_clients")
         .select("client_id")
