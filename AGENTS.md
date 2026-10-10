@@ -91,7 +91,7 @@ Read `docs/prd/MASTER-PRD.md` before implementing product behavior. It supersede
 - **Feature flags:** MUST be persistent (DB-backed), not in-memory only
 - **Rate limiting:** Use an atomic, security-reviewed implementation that fits the existing free-tier budget (e.g. PostgreSQL/RPC where appropriate); do not introduce paid dependencies or rely on process-local Map for production enforcement.
 - **Billing calculations:** ALWAYS map highest tiers first (1M+ → enterprise, then 100K+ → pro)
-- **Market data:** Use Sectors Financial API (primary), NOT Yahoo Finance scraping
+- **Market data:** Official IDX/BEI or properly licensed commercial EOD source covering the intended IDX universe; never use Yahoo Finance/unofficial scraping or silent fallback in production.
 
 ## Testing Requirements (NON-NEGOTIABLE)
 
