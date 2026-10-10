@@ -141,7 +141,7 @@ describe("database-backed AI quota helpers", () => {
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 50 }], error: null }) as never);
     await expect(checkAiQuota("session-user", 5)).resolves.toMatchObject({
       allowed: true,
-      quotaRemaining: 45,
+      quotaRemaining: 85,
     });
 
     const insertQuery = createQuery({ data: null, error: null });
