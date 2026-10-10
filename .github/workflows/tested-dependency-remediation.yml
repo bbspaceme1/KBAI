@@ -52,7 +52,7 @@ jobs:
           NODE
           npm install --package-lock-only --ignore-scripts --no-audit
           # Apply any additional fixes that do not require force/major overrides.
-          npm audit fix --package-lock-only --no-fund || echo "Some advisories remain; test and report them below."
+          npm audit fix --no-fund || echo "Some advisories remain; test and report them below."
           npm install --package-lock-only --ignore-scripts --no-audit
           git status --short
 
