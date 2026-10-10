@@ -119,18 +119,18 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(error).toBeTruthy();
   });
 
-  it("denies User A access to User B holdings, transactions, and portfolios", async () => {
+  it("denies User A access to User B holdings, transactions, and portfolio snapshots", async () => {
     const authenticated = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
     });
     const results = await Promise.all([
       authenticated.from("holdings").select("*").eq("user_id", userBId),
       authenticated.from("transactions").select("*").eq("user_id", userBId),
-      authenticated.from("portfolios").select("*").eq("user_id", userBId),
+      authenticated.from("portfolio_snapshots").select("*").eq("user_id", userBId),
     ]);
 
     for (const result of results) {
-      expect(result.error ?? result.data).toBeTruthy();
+      expect(result.error).toBeNull();
       expect(result.data?.some((row) => Object.values(row).includes(userBId))).toBe(false);
     }
   });
