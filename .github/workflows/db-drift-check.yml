@@ -331,7 +331,7 @@ jobs:
           ' "$schema_file")"
 
           if [[ -n "$findings" ]]; then
-            printf '%s\\n' "$findings"
+            printf '%s\n' "$findings"
             echo "::error::Remote authorization invariants failed; keep production release blocked."
             exit 1
           fi
