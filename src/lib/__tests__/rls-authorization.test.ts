@@ -10,7 +10,17 @@ const advisorToken = process.env.RLS_TEST_ADVISOR_TOKEN;
 const advisorId = process.env.RLS_TEST_ADVISOR_ID;
 const assignedClientId = process.env.RLS_TEST_ASSIGNED_CLIENT_ID;
 const unassignedClientId = process.env.RLS_TEST_UNASSIGNED_CLIENT_ID;
-const enabled = Boolean(url && anonKey && userAToken && userAId && userBId);
+const enabled = Boolean(
+  url &&
+  anonKey &&
+  userAToken &&
+  userAId &&
+  userBId &&
+  advisorToken &&
+  advisorId &&
+  assignedClientId &&
+  unassignedClientId,
+);
 
 describe.skipIf(!enabled)("staging RLS/RBAC authorization matrix", () => {
   const client = (): SupabaseClient => createClient(url!, anonKey!);
