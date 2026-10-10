@@ -51,6 +51,10 @@ jobs:
         run: npm run test:rls
         env:
           RLS_TEST_ENVIRONMENT: isolated
+      - name: Install Chromium for local browser smoke tests
+        run: npx playwright install --with-deps chromium
+      - name: Run local homepage and login smoke tests
+        run: npx playwright test e2e/basic.spec.ts --project=chromium
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
