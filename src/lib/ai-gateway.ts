@@ -9,8 +9,7 @@
  * - Proper error handling and timeouts
  */
 
-import { checkAiQuota, logAiUsage, estimateTokens, calculateAiCost } from "@/lib/ai-quota";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { logAiUsage, estimateTokens, calculateAiCost } from "@/lib/ai-quota";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { rateLimitMiddleware } from "@/lib/rate-limiter";
 
@@ -262,7 +261,12 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
   messages: ChatMessage[],
   options: AiGatewayOptions = {},
 ): Promise<AiGatewayResult<T>> {
-  const { userId } = await requireSupabaseAuth();
+  const { userId, supabase: userSupabase } = await requireSupabaseAuth();
+  let quotaReservationId: string | null = null;
+  const quotaRpc = userSupabase.rpc as unknown as (
+    functionName: string,
+    params: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
   const {
     operation = "unknown",
     model = "gemini-2.5-flash",
@@ -270,40 +274,26 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
   } = options;
 
   try {
-    // 1. Check user quota if userId provided
-    if (userId) {
-      const requestContent = messages.map((m) => m.content).join("\n");
-      const estimatedInputTokens = estimateTokens(requestContent);
+    // 1. Reserve quota atomically with the authenticated user's JWT.
+    if (!userId) throw new Error("Authentication required for AI quota enforcement");
+    const requestContent = messages.map((m) => m.content).join("\n");
+    const estimatedInputTokens = estimateTokens(requestContent);
+    const reservedTokens = estimatedInputTokens + (options.maxTokens || 2000);
+    const { data: reservationId, error } = await quotaRpc("reserve_ai_quota", {
+      p_user: userId,
+      p_tokens: reservedTokens,
+    });
 
-      // Prefer DB-side atomic reservation when available
-      try {
-        const rpcCall = supabaseAdmin.rpc as unknown as (
-          functionName: string,
-          params: Record<string, unknown>,
-        ) => Promise<{ data: unknown; error: { message: string } | null }>;
-
-        const { data: quotaResult, error } = await rpcCall("check_ai_quota", {
-          p_user_id: userId,
-          p_tokens_needed: estimatedInputTokens,
-        } as Record<string, unknown>);
-
-        if (error) {
-          console.warn("check_ai_quota rpc error, falling back to app-side check:", error.message);
-        } else if (quotaResult === false) {
-          throw new Error(
-            "daily_limit_exceeded\n\nUpgrade to Premium untuk lebih banyak AI operations.",
-          );
-        }
-      } catch (rpcErr) {
-        // Fallback to application-side quota check if RPC is missing or fails
-        const quotaCheck = await checkAiQuota(userId, estimatedInputTokens);
-        if (!quotaCheck.allowed) {
-          throw new Error(
-            `${quotaCheck.reason}\n\nUpgrade to Premium untuk lebih banyak AI operations.`,
-          );
-        }
-      }
+    if (error) {
+      console.error("[AI Quota] Atomic reservation failed:", error.message);
+      throw new Error("AI quota enforcement unavailable. Please retry later.");
     }
+    if (typeof reservationId !== "string" || reservationId.length === 0) {
+      throw new Error(
+        "daily_limit_exceeded\n\nUpgrade to Premium untuk lebih banyak AI operations.",
+      );
+    }
+    quotaReservationId = reservationId;
 
     // 2. Make AI request with timeout
     const controller = new AbortController();
@@ -347,26 +337,36 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
         result = responseText as unknown as T;
       }
 
-      // 3. Log usage
+      // 3. Finalize the reservation in-place to avoid double-counting.
       const requestContent = messages.map((m) => m.content).join("\n");
       const inputTokens = providerResult.inputTokens ?? estimateTokens(requestContent);
       const outputTokens = providerResult.outputTokens ?? estimateTokens(responseText);
       const cost = calculateAiCost(model, inputTokens, outputTokens);
 
-      if (userId) {
-        await logAiUsage({
-          user_id: userId,
-          model,
-          input_tokens: inputTokens,
-          output_tokens: outputTokens,
-          total_tokens: inputTokens + outputTokens,
-          cost_usd: cost,
-          operation,
-          status: "success",
-        }).catch((err) => {
-          console.error("[AI Usage Log Error]", err);
-          // Don't throw — logging shouldn't block the operation
-        });
+      if (quotaReservationId) {
+        const { data: finalized, error: finalizeError } = await quotaRpc(
+          "finalize_ai_quota_reservation",
+          {
+            p_reservation_id: quotaReservationId,
+            p_model: model,
+            p_input_tokens: inputTokens,
+            p_output_tokens: outputTokens,
+            p_cost_usd: cost,
+            p_operation: operation,
+            p_status: "success",
+            p_error_message: null,
+          },
+        );
+        if (finalizeError || finalized !== true) {
+          // The reservation remains counted if finalization fails, preventing a
+          // quota bypass. Do not add a second usage row for the same request.
+          console.error(
+            "[AI Quota] Finalization failed; reservation remains counted:",
+            finalizeError?.message ?? "unexpected RPC result",
+          );
+        } else {
+          quotaReservationId = null;
+        }
       }
 
       return {
@@ -380,22 +380,52 @@ export const callAI = limitAiGateway(async function callAI<T = string>(
       clearTimeout(timeoutHandle);
     }
   } catch (error) {
-    // Log error if userId provided
+    const errorMsg = error instanceof Error ? error.message : String(error);
+
     if (userId) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      await logAiUsage({
-        user_id: userId,
-        model: options.model || "unknown",
-        input_tokens: 0,
-        output_tokens: 0,
-        total_tokens: 0,
-        cost_usd: 0,
-        operation,
-        status: "error",
-        error_message: errorMsg,
-      }).catch(() => {
-        // Silently fail if logging fails
-      });
+      if (quotaReservationId) {
+        // A timed-out provider request may still be billable; keep its reservation.
+        if (/timeout|abort/i.test(errorMsg)) {
+          console.error("[AI Quota] Provider timed out; reservation remains counted");
+        } else {
+          const { data: finalized, error: finalizeError } = await quotaRpc(
+            "finalize_ai_quota_reservation",
+            {
+              p_reservation_id: quotaReservationId,
+              p_model: options.model || "unknown",
+              p_input_tokens: 0,
+              p_output_tokens: 0,
+              p_cost_usd: 0,
+              p_operation: operation,
+              p_status: "error",
+              p_error_message: errorMsg,
+            },
+          );
+          if (finalizeError || finalized !== true) {
+            console.error(
+              "[AI Quota] Failed to release failed request reservation:",
+              finalizeError?.message ?? "unexpected RPC result",
+            );
+          } else {
+            quotaReservationId = null;
+          }
+        }
+      } else {
+        // Log failures that occur before a reservation is successfully created.
+        await logAiUsage({
+          user_id: userId,
+          model: options.model || "unknown",
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          cost_usd: 0,
+          operation,
+          status: "error",
+          error_message: errorMsg,
+        }).catch(() => {
+          // Silently fail if logging fails.
+        });
+      }
     }
 
     throw error;

@@ -93,6 +93,36 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(data).toBe(true);
   });
 
+  it("allows an owner to reserve and finalize AI quota exactly once", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { data: reservationId, error: reserveError } = await authenticated.rpc("reserve_ai_quota", {
+      p_user: userAId,
+      p_tokens: 2001,
+    });
+
+    expect(reserveError).toBeNull();
+    expect(typeof reservationId).toBe("string");
+
+    const finalizeArgs = {
+      p_reservation_id: reservationId as string,
+      p_model: "rls-test",
+      p_input_tokens: 1,
+      p_output_tokens: 2,
+      p_cost_usd: 0,
+      p_operation: "rls_test",
+      p_status: "success",
+      p_error_message: null,
+    };
+    const finalized = await authenticated.rpc("finalize_ai_quota_reservation", finalizeArgs);
+    expect(finalized.error).toBeNull();
+    expect(finalized.data).toBe(true);
+
+    const finalizedAgain = await authenticated.rpc("finalize_ai_quota_reservation", finalizeArgs);
+    expect(finalizedAgain.error).toBeTruthy();
+  });
+
   it("rejects AI quota consumption for another user's ID", async () => {
     const authenticated = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },

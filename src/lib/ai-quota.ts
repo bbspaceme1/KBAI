@@ -32,13 +32,14 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 export async function getUserAiUsage(userId: string): Promise<AiUsageQuota> {
   try {
     // Check if user has a subscription with explicit limits
-    const { data: subs } = await supabaseAdmin
+    const { data: subs, error: subscriptionError } = await supabaseAdmin
       .from("subscriptions")
       .select("daily_limit, monthly_limit, status")
       .eq("user_id", userId)
       .eq("status", "active")
       .limit(1)
       .maybeSingle();
+    if (subscriptionError) throw subscriptionError;
 
     const daily_limit = subs?.daily_limit ?? DEFAULT_LIMITS.daily;
     const monthly_limit = subs?.monthly_limit ?? DEFAULT_LIMITS.monthly;
@@ -47,12 +48,13 @@ export async function getUserAiUsage(userId: string): Promise<AiUsageQuota> {
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
 
-    const { data: dayRows } = await supabaseAdmin
+    const { data: dayRows, error: dailyError } = await supabaseAdmin
       .from("ai_usage_logs")
       .select("total_tokens")
       .eq("status", "success")
       .eq("user_id", userId)
       .gte("created_at", dayStart.toISOString());
+    if (dailyError) throw dailyError;
 
     const current_daily_usage = (dayRows || []).reduce(
       (s: number, r: { total_tokens?: number }) => s + (r.total_tokens || 0),
@@ -64,12 +66,13 @@ export async function getUserAiUsage(userId: string): Promise<AiUsageQuota> {
     monthStart.setUTCDate(1);
     monthStart.setUTCHours(0, 0, 0, 0);
 
-    const { data: monthRows } = await supabaseAdmin
+    const { data: monthRows, error: monthlyError } = await supabaseAdmin
       .from("ai_usage_logs")
       .select("total_tokens")
       .eq("status", "success")
       .eq("user_id", userId)
       .gte("created_at", monthStart.toISOString());
+    if (monthlyError) throw monthlyError;
 
     const current_monthly_usage = (monthRows || []).reduce(
       (s: number, r: { total_tokens?: number }) => s + (r.total_tokens || 0),
@@ -84,12 +87,7 @@ export async function getUserAiUsage(userId: string): Promise<AiUsageQuota> {
     };
   } catch (err) {
     console.error("ai-quota:getUserAiUsage error", err);
-    return {
-      daily_limit: DEFAULT_LIMITS.daily,
-      monthly_limit: DEFAULT_LIMITS.monthly,
-      current_daily_usage: 0,
-      current_monthly_usage: 0,
-    };
+    throw err;
   }
 }
 
@@ -99,7 +97,7 @@ export function estimateTokens(text: string): number {
 
 export async function logAiUsage(_log: AiUsageLog): Promise<void> {
   try {
-    await supabaseAdmin.from("ai_usage_logs").insert({
+    const { error } = await supabaseAdmin.from("ai_usage_logs").insert({
       user_id: _log.user_id,
       model: _log.model,
       input_tokens: _log.input_tokens,
@@ -110,6 +108,7 @@ export async function logAiUsage(_log: AiUsageLog): Promise<void> {
       status: _log.status,
       error_message: _log.error_message,
     });
+    if (error) throw error;
   } catch (err) {
     console.error("ai-quota:logAiUsage error", err);
   }
