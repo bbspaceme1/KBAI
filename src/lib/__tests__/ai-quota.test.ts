@@ -1,5 +1,12 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { estimateTokens, calculateAiCost, getUserAiUsage, checkAiQuota, logAiUsage, type AiUsageLog } from "@/lib/ai-quota";
+import {
+  estimateTokens,
+  calculateAiCost,
+  getUserAiUsage,
+  checkAiQuota,
+  logAiUsage,
+  type AiUsageLog,
+} from "@/lib/ai-quota";
 import { callAI } from "@/lib/ai-gateway";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -51,9 +58,15 @@ function createQuery(result: unknown) {
 describe("database-backed AI quota helpers", () => {
   it("aggregates subscription limits and daily/monthly usage", async () => {
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(createQuery({ data: { daily_limit: 1000, monthly_limit: 5000 }, error: null }) as never)
-      .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 10 }, { total_tokens: 20 }], error: null }) as never)
-      .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 50 }, { total_tokens: 100 }], error: null }) as never);
+      .mockReturnValueOnce(
+        createQuery({ data: { daily_limit: 1000, monthly_limit: 5000 }, error: null }) as never,
+      )
+      .mockReturnValueOnce(
+        createQuery({ data: [{ total_tokens: 10 }, { total_tokens: 20 }], error: null }) as never,
+      )
+      .mockReturnValueOnce(
+        createQuery({ data: [{ total_tokens: 50 }, { total_tokens: 100 }], error: null }) as never,
+      );
 
     await expect(getUserAiUsage("session-user")).resolves.toEqual({
       daily_limit: 1000,
@@ -95,7 +108,9 @@ describe("database-backed AI quota helpers", () => {
 
   it("enforces daily and monthly quota limits", async () => {
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(createQuery({ data: { daily_limit: 10, monthly_limit: 100 }, error: null }) as never)
+      .mockReturnValueOnce(
+        createQuery({ data: { daily_limit: 10, monthly_limit: 100 }, error: null }) as never,
+      )
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 9 }], error: null }) as never)
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 9 }], error: null }) as never);
     await expect(checkAiQuota("session-user", 2)).resolves.toMatchObject({
@@ -105,7 +120,9 @@ describe("database-backed AI quota helpers", () => {
     });
 
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(createQuery({ data: { daily_limit: 100, monthly_limit: 10 }, error: null }) as never)
+      .mockReturnValueOnce(
+        createQuery({ data: { daily_limit: 100, monthly_limit: 10 }, error: null }) as never,
+      )
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 1 }], error: null }) as never)
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 9 }], error: null }) as never);
     await expect(checkAiQuota("session-user", 2)).resolves.toMatchObject({
@@ -117,7 +134,9 @@ describe("database-backed AI quota helpers", () => {
 
   it("allows requests within both limits and logs usage", async () => {
     vi.mocked(supabaseAdmin.from)
-      .mockReturnValueOnce(createQuery({ data: { daily_limit: 100, monthly_limit: 1000 }, error: null }) as never)
+      .mockReturnValueOnce(
+        createQuery({ data: { daily_limit: 100, monthly_limit: 1000 }, error: null }) as never,
+      )
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 10 }], error: null }) as never)
       .mockReturnValueOnce(createQuery({ data: [{ total_tokens: 50 }], error: null }) as never);
     await expect(checkAiQuota("session-user", 5)).resolves.toMatchObject({
@@ -185,7 +204,6 @@ describe("callAI", () => {
   });
 
   it("reserves quota for the session user and finalizes actual provider usage", async () => {
-
     await callAI([{ role: "user", content: "Hello" }], {
       userId: "user-1",
       operation: "test",

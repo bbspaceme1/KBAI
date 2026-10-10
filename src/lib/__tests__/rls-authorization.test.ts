@@ -97,10 +97,13 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     const authenticated = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
     });
-    const { data: reservationId, error: reserveError } = await authenticated.rpc("reserve_ai_quota", {
-      p_user: userAId,
-      p_tokens: 2001,
-    });
+    const { data: reservationId, error: reserveError } = await authenticated.rpc(
+      "reserve_ai_quota",
+      {
+        p_user: userAId,
+        p_tokens: 2001,
+      },
+    );
 
     expect(reserveError).toBeNull();
     expect(typeof reservationId).toBe("string");
