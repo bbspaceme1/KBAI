@@ -79,7 +79,9 @@ jobs:
 
   integration:
     name: Integration and E2E
-    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    # Remote staging is opt-in; the free local migration/RLS/browser gates run separately.
+    # Set STAGING_INTEGRATION_ENABLED=true only when isolated staging secrets exist.
+    if: vars.STAGING_INTEGRATION_ENABLED == 'true' && (github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     # Never run browser or RLS verification against production data. The
     # staging environment must contain isolated test users and database data.
