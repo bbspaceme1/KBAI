@@ -28,9 +28,10 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $function$1
-  -- The trigger may write on behalf of the authenticated owner, or a trusted
-  -- service-role operation. Do not permit a normal user to write another user's flow.
+AS $function$
+BEGIN
+  -- Allow only the row owner or an admin when an authenticated request fires
+  -- this trigger. Trusted service-role operations have no auth.uid().
   IF auth.uid() IS NOT NULL
      AND auth.uid() IS DISTINCT FROM NEW.user_id
      AND NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
@@ -41,11 +42,21 @@ AS $function$1
   IF NEW.movement_type = 'DEPOSIT' THEN
     INSERT INTO public.portfolio_cash_flows(user_id, flow_date, amount, flow_type, source_cash_movement_id)
     VALUES (NEW.user_id, COALESCE(NEW.occurred_at, (NEW.created_at AT TIME ZONE 'UTC')::date), NEW.amount, 'deposit', NEW.id)
-    ON CONFLICT (source_cash_movement_id) DO NOTHING;
+    ON CONFLICT (source_cash_movement_id) DO UPDATE
+      SET user_id = EXCLUDED.user_id,
+          flow_date = EXCLUDED.flow_date,
+          amount = EXCLUDED.amount,
+          flow_type = EXCLUDED.flow_type;
   ELSIF NEW.movement_type = 'WITHDRAW' THEN
     INSERT INTO public.portfolio_cash_flows(user_id, flow_date, amount, flow_type, source_cash_movement_id)
     VALUES (NEW.user_id, COALESCE(NEW.occurred_at, (NEW.created_at AT TIME ZONE 'UTC')::date), -NEW.amount, 'withdrawal', NEW.id)
-    ON CONFLICT (source_cash_movement_id) DO NOTHING;
+    ON CONFLICT (source_cash_movement_id) DO UPDATE
+      SET user_id = EXCLUDED.user_id,
+          flow_date = EXCLUDED.flow_date,
+          amount = EXCLUDED.amount,
+          flow_type = EXCLUDED.flow_type;
+  ELSE
+    DELETE FROM public.portfolio_cash_flows WHERE source_cash_movement_id = NEW.id;
   END IF;
   RETURN NEW;
 END;
@@ -54,7 +65,10 @@ REVOKE ALL ON FUNCTION public.sync_portfolio_cash_flow() FROM PUBLIC, anon, auth
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.portfolio_cash_flows FROM anon, authenticated;
 GRANT SELECT ON public.portfolio_cash_flows TO authenticated;
 DROP TRIGGER IF EXISTS cash_movements_performance_flow ON public.cash_movements;
-CREATE TRIGGER cash_movements_performance_flow AFTER INSERT ON public.cash_movements FOR EACH ROW EXECUTE FUNCTION public.sync_portfolio_cash_flow();
+CREATE TRIGGER cash_movements_performance_flow
+  AFTER INSERT OR UPDATE OF user_id, movement_type, amount, occurred_at, created_at
+  ON public.cash_movements
+  FOR EACH ROW EXECUTE FUNCTION public.sync_portfolio_cash_flow();
 
 CREATE TABLE IF NOT EXISTS public.performance_snapshots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
