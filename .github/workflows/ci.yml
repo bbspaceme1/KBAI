@@ -91,15 +91,6 @@ jobs:
       - run: npm ci
       - name: Build client for secret scan
         run: npm run build
-      - name: Verify no service-role key in client bundle
-        env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
-          if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
-            echo "Service-role key value found in client build output"
-            exit 1
-          fi
       - name: Validate isolated staging integration secrets
         env:
           E2E_URL: ${{ secrets.STAGING_E2E_URL }}
@@ -113,10 +104,24 @@ jobs:
           RLS_TEST_ADVISOR_ID: ${{ secrets.STAGING_RLS_TEST_ADVISOR_ID }}
           RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_ASSIGNED_CLIENT_ID }}
           RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID }}
+        shell: bash
         run: |
-          test -n "$E2E_URL"
-          test "$E2E_URL" != "http://localhost:3000"
-          test -n "$SUPABASE_URL"
+          set -euo pipefail
+          missing=0
+          for name in E2E_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY \
+            RLS_TEST_USER_A_TOKEN RLS_TEST_USER_A_ID RLS_TEST_USER_B_ID \
+            RLS_TEST_ADVISOR_TOKEN RLS_TEST_ADVISOR_ID \
+            RLS_TEST_ASSIGNED_CLIENT_ID RLS_TEST_UNASSIGNED_CLIENT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required as a staging environment secret."
+              missing=1
+            fi
+          done
+          [[ "$missing" -eq 0 ]] || exit 1
+          if [[ "$E2E_URL" == "http://localhost:3000" ]]; then
+            echo "::error::E2E_URL must target the isolated staging deployment, not localhost."
+            exit 1
+          fi
           case "$SUPABASE_URL" in
             https://*.supabase.co) ;;
             *) echo "::error::STAGING_SUPABASE_URL must be an HTTPS Supabase project URL"; exit 1 ;;
@@ -127,15 +132,16 @@ jobs:
             echo "::error::Refusing to run staging integration tests against the production Supabase project."
             exit 1
           fi
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
-          test -n "$SUPABASE_ANON_KEY"
-          test -n "$RLS_TEST_USER_A_TOKEN"
-          test -n "$RLS_TEST_USER_A_ID"
-          test -n "$RLS_TEST_USER_B_ID"
-          test -n "$RLS_TEST_ADVISOR_TOKEN"
-          test -n "$RLS_TEST_ADVISOR_ID"
-          test -n "$RLS_TEST_ASSIGNED_CLIENT_ID"
-          test -n "$RLS_TEST_UNASSIGNED_CLIENT_ID"
+      - name: Verify no service-role key in client bundle
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
+            echo "Service-role key value found in client build output"
+            exit 1
+          fi
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:
