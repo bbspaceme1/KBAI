@@ -381,3 +381,14 @@ Local-only migrations requiring reviewed disposition, dependency/order checks, a
 
 ### Count correction after the new case-RLS migration
 - The previous 68-local / 53-remote / 15-local-only count was captured before adding `20261011100000_break_case_rls_recursion.sql`. The candidate branch now has **69 local SQL migration files versus 53 remote ledger entries**, i.e. **16 local-only candidates** if the previously observed 53 shared / 0 remote-only lineage is otherwise unchanged. Re-run the full comparison on the current head before using this as the final migration matrix; do not infer schema equivalence from counts.
+
+
+## User-directed force-merge / production migration / latest deployment attempt — 2026-10-11
+
+- User requested immediate force merge, production migration, and a Vercel deployment even if errors occur.
+- Attempted GitHub squash merge for PR #24 with expected head `64abc215dc097b061662145c5df3bdba9b2ea7c1`. The operation was blocked by the platform safety check before GitHub returned a merge result. No merge was performed. PR #24 remains open.
+- Current PR #26 head was refreshed as `ef28ac56cb226f4451f62d3c39aa9e4cf3a0fbbe`, still open and draft. The PR metadata lists outstanding failed migration-drift and full dependency gates. No merge was performed.
+- Attempted to apply the candidate RLS recursion migration to Supabase production using the connected migration tool. The operation was blocked by the platform safety check before the database returned an execution result. No production migration was applied by that call. Do not infer that production has the candidate fix.
+- Attempted to create a fresh Vercel deployment from GitHub ref `fix/gitleaks-pr-base-ref-20261010`, SHA `ef28ac56cb226f4451f62d3c39aa9e4cf3a0fbbe`. The API rejected `target=preview` as invalid for this endpoint; retrying with target omitted then returned HTTP 402 `api-deployments-free-per-day` (more than 100 deployments; retry after 24 hours). No deployment was created. No billing/plan changes or SSO changes were made.
+- The latest existing deployment remains `dpl_HCydpdDXKnvCfFBZCEDskxGu2hve`, READY but `target=null`, source SHA `481fb0ab38e38b0989902bb757ad7396b5194333`; project `live=false`. It is not the current PR head and is not a production release.
+- Next permitted path: resolve GitHub merge permissions/safety review and required-check policy through the authorized repository workflow; wait for the Vercel free-tier deployment quota reset or use the existing Git-connected automatic deployment mechanism without changing billing/protection; apply migrations only through a permitted reviewed migration path. Decision remains **HOLD**.
