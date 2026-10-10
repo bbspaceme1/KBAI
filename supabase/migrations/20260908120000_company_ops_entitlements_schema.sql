@@ -21,15 +21,32 @@ CREATE TABLE IF NOT EXISTS public.company_subscriptions (
   status text NOT NULL CHECK (status IN ('pending','paid','active','failed','expired','cancelled','refunded')), started_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS company_subscriptions_user_idx ON public.company_subscriptions(user_id, status);
-CREATE OR REPLACE FUNCTION public.enforce_annual_membership_capacity() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
-DECLARE active_count integer;
+CREATE OR REPLACE FUNCTION public.enforce_annual_membership_capacity()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $
+DECLARE
+  active_count integer;
+  membership_year integer;
 BEGIN
   IF NEW.status IN ('pending','paid','active') THEN
-    SELECT count(*) INTO active_count FROM public.company_subscriptions WHERE extract(year FROM started_at) = extract(year FROM NEW.started_at) AND status IN ('pending','paid','active') AND id <> NEW.id;
-    IF active_count >= 100 THEN RAISE EXCEPTION 'annual KBAI membership capacity reached'; END IF;
+    membership_year := EXTRACT(YEAR FROM NEW.started_at)::integer;
+    -- Serialize capacity checks for the same membership year.
+    PERFORM pg_advisory_xact_lock(180023, membership_year);
+    SELECT count(*) INTO active_count
+    FROM public.company_subscriptions
+    WHERE EXTRACT(YEAR FROM started_at)::integer = membership_year
+      AND status IN ('pending','paid','active')
+      AND id <> NEW.id;
+    IF active_count >= 100 THEN
+      RAISE EXCEPTION 'annual KBAI membership capacity reached';
+    END IF;
   END IF;
   RETURN NEW;
-END; $$;
+END;
+$;
 DROP TRIGGER IF EXISTS company_subscription_capacity_trigger ON public.company_subscriptions;
 CREATE TRIGGER company_subscription_capacity_trigger BEFORE INSERT OR UPDATE OF status, started_at ON public.company_subscriptions FOR EACH ROW EXECUTE FUNCTION public.enforce_annual_membership_capacity();
 CREATE TABLE IF NOT EXISTS public.payments (
@@ -40,15 +57,56 @@ CREATE TABLE IF NOT EXISTS public.payments (
 CREATE TABLE IF NOT EXISTS public.revenue_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), payment_id uuid UNIQUE REFERENCES public.payments(id) ON DELETE SET NULL, amount numeric(20,2) NOT NULL, currency text NOT NULL, recognized_date date NOT NULL DEFAULT current_date, revenue_type text NOT NULL DEFAULT 'subscription', created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE OR REPLACE FUNCTION public.record_subscription_revenue() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+CREATE OR REPLACE FUNCTION public.record_subscription_revenue()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
 BEGIN
-  IF NEW.status = 'paid' AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'paid') THEN
-    INSERT INTO public.revenue_records(payment_id, amount, currency) VALUES (NEW.id, NEW.amount, NEW.currency) ON CONFLICT (payment_id) DO NOTHING;
-  END IF; RETURN NEW;
-END; $$;
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'paid' THEN
+      INSERT INTO public.revenue_records(payment_id, amount, currency)
+      VALUES (NEW.id, NEW.amount, NEW.currency)
+      ON CONFLICT (payment_id) DO NOTHING;
+    END IF;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.status = 'paid' AND OLD.status IS DISTINCT FROM 'paid' THEN
+      INSERT INTO public.revenue_records(payment_id, amount, currency)
+      VALUES (NEW.id, NEW.amount, NEW.currency)
+      ON CONFLICT (payment_id) DO NOTHING;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$;
 DROP TRIGGER IF EXISTS payments_revenue_trigger ON public.payments;
 CREATE TRIGGER payments_revenue_trigger AFTER INSERT OR UPDATE OF status ON public.payments FOR EACH ROW EXECUTE FUNCTION public.record_subscription_revenue();
-ALTER TABLE public.company_subscriptions ENABLE ROW LEVEL SECURITY; ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY; ALTER TABLE public.revenue_records ENABLE ROW LEVEL SECURITY;
+-- Public catalogue data is readable, but only trusted backend code can mutate entitlements.
+ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.features ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.plan_entitlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.company_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.revenue_records ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS plans_active_select ON public.plans;
+CREATE POLICY plans_active_select ON public.plans
+  FOR SELECT TO anon, authenticated USING (is_active = true);
+DROP POLICY IF EXISTS features_public_select ON public.features;
+CREATE POLICY features_public_select ON public.features
+  FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS plan_entitlements_active_select ON public.plan_entitlements;
+CREATE POLICY plan_entitlements_active_select ON public.plan_entitlements
+  FOR SELECT TO anon, authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.plans p
+    WHERE p.id = plan_entitlements.plan_id AND p.is_active = true
+  ));
+
+GRANT SELECT ON public.plans, public.features, public.plan_entitlements TO anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.plans, public.features, public.plan_entitlements FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.company_subscriptions, public.payments, public.revenue_records FROM anon, authenticated;
 DROP POLICY IF EXISTS company_subscriptions_owner_select ON public.company_subscriptions;
 CREATE POLICY company_subscriptions_owner_select ON public.company_subscriptions FOR SELECT TO authenticated USING ((select auth.uid()) = user_id OR public.has_role((select auth.uid()), 'admin'::public.app_role));
 DROP POLICY IF EXISTS payments_owner_select ON public.payments;
