@@ -32,6 +32,17 @@ jobs:
         # Keep CI/dev tooling visible without confusing it with runtime exposure.
         continue-on-error: true
         run: npm audit --audit-level=high
+      - name: Ensure PR base ref exists for secret scan
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test -n "$PR_BASE_REF"
+          git fetch --no-tags origin "+refs/heads/$PR_BASE_REF:refs/remotes/origin/$PR_BASE_REF"
+          git rev-parse --verify "refs/remotes/origin/$PR_BASE_REF^{commit}"
+
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
