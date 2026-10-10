@@ -36,8 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           npm pkg set 'devDependencies.vercel=^54.17.3' 'devDependencies.@lovable.dev/vite-tanstack-config=^2.26.6' 'devDependencies.vitest=^5.0.3' 'devDependencies.@vitest/coverage-v8=^5.0.3'
-          npm install --package-lock-only --ignore-scripts
-          npm audit fix --package-lock-only || echo 'Non-forced audit fixes attempted; remaining advisories are reported separately.'
+          npm install --package-lock-only --ignore-scripts --no-audit
+          test -s package-lock.json
+          npm audit --audit-level=high || echo 'High/critical advisories remain; report and tests below determine whether this update is safe.'
 
       - name: Install exact lockfile
         run: npm ci
