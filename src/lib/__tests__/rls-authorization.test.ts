@@ -203,6 +203,34 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(data).toBe(false);
   });
 
+  it("restricts case analysis and notes to the case owner or assigned advisor", async () => {
+    const caseAId = process.env.RLS_TEST_CASE_A_ID;
+    const caseBId = process.env.RLS_TEST_CASE_B_ID;
+    if (!caseAId || !caseBId || !advisorToken) {
+      throw new Error("Case child RLS tests require case fixture IDs and advisor token");
+    }
+
+    const userA = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const advisor = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${advisorToken}` } },
+    });
+
+    for (const actor of [userA, advisor]) {
+      const [analysis, notes] = await Promise.all([
+        actor.from("case_analysis").select("case_id"),
+        actor.from("case_notes").select("case_id"),
+      ]);
+      expect(analysis.error).toBeNull();
+      expect(notes.error).toBeNull();
+      expect(analysis.data?.some((row) => row.case_id === caseAId)).toBe(true);
+      expect(notes.data?.some((row) => row.case_id === caseAId)).toBe(true);
+      expect(analysis.data?.some((row) => row.case_id === caseBId)).toBe(false);
+      expect(notes.data?.some((row) => row.case_id === caseBId)).toBe(false);
+    }
+  });
+
   it("allows Advisor A to select assigned clients but not unassigned clients", async () => {
     if (!advisorToken || !advisorId || !assignedClientId || !unassignedClientId) {
       throw new Error(
