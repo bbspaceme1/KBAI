@@ -1,5 +1,18 @@
 # KBAI Reconciliation Progress
 
+## Current verified snapshot — 2026-10-10 13:13 UTC
+
+This is the latest authoritative status; older dated notes below are historical.
+
+- Candidate branch head: `844e388b384ceb8d40f7e7361cba174bd20166d7`; PR #26 remains draft and unmerged.
+- **CI PASS** (run `38054630604`): install, lint, type-check, build and unit tests passed. The latest completed quality run on the immediately preceding code-equivalent candidate had 161 tests passed, 14 skipped and 61.04% statements/lines, 65.17% functions, 72.77% branches. Full dependency-tree audit still reports 40 advisories (2 low, 9 moderate, 25 high, 4 critical); production-only audit reports 0. Do not treat the full dependency tree as security-clear.
+- **Local Migration Replay PASS** (run `38054630593`): all migrations replayed from an empty local database after restoring the remote-only SQL and making `20261003140000_reconcile_advisor_scope_rls.sql` idempotent for the two already-created scoped cash policies. The RLS/RBAC matrix passed 14/14 tests and homepage/login browser smoke passed 2/2.
+- **Migration Drift still FAILS, correctly fail-closed** (run `38054630676`): all 10 remote-only SQL statements were recovered from `supabase_migrations.schema_migrations.statements` and restored as versioned repository files. Current ledger comparison is 68 local files vs 53 remote entries: 53 shared versions, 15 local-only versions, 0 remote-only versions, 0 duplicate local timestamps. The 15 local-only versions have not been applied to production. No ledger repair or production migration was performed.
+- Remote data preflight: `idx_financial_ratios` has 0 rows, `idx_etl_logs` has 0 rows, and `ai_usage_logs` has 0 rows. This reduces immediate data-backfill risk for the candidate fiscal-period, ETL status, and quota-status constraints, but is not a substitute for a production dry-run or approval. Remote schema still lacks the performance/cash-flow/benchmark tables, `idx_missing_symbols`, Company Operations/billing tables, and Telegram gateway tables. Remote advisor policies still permit broader holdings/snapshot reads than the assigned-client scope in the candidate migrations.
+- Vercel preview for commit `96421f7b748655944b4d15fd62a4418aa9dedf25` was READY and homepage/login returned HTTP 200. Later commits hit the free-plan Vercel build-rate limit. The project remains `live=false`, deployment target `null`; no promotion or paid upgrade was performed.
+- PostHog project `593465`: public key matches `VITE_POSTHOG_KEY`; authorized application URLs are set to the stable Vercel aliases and active health issues are 0. However, PostHog still reports no ingested events in the last 30 days, so event delivery is not proven. Sentry DSN values match, but no Sentry API connector is available in this session. Cloudflare API auth works, but the connected account has 0 zones, 0 Pages projects and 0 Worker scripts.
+- No production data/schema write, production migration apply, migration-ledger repair, deployment promotion, DNS mutation, or paid resource was used. Production remains **HOLD / NOT PRODUCTION READY** pending disposition of the 15 local-only migrations, full dependency remediation, a safe production apply path, and live telemetry proof.
+
 ## Current verified snapshot — 2026-10-10 13:00 UTC
 
 This section supersedes older operational notes below when they conflict. All remote database queries in this snapshot were read-only.
