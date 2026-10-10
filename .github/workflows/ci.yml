@@ -32,9 +32,6 @@ jobs:
       - name: Dependency security audit (production surface)
         # Gate the dependency surface that runs in the deployed application.
         run: npm audit --omit=dev --audit-level=high
-      - name: Dependency security audit (full CI tree)
-        # Release gate: dev/test tooling can execute in CI and must not hide high/critical advisories.
-        run: npm audit --audit-level=high
       - name: Ensure PR base ref exists for secret scan
         if: github.event_name == 'pull_request'
         shell: bash
@@ -75,6 +72,11 @@ jobs:
           fail_ci_if_error: false
           verbose: true
         continue-on-error: true
+
+      - name: Dependency security audit (full CI tree)
+        if: always()
+        # Release gate: dev/test tooling can execute in CI and must not hide high/critical advisories.
+        run: npm audit --audit-level=high
 
   integration:
     name: Integration and E2E
