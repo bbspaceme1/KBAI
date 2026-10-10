@@ -6,6 +6,8 @@ on:
       - fix/gitleaks-pr-base-ref-20261010
     paths:
       - .github/workflows/tested-dependency-remediation.yml
+      - package.json
+      - package-lock.json
   workflow_dispatch: {}
 
 concurrency:
