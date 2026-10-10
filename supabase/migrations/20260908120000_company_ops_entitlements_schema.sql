@@ -26,8 +26,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public, pg_temp
-AS $
-DECLARE
+AS $function$1DECLARE
   active_count integer;
   membership_year integer;
 BEGIN
@@ -46,7 +45,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$function$;
 DROP TRIGGER IF EXISTS company_subscription_capacity_trigger ON public.company_subscriptions;
 CREATE TRIGGER company_subscription_capacity_trigger BEFORE INSERT OR UPDATE OF status, started_at ON public.company_subscriptions FOR EACH ROW EXECUTE FUNCTION public.enforce_annual_membership_capacity();
 CREATE TABLE IF NOT EXISTS public.payments (
@@ -62,8 +61,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
-BEGIN
+AS $function$1BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.status = 'paid' THEN
       INSERT INTO public.revenue_records(payment_id, amount, currency)
@@ -79,7 +77,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$function$;
 DROP TRIGGER IF EXISTS payments_revenue_trigger ON public.payments;
 CREATE TRIGGER payments_revenue_trigger AFTER INSERT OR UPDATE OF status ON public.payments FOR EACH ROW EXECUTE FUNCTION public.record_subscription_revenue();
 -- Public catalogue data is readable, but only trusted backend code can mutate entitlements.
