@@ -18,6 +18,7 @@
 ### Current CI and drift
 - CI passed on earlier commit `8ea134a`, then a later commit failed only the Prettier lint check for the Sentry browser tracing integration; formatting was corrected on the branch and CI was rerun.
 - Database Migration Drift Check continues to fail because local migration history and the remote Supabase ledger differ. It is a read-only gate and does not apply migrations.
+- Read-only version comparison on the current branch tree: **58 local migration files vs 53 remote ledger entries; 43 versions shared, 15 local-only, 10 remote-only, and 0 duplicate local versions**. The 15/10 differences are not yet individually classified APPLY/SKIP/HOLD; do not apply or repair the production ledger until the SQL/schema effect is reconciled.
 - Latest drift workflow evidence must be rechecked on the current head before any APPLY/SKIP classification. No history repair or production SQL was run.
 - The exact-original migration filenames differ from earlier assumed names; the current `main` tree contains `20260906120000_backfill_test_account_roles.sql`, `20260908100000_performance_engine_schema.sql`, `20260908110000_data_pipeline_reconciliation.sql`, `20260908120000_company_ops_entitlements_schema.sql`, and `20261005100000_canonical_user_sub_roles.sql`. Use the actual tracked paths and inspect their SQL; do not reconstruct by guessed filenames.
 
