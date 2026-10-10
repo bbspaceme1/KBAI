@@ -51,7 +51,7 @@ Core principles:
 
 The product is one application with six connected layers and a control plane:
 
-1. **Market OS** — IDX universe, licensed/official market data, EOD pipeline, corporate/fundamental data, benchmarks, market history and data quality.
+1. **Market OS** — IDX universe, licensed/official market data, EOD pipeline, corporate/fundamental data, economic/macro indicators and events, benchmarks, market history and data quality.
 2. **Portfolio OS** — user-owned holdings, transactions, cash, performance, snapshots, alerts, portfolio health and risk context.
 3. **Intelligence OS** — research evidence, thesis/counter-thesis, fundamental filters, approved KBAI Index methodologies and bounded AI assistance.
 4. **Community OS** — Telegram-linked access, member contributions and structured community investment intelligence.
@@ -64,8 +64,8 @@ Cross-layer shared services: identity, RBAC/RLS, entitlement evaluation, audit t
 
 - **V1 — Foundation:** identity/session, roles and access, user-owned portfolio, IDX equities and watchlist, reliable deployment, audit, privacy and quality gates.
 - **V2 — Intelligence:** portfolio performance/health, research thesis and evidence, fundamental context, versioned KBAI Index and permitted AI assistance.
-- **V3 — Community:** Telegram identity and membership verification, structured community intelligence, community governance and access entitlements.
-- **V4 — Ecosystem:** advisor/EquiSight workflows, expanded market/portfolio intelligence, and future EA Bot integration only where separately approved.
+- **V3 — Scale / Community:** Telegram identity and membership verification, structured community intelligence, community governance, access entitlements and the operational scale-up needed to support these workflows.
+- **V4 — Ecosystem / EA:** advisor/EquiSight workflows and expanded market/portfolio intelligence. A future EA Bot Forex & Gold entry point on the website is a separate project/integration and requires its own explicit scope approval; it does not authorize autonomous stock selection, portfolio actions or trading features inside KBAI Terminal.
 - **V5 — Market + Corporate OS:** internal Company OS, finance/operations, enterprise controls and unified Mission Control.
 
 Roadmap order does not authorize implementation that breaches the exclusions above. Existing code does not prove a roadmap item is production-ready.
@@ -116,7 +116,7 @@ Portfolio performance must support **TWR (time-weighted return)** for comparing 
 
 ## 8. AI boundaries and quota
 
-- AI is assistive, contextual, evidence-aware and bounded by role, entitlement, quotas and audit.
+- AI is assistive, contextual, evidence-aware and bounded by role, entitlement, quotas and audit. Internal AI analysis must use structured inputs and receive human review before it influences research; no AI output independently authorizes a user action.
 - No public autonomous stock selection, screening, DCF engine, technical-analysis recommendations, dividend strategy, portfolio construction/optimization, rebalancing or trading.
 - AI quota must be atomic, concurrency-safe, caller-bound and reject invalid/non-positive token amounts.
 - An authenticated user must not consume quota for another user by passing a different user ID. Prefer deriving caller identity from verified session context; service-side overrides require explicit trusted authorization.
@@ -172,7 +172,7 @@ The existing `kbai_annual` plan was previously referenced at Rp25 million; verif
 
 ## 11. Telegram Gateway
 
-- Architecture: one master channel + three discussion groups, one bot, one webhook, central gateway and deterministic routing.
+- Architecture: one master channel + three discussion groups, one bot, one webhook, central gateway and deterministic routing. Telegram is an identity/distribution gateway only; KBAI backend/database remains the source of truth for account role, entitlement, membership verification and audit.
 - Telegram Login/OIDC is preferred.
 - Master-channel verification is required before discussion-group access.
 - Missing group membership may be served through a one-use invite with member limit 1 and a short expiry (target around 10 minutes).

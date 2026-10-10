@@ -2,7 +2,7 @@
 
 ## Update 2026-10-10 — Master PRD and free-tier reconciliation pass
 
-**Release decision: HOLD / NOT PRODUCTION READY.** Production Supabase was queried read-only; no production migration, ledger repair, reset, or deployment was executed. No paid staging environment or paid vendor feature was activated.
+**Release decision: HOLD / NOT PRODUCTION READY.** Production Supabase was queried read-only; no production write, migration, ledger repair, reset, or deployment was executed. No paid staging environment or paid vendor feature was activated. Supabase is on Free and Vercel on Hobby; no paid upgrade was used.
 
 ### Canonical product source of truth
 - Added `docs/prd/MASTER-PRD.md` on this feature branch as the consolidated Master PRD v1.0, based on approved prior KBAI product discussions.
@@ -10,13 +10,13 @@
 - The PRD is on draft PR #26; it is not yet merged to `main`.
 
 ### Fresh local migration replay
-- Latest verified run: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38050501852) **PASS** on commit `aa3ad2dc8096a6b4d590ad6f4a3a9e7094f121a7`.
+- Latest verified run: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38050784406) **PASS** on commit `68e90a49c555d7ae40c6bd049e640b6a00387033`. [CI quality/build](https://github.com/bbspaceme1/KBAI/actions/runs/38050784400) also **PASS** on that head.
 - All 58 local migrations replayed from an empty isolated Supabase database; the fixture setup passed; the behavioral RLS/RBAC matrix passed **13/13 tests**; the homepage/login browser smoke passed **2/2 tests**.
 - The original blocker was confirmed: remote `on_user_role_change` runs `public.add_role_to_jwt()` on `public.user_roles`, but the function reads/writes `NEW.raw_app_meta_data`, which exists on `auth.users`, not on a role row. The current branch corrects the canonical role source through `20261010140000_fix_canonical_role_claim_sync.sql` and `20261010150000_fix_canonical_user_provisioning.sql`.
 - A positive quota-path test then exposed a second bug: `try_consume_ai_quota` inserts `status='reserved'`, while `ai_usage_logs_status_check` only allowed `success/error`. The branch migration `20261010120000_harden_ai_quota_ownership.sql` now widens the constraint to the existing reservation/usage lifecycle and preserves reservation accounting semantics. Local replay and 13-test RLS matrix passed after this correction.
 
 ### Current CI and drift
-- CI passed on earlier commit `8ea134a`, then a later commit failed only the Prettier lint check for the Sentry browser tracing integration; formatting was corrected on the branch and CI was rerun.
+- CI quality/build is green on the latest branch head. The local replay workflow also verifies migration replay, behavioral RLS/RBAC and homepage/login smoke tests in the same isolated local Supabase stack.
 - Database Migration Drift Check continues to fail because local migration history and the remote Supabase ledger differ. It is a read-only gate and does not apply migrations.
 - Read-only version comparison on the current branch tree: **58 local migration files vs 53 remote ledger entries; 43 versions shared, 15 local-only, 10 remote-only, and 0 duplicate local versions**. The 15/10 differences are not yet individually classified APPLY/SKIP/HOLD; do not apply or repair the production ledger until the SQL/schema effect is reconciled.
 - Latest drift workflow remains **FAIL** because version histories differ. No production write SQL or history repair was run; production checks were read-only.
@@ -45,12 +45,12 @@ The comparison is **58 local migration files vs 53 remote ledger entries: 43 sha
 Remote-only versions `20261002183536`, `20261002183606`, `20261002183624`, `20261002183633`, `20261002183716`, `20261002183743`, `20261002183752`, `20261002183831`, `20261002183853`, and `20261003075330` are an iterative financial-RPC/advisor-scope repair and verification sequence. **HOLD / preserve the remote ledger** until their original SQL or sufficient release evidence is recovered and each effect is mapped. Current financial RPC schema partially reflects ownership hardening, but advisor scope is still too broad. Never delete remote history, rename local versions, or fabricate ledger rows to make the list green.
 
 ### Integration and hosting snapshot
-- **Supabase:** linked project is reachable and reports `ACTIVE_HEALTHY`; schema, migration parity and behavioral authorization are not fully reconciled.
-- **Vercel:** project `kbaiterminal` has a READY preview deployment from the feature branch, but deployment `target` is null and project `live` was false at the earlier project audit. SSO protection is enabled for all non-custom domains, and only `kbaiterminal.vercel.app` is listed as a verified project domain. Do not disable protection or promote a deployment until release gates pass.
+- **Supabase:** linked project is reachable and reports `ACTIVE_HEALTHY`; organization plan is `free`. Schema, migration parity and production behavioral authorization are not fully reconciled.
+- **Vercel:** team plan is `hobby`; the latest feature-branch preview is `READY`, but its deployment `target` is null and project `live` remains `false`. SSO protection is enabled for all non-custom domains; the configured `kbaiterminal.vercel.app` domain remains protected. Do not disable protection or promote a deployment until release gates pass.
 - **Vercel environment variables:** canonical browser-safe `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_POSTHOG_KEY`, and `VITE_SENTRY_DSN` exist for production/preview/development. Numerous legacy/duplicate Supabase variables remain. The metadata flags several server-secret entries as not encrypted/readable-secret; do not print values. Treat secret storage/rotation and removal of duplicate variables as a security work item requiring safe handling.
 - **PostHog:** the connected organization/project can be read (`KBAI` / `Default project`), but its project reports `ingested_event: false`; a GitHub integration exists, but telemetry from KBAI is not yet proven. Branch code uses explicit sanitized pageview capture and disables automatic raw URL capture; verify after a successful preview.
-- **Cloudflare:** account connection works, but the account has no zones, Pages projects, or Worker scripts. It is not currently integrated with KBAI hosting/DNS; do not create or transfer domains or move hosting outside the PRD's single Vercel production target.
-- **Sentry:** Vercel environment metadata contains DSN-related variables, but the Sentry API connector/tool is not available in this session and actual Sentry project ingestion cannot be verified here. Do not infer connectivity from variable presence alone.
+- **Cloudflare:** account connection works (standard/free-style account), but it has no zones, Pages projects, or Worker scripts and account-level 2FA enforcement is currently off. It is not integrated with KBAI hosting/DNS; do not create/transfer domains or move hosting outside the PRD's single Vercel production target.
+- **Sentry:** Vercel environment metadata contains DSN-related variables, but the Sentry API connector/tool is not available in this session and actual Sentry project ingestion cannot be verified here. One Sentry token variable is flagged by environment metadata for review; no values were read or printed. Do not infer connectivity from variable presence alone.
 
 ### Security / functional blockers still open
 1. **Production remains blocked by migration ledger/schema drift**, even though isolated local replay, RLS and browser smoke gates now pass.
