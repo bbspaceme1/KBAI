@@ -48,7 +48,7 @@ jobs:
           pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
           pkg.devDependencies.vitest = "^5.0.3";
           pkg.devDependencies["@vitest/coverage-v8"] = "^5.0.3";
-          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\\n");
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
           NODE
           npm install --package-lock-only --ignore-scripts --no-audit
           # Apply any additional fixes that do not require force/major overrides.
