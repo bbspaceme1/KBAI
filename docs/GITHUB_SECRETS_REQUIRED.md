@@ -3,9 +3,9 @@
 Masukkan nama berikut satu per satu di:
 `GitHub repository > Settings > Secrets and variables > Actions > New repository secret`.
 
-## CI
+## Runtime produksi, audit database, ETL, dan workflow terjadwal
 
-Secret berikut dipakai oleh workflow `CI`:
+Secret berikut dipakai oleh workflow audit database/ETL/alert dan/atau runtime server yang relevan; job integration/E2E di workflow `CI` memakai secret `STAGING_*` yang dijelaskan di bawah:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
