@@ -116,7 +116,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npm-audit-report-${{ github.sha }}
+          name: npm-audit-report-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/kbai-npm-audit.json
           if-no-files-found: error
           retention-days: 14
