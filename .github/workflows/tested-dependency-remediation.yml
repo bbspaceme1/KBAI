@@ -49,6 +49,18 @@ jobs:
           pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
           pkg.devDependencies.vitest = "^5.0.3";
           pkg.devDependencies["@vitest/coverage-v8"] = "^5.0.3";
+          // Pin vulnerable transitive tools to advisory-patched compatible releases.
+          pkg.overrides = {
+            ...(pkg.overrides ?? {}),
+            "@fastify/busboy": "^3.2.2",
+            "js-yaml": "^4.3.2",
+            "minimatch": "^10.2.3",
+            "path-to-regexp@^4": "^6.3.0",
+            "path-to-regexp@^6": "^6.3.0",
+            "path-to-regexp@^8": "^8.4.2",
+            "smol-toml": "^1.8.1",
+            "tar": "^7.5.22"
+          };
           fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
           NODE
           npm install --package-lock-only --ignore-scripts --no-audit
