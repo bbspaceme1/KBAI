@@ -75,13 +75,13 @@ jobs:
 
       - name: Dependency security audit (full CI tree)
         if: always()
-        # Fail on every high/critical advisory except the exact unpatched, dev-only braces GHSA.
-        # The deployed production dependency surface is separately audited with --omit=dev above.
+        # Save the complete npm audit JSON even when npm audit exits non-zero.
         shell: bash
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/kbai-npm-audit.json"
           npm audit --json > "$report" || true
+          test -s "$report"
           REPORT_PATH="$report" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
@@ -111,6 +111,15 @@ jobs:
           }
           console.log(`Dependency security gate passed: ${accepted.length} documented dev-only exception(s); no other high/critical advisories.`);
           NODE
+
+      - name: Upload complete npm audit JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report-${{ github.sha }}
+          path: ${{ runner.temp }}/kbai-npm-audit.json
+          if-no-files-found: error
+          retention-days: 14
 
   integration:
     name: Integration and E2E
