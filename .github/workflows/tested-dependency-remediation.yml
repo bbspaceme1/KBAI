@@ -47,8 +47,8 @@ jobs:
           // Explicit, reviewed major upgrades: npm audit reports these as required fixes.
           pkg.devDependencies.vercel = "^63.1.2";
           pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
-          pkg.devDependencies.vitest = "^5.0.3";
-          pkg.devDependencies["@vitest/coverage-v8"] = "^5.0.3";
+          pkg.devDependencies.vitest = "^2.1.8";
+          pkg.devDependencies["@vitest/coverage-v8"] = "^2.1.8";
           // Pin vulnerable transitive tools to advisory-patched compatible releases.
           pkg.overrides = {
             ...(pkg.overrides ?? {}),
@@ -85,6 +85,9 @@ jobs:
 
       - name: Unit tests
         run: npm run test:run
+
+      - name: Coverage threshold gate
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
