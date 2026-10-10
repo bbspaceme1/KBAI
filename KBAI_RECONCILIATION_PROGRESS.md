@@ -313,3 +313,49 @@ Local-only migrations requiring reviewed disposition, dependency/order checks, a
 - Full dependency-tree `npm audit --audit-level=high` is now a required CI gate rather than `continue-on-error`. Previously observed full-tree audit: 40 advisories (2 low, 9 moderate, 25 high, 4 critical); production-only audit previously reported zero. The current full-tree gate is expected to fail until advisories are remediated with lockfile-consistent, reviewed updates. Do not use `npm audit fix --force` or lower the severity threshold to make CI green.
 - Read-only Supabase audit now has a fail-closed authorization gate for authenticated SECURITY DEFINER financial/quota RPCs and RLS-enabled base tables without policies. The live advisor result currently shows five authenticated SECURITY DEFINER RPC warnings and six RLS-enabled/no-policy tables; the new gate is intended to block release until the actual remote findings are corrected and retested.
 - These workflow edits are guardrails, not proof that production has been repaired. No SQL write, production migration, ledger repair, production deployment, DNS change, or paid-tier activation was performed.
+
+
+## Fresh audit snapshot — 2026-10-11 01:10 WIB
+
+### Baseline identity and release decision
+- Repository: `bbspaceme1/KBAI`; production branch observed at `8d7aa8f9ae0ff808b317d1de9b411c631ebfc357` (latest commit returned by GitHub commit search at audit time).
+- PR #24 is open, not merged; current head `64abc215dc097b061662145c5df3bdba9b2ea7c1`. PR #26 is open and draft; current head `b7f3c3f9b907135b4a517b45895c894be782a5b7`. Both are reported mergeable by GitHub, but required gates are failing.
+- Supabase project `ejiufnrqvkvqzxroustb` is ACTIVE_HEALTHY. The connected Vercel project `kbaiterminal` has `live=false`, latest deployment state READY but `target=null`, and SSO protection enabled. This is not a production release.
+- **Decision: HOLD / NOT PRODUCTION READY.** No production migration, production data write, ledger repair, DNS change, SSO weakening, paid upgrade, or deployment promotion was performed.
+
+### Latest workflow evidence for PR #26 head
+- CI run [38074244959](https://github.com/bbspaceme1/KBAI/actions/runs/38074244959) failed at the full dependency-tree audit. `npm ci`, production-only audit, Gitleaks, conflict scan, lint, type-check, build, Supabase admin guard, unit tests, and coverage generation completed successfully on that run. The complete npm audit JSON artifact upload succeeded. The integration/E2E job was SKIPPED because the isolated staging integration gate is not enabled; skipped is not pass.
+- Local Migration Replay run [38074244952](https://github.com/bbspaceme1/KBAI/actions/runs/38074244952) failed at the behavioral RLS authorization matrix. Empty-database migration replay and fixture setup passed; homepage/login smoke tests were SKIPPED after the RLS step failed.
+- Database Migration Drift Check run [38074244954](https://github.com/bbspaceme1/KBAI/actions/runs/38074244954) failed both the remote authorization invariants and migration drift checks. Read-only schema inspection, artifact upload, Supabase advisors, and Vercel metadata audit completed.
+- PR #24 head checks [CI run 38067859281](https://github.com/bbspaceme1/KBAI/actions/runs/38067859281) and [drift run 38067859283](https://github.com/bbspaceme1/KBAI/actions/runs/38067859283) both failed. Do not reuse a green result from another SHA as a pass for either current PR head.
+
+### npm audit artifact — retrieved and inspected
+- Artifact: [download npm audit JSON ZIP](https://github.com/bbspaceme1/KBAI/actions/runs/38074244959) (artifact `npm-audit-report-f6bdf063ffbb59f9fc1ce55a2e1f76fcf2d3c2eb`, artifact ID `11677453349`, created 2026-10-10 18:05 UTC, expires 2026-10-24 18:05 UTC).
+- The artifact was successfully downloaded and its JSON parsed. It reports 1,273 dependency nodes: 449 production, 673 development, 296 optional and 29 peer; 28 vulnerability records: 3 moderate, 22 high and 3 critical. No low findings are reported in this snapshot. This is a point-in-time result, not the final dependency disposition.
+- Main dependency families in the report: direct `vercel` CLI (high; suggested fix `vercel@32.2.0`, SemVer-major), direct `vitest` (critical; suggested fix `vitest@5.0.3`, SemVer-major), direct `@vitest/coverage-v8` (critical; suggested fix `@vitest/coverage-v8@5.0.3`, SemVer-major), and transitive `@vitest/mocker`, `tinypool`, `vite`, `vite-node`, `esbuild`, `fast-glob`, `micromatch`, `braces`, `ts-morph`, and multiple `@vercel/*` packages.
+- Several Vercel-related advisories converge on upgrading the direct `vercel` CLI to 32.2.0; npm labels that fix SemVer-major. Vitest-related advisories converge on Vitest 5.0.3, also SemVer-major. Do not apply these upgrades blindly: first inspect `package.json`, lockfile parent paths, release notes and runtime usage, then choose the smallest compatible update path and run all test/build/replay gates.
+- The artifact name includes merge SHA `f6bdf063ffbb59f9fc1ce55a2e1f76fcf2d3c2eb` while GitHub reports PR head SHA `b7f3c3f9b907135b4a517b45895c894be782a5b7`. Treat the artifact as produced by the run associated with that PR head, but fix/verify artifact naming so future reports unambiguously include both `github.sha` and `github.event.pull_request.head.sha`; do not call the label itself the head SHA.
+- Full per-advisory parent-path/version analysis remains incomplete. The JSON identifies vulnerable ranges, installed nodes, dependency edges and fix availability; the next pass must query the lockfile and report complete root-to-leaf paths, installed versions, GHSA/CVE IDs, compatibility analysis and regression tests. No lockfile update was made in this audit pass.
+
+### Fresh Supabase advisor evidence (observed 2026-10-10 18:10 UTC)
+- Security: `public.case_analysis` and `public.case_notes` have RLS enabled but no policies (2 findings).
+- Security: `pg_net` and `pg_trgm` extensions are in `public` (2 warnings).
+- Security: authenticated callers can execute four SECURITY DEFINER RPCs through the API: `adjust_cash_balance(uuid,numeric)`, `has_role(uuid,app_role)`, `try_consume_ai_quota(uuid,integer)`, and `upsert_holding_buy(uuid,text,integer,numeric)`. Each requires explicit least-privilege review; don't revoke indiscriminately without checking intended server/client call paths.
+- Security: leaked-password protection is disabled.
+- Performance: 15 unindexed foreign keys, 34 auth/RLS initialization-plan warnings, and 7 duplicate-index groups were reported; multiple permissive policies were also reported. These should be prioritized by workload and semantics, and only fixed after inspecting the exact policies/index definitions and testing query plans.
+- These advisor results are live blockers/evidence, not proof that any remediation has been applied.
+
+### Progress calculation (release-gate evidence, not product-feature completeness)
+- Use 15 equal-weight release evidence gates for this snapshot: baseline captured; quality checks; secret scan; audit artifact captured; full dependency audit; migration replay; behavioral RLS/RBAC; migration drift; Supabase advisor/security clearance; staging integration/E2E; production deployment target/alias; Sentry ingestion; PostHog ingestion; Cloudflare resource/config decision; PR review and required-check completion.
+- Fully evidenced pass: 4/15 (baseline captured, quality checks except dependency audit, secret scan, audit artifact upload/retrieval). Migration replay is partial (SQL replay passed, behavioral authorization failed), counted as 0.5/15. **Evidence completion = 30% (4.5 ÷ 15)**. This is not a claim that 30% of all product features are implemented; it is a reproducible snapshot of release-gate evidence.
+- Status labels: IMPLEMENTED means code/config exists; TESTED means a relevant test ran; VERIFIED means current resource/runtime evidence supports the result; RELEASED means an approved production release exists. Do not promote any item to RELEASED based on preview or local test results.
+
+### Immediate next actions
+1. Inspect and fix the exact RLS behavioral test failures from run `38074244952`; rerun replay + authorization + browser smoke on the new same candidate SHA.
+2. Inspect full job logs for drift run `38074244954`, classify each failed remote authorization invariant and every migration version; preserve read-only production behavior.
+3. Resolve dependency paths from the captured JSON against `package-lock.json`; test minimum compatible direct/transitive updates in CI with networked npm, then run `npm ci`, full audit, production-only audit, unit/build and migration replay on the same SHA. Do not use `npm audit fix --force`.
+4. Correct `case_analysis`/`case_notes` RLS policies, SECURITY DEFINER execute grants/ownership binding and leaked-password configuration only through reviewed, tested changes with explicit production approval where required.
+5. Obtain isolated staging identities/secrets and verify the staging project is not production before enabling remote RLS/E2E. No secret values should appear in logs or reports.
+6. Verify Sentry event ingestion and PostHog event ingestion with safe synthetic events; current Sentry verification is unavailable and PostHog ingestion is not proven. Cloudflare currently has no configured zones/Pages/Workers; do not create or mutate resources without a justified requirement.
+7. Re-run all required checks on the exact candidate head, request human review, and keep PRs unmerged until all required gates pass.
+
