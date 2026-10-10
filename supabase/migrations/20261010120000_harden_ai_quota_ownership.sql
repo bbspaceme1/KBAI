@@ -4,6 +4,16 @@
 
 BEGIN;
 
+-- The existing quota reservation RPC writes status='reserved', but the original
+-- table constraint only allowed success/error. Preserve existing accounting
+-- states and allow the reservation lifecycle already used by the application.
+ALTER TABLE public.ai_usage_logs
+  DROP CONSTRAINT IF EXISTS ai_usage_logs_status_check;
+
+ALTER TABLE public.ai_usage_logs
+  ADD CONSTRAINT ai_usage_logs_status_check
+  CHECK (status IN ('success', 'error', 'completed', 'billed', 'reserved'));
+
 CREATE OR REPLACE FUNCTION public.try_consume_ai_quota(p_user uuid, p_tokens integer)
 RETURNS boolean
 LANGUAGE plpgsql
