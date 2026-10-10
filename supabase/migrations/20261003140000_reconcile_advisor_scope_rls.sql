@@ -125,13 +125,13 @@ CREATE POLICY "Users and scoped staff view snapshots"
   FOR SELECT
   TO authenticated
   USING (
-    (SELECT (select auth.uid())) = user_id
-    OR public.has_role((SELECT (select auth.uid())), 'admin'::public.app_role)
+    (select auth.uid()) = user_id
+    OR public.has_role((select auth.uid()), 'admin'::public.app_role)
     OR (
-      public.has_role((SELECT (select auth.uid())), 'advisor'::public.app_role)
+      public.has_role((select auth.uid()), 'advisor'::public.app_role)
       AND EXISTS (
         SELECT 1 FROM public.advisor_clients ac
-        WHERE ac.advisor_id = (SELECT (select auth.uid()))
+        WHERE ac.advisor_id = (select auth.uid())
           AND ac.client_id = portfolio_snapshots.user_id
       )
     )
@@ -141,17 +141,17 @@ DROP POLICY IF EXISTS "Admins delete snapshots" ON public.portfolio_snapshots;
 CREATE POLICY "Admins delete snapshots"
   ON public.portfolio_snapshots
   FOR DELETE TO authenticated
-  USING (public.has_role((SELECT (select auth.uid())), 'admin'::public.app_role));
+  USING (public.has_role((select auth.uid()), 'admin'::public.app_role));
 
 DROP POLICY IF EXISTS "Admins insert snapshots" ON public.portfolio_snapshots;
 CREATE POLICY "Admins insert snapshots"
   ON public.portfolio_snapshots
   FOR INSERT TO authenticated
-  WITH CHECK (public.has_role((SELECT (select auth.uid())), 'admin'::public.app_role));
+  WITH CHECK (public.has_role((select auth.uid()), 'admin'::public.app_role));
 
 DROP POLICY IF EXISTS "Admins update snapshots" ON public.portfolio_snapshots;
 CREATE POLICY "Admins update snapshots"
   ON public.portfolio_snapshots
   FOR UPDATE TO authenticated
-  USING (public.has_role((SELECT (select auth.uid())), 'admin'::public.app_role))
-  WITH CHECK (public.has_role((SELECT (select auth.uid())), 'admin'::public.app_role));
+  USING (public.has_role((select auth.uid()), 'admin'::public.app_role))
+  WITH CHECK (public.has_role((select auth.uid()), 'admin'::public.app_role));
