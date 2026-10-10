@@ -69,7 +69,7 @@ BEGIN
   INSERT INTO public.ai_usage_logs
     (user_id, model, input_tokens, output_tokens, total_tokens, cost_usd, operation, status)
   VALUES
-    (p_user, 'quota_reserve', p_tokens, 0, p_tokens, 0, 'quota_reserve', 'reserved');
+    (p_user, 'quota_reserve', p_tokens, 0, p_tokens, 0, 'quota_reserve', 'success');
 
   RETURN TRUE;
 END;
