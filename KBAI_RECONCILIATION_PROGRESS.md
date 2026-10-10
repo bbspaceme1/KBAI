@@ -164,4 +164,35 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 
 ## Git Completion
 
-Read-only audit findings were previously merged via PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) at `0248d7f75a5e69bd924c701684dd51892b86f130`. This update is prepared on `feature/reconciliation-release-readiness`. No production migration, deployment mutation, data deletion, or live provider change has been performed. The original package-lock change was preserved according to the prior audit record.
+Read-only audit findings were previously merged via PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) at `0248d7f75a5e69bd924c701684dd51892b86f130`. This update is prepared on `v0/release-runtime-hardening`. No production migration, deployment mutation, data deletion, DNS change, or live provider change has been performed. The original package-lock change was preserved according to the prior audit record.
+
+## Current Audit Evidence — 2026-10-10
+
+**Status: BLOCKED / NOT PRODUCTION READY.** Verified against commit `222233d` before the current dependency update; repository changes in this audit are pending the next commit and CI rerun.
+
+| Gate                          | Status                  | Current evidence                                                                                                                                                                         |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository / PR               | VERIFIED_FAIL           | PR #24 is open and blocked; PR #26 is draft and blocked. Current branch is `v0/release-runtime-hardening`.                                                                               |
+| Unit tests                    | VERIFIED_PASS_WITH_SKIP | Vitest 5.0.3: 23 files passed, 140 tests passed, 8 RLS tests skipped because complete staging identities/tokens are unavailable.                                                         |
+| Type-check                    | VERIFIED_PASS           | `npm run type-check` passed after the test-tool upgrade.                                                                                                                                 |
+| Production build              | VERIFIED_PASS           | `npm run build` passed with Vite 7.3.6.                                                                                                                                                  |
+| Production dependency audit   | VERIFIED_FAIL           | `npm audit --omit=dev --audit-level=high` reports one low development-server advisory nested under `tsx`; no high/critical production advisory. This remains documented, not suppressed. |
+| Full dependency audit         | VERIFIED_FAIL           | Full tree still reports 26 high and 1 critical transitive/dev advisories, including `tar`, Vercel CLI transitive packages, Tailwind, and `esbuild`; no global allowlist was added.       |
+| Migration drift               | VERIFIED_FAIL           | Latest GitHub drift run `38064718383` reports 15 local-only migration versions and remote-only `20261010150752`. No apply/repair/reset was run.                                          |
+| Local migration replay        | VERIFIED_PASS           | Latest GitHub run `38064718464` completed successfully. This proves local replay only, not remote equivalence.                                                                           |
+| RLS / authenticated E2E       | BLOCKED_EXTERNAL        | Required real staging identities, advisor-client assignments, and target URL are not available; tests fail closed/skipped rather than fabricating identities.                            |
+| Supabase MCP                  | BLOCKED_EXTERNAL        | Connection reports authorization renewal required; live MCP schema/security inspection is unavailable.                                                                                   |
+| Vercel                        | BLOCKED_EXTERNAL        | Current CLI token cannot access the configured team scope; no deployment/domain/production smoke claim is made.                                                                          |
+| Cloudflare / Sentry / PostHog | NOT_TESTED              | No fresh runtime evidence was obtained in this audit; stored configuration alone is not treated as verification.                                                                         |
+
+### Migration inventory decision
+
+The current remote ledger is not reconciled. The 15 local-only versions and remote-only `20261010150752` are **UNRESOLVED**, not APPLY or SKIP_VERIFIED_EQUIVALENT. They must be mapped to SQL/schema evidence in staging before any production migration decision. The ledger was not edited and no migration was marked applied manually.
+
+### Dependency decision
+
+Vitest and coverage tooling were upgraded to `5.0.3`, and Vercel CLI to `63.1.2`; unit tests, type-check, and build passed afterward. The complete audit remains visible and failing for transitive/dev advisories. This is a release blocker until each advisory is patched, removed, or reviewed with a narrowly documented risk decision; no `npm audit fix --force` was used.
+
+### Safety confirmation
+
+No production database or data was changed. No migration, migration repair, reset, deployment promotion, DNS change, paid service activation, or PR merge was performed. The latest evidence supports **NOT READY**, not production readiness.
