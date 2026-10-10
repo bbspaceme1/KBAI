@@ -13,7 +13,7 @@ DECLARE
 BEGIN
   SELECT array_agg(r.role::text ORDER BY r.role::text)
     INTO v_roles
-  FROM public.user_roles AS r
+  FROM public.user_sub_roles AS r
   WHERE r.user_id = p_user_id;
 
   UPDATE auth.users AS u
@@ -52,9 +52,15 @@ END;
 $trigger$;
 
 REVOKE ALL ON FUNCTION public.add_role_to_jwt() FROM PUBLIC, anon, authenticated;
--- Existing trigger ownership invokes the trigger function; service-role maintenance may
--- also invoke it explicitly if required. It is not a client-callable RPC.
 GRANT EXECUTE ON FUNCTION public.add_role_to_jwt() TO service_role;
+
+-- Canonical role changes drive the derived JWT claim. The historical user_roles
+-- table is not an authorization source and has no active role-claim trigger.
+DROP TRIGGER IF EXISTS on_user_role_change ON public.user_roles;
+DROP TRIGGER IF EXISTS on_user_sub_role_change ON public.user_sub_roles;
+CREATE TRIGGER on_user_sub_role_change
+  AFTER INSERT OR UPDATE OR DELETE ON public.user_sub_roles
+  FOR EACH ROW EXECUTE FUNCTION public.add_role_to_jwt();
 
 DO $backfill$
 DECLARE
