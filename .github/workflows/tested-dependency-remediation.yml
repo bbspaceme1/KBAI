@@ -12,14 +12,15 @@ on:
 
 concurrency:
   group: tested-dependency-remediation-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
   remediate:
-    name: Apply non-breaking audit fixes and test isolated stack
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore(deps): apply tested tooling upgrades') }}
+    name: Upgrade audited tooling and test isolated stack
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -53,7 +54,7 @@ jobs:
           npm install --package-lock-only --ignore-scripts --no-audit
           # Apply any additional fixes that do not require force/major overrides.
           npm audit fix --no-fund || echo "Some advisories remain; test and report them below."
-          npm install --package-lock-only --ignore-scripts --no-audit
+          test -s package-lock.json
           git status --short
 
       - name: Reinstall strictly from the candidate lockfile
@@ -148,5 +149,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
-          git commit -m "chore(deps): apply tested non-breaking audit fixes"
+          git commit -m "chore(deps): apply tested tooling upgrades"
           git push origin "HEAD:${GITHUB_REF_NAME}"
