@@ -10,17 +10,39 @@
 - The PRD is on draft PR #26; it is not yet merged to `main`.
 
 ### Fresh local migration replay
-- Workflow: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38049418728) was running at the last check; later retry is tracked on the branch's newest commit.
-- First full replay reached isolated fixture setup and exposed a real auth blocker: the `on_user_role_change` trigger fires on `public.user_roles`, but `public.add_role_to_jwt()` tried to read/write `NEW.raw_app_meta_data`, a field that exists on `auth.users`, not on a `user_roles` row. New isolated users therefore failed to be created.
-- Added forward-only corrective migration `20261010150000_fix_role_claim_sync_trigger.sql` on the feature branch. It synchronizes role claims through `auth.users`, handles INSERT/UPDATE/DELETE and user reassignment, restricts helper execution, and refreshes existing role claims.
-- This correction is **not yet considered verified** until a fresh local replay and the isolated RLS fixture setup pass.
+- Latest verified run: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38050501852) **PASS** on commit `aa3ad2dc8096a6b4d590ad6f4a3a9e7094f121a7`.
+- All 58 local migrations replayed from an empty isolated Supabase database; the fixture setup passed; the behavioral RLS/RBAC matrix passed **13/13 tests**; the homepage/login browser smoke passed **2/2 tests**.
+- The original blocker was confirmed: remote `on_user_role_change` runs `public.add_role_to_jwt()` on `public.user_roles`, but the function reads/writes `NEW.raw_app_meta_data`, which exists on `auth.users`, not on a role row. The current branch corrects the canonical role source through `20261010140000_fix_canonical_role_claim_sync.sql` and `20261010150000_fix_canonical_user_provisioning.sql`.
+- A positive quota-path test then exposed a second bug: `try_consume_ai_quota` inserts `status='reserved'`, while `ai_usage_logs_status_check` only allowed `success/error`. The branch migration `20261010120000_harden_ai_quota_ownership.sql` now widens the constraint to the existing reservation/usage lifecycle and preserves reservation accounting semantics. Local replay and 13-test RLS matrix passed after this correction.
 
 ### Current CI and drift
 - CI passed on earlier commit `8ea134a`, then a later commit failed only the Prettier lint check for the Sentry browser tracing integration; formatting was corrected on the branch and CI was rerun.
 - Database Migration Drift Check continues to fail because local migration history and the remote Supabase ledger differ. It is a read-only gate and does not apply migrations.
 - Read-only version comparison on the current branch tree: **58 local migration files vs 53 remote ledger entries; 43 versions shared, 15 local-only, 10 remote-only, and 0 duplicate local versions**. The 15/10 differences are not yet individually classified APPLY/SKIP/HOLD; do not apply or repair the production ledger until the SQL/schema effect is reconciled.
-- Latest drift workflow evidence must be rechecked on the current head before any APPLY/SKIP classification. No history repair or production SQL was run.
+- Latest drift workflow remains **FAIL** because version histories differ. No production write SQL or history repair was run; production checks were read-only.
 - The exact-original migration filenames differ from earlier assumed names; the current `main` tree contains `20260906120000_backfill_test_account_roles.sql`, `20260908100000_performance_engine_schema.sql`, `20260908110000_data_pipeline_reconciliation.sql`, `20260908120000_company_ops_entitlements_schema.sql`, and `20261005100000_canonical_user_sub_roles.sql`. Use the actual tracked paths and inspect their SQL; do not reconstruct by guessed filenames.
+
+### Read-only migration/schema reconciliation matrix
+
+The comparison is **58 local migration files vs 53 remote ledger entries: 43 shared versions, 15 local-only and 10 remote-only; no duplicate local versions**. These classifications are deployment candidates, not authorization to execute anything against production.
+
+| Local-only version | Read-only evidence / disposition |
+|---|---|
+| `20260905130001` | **APPLY candidate after review:** the affected tables exist remotely, but six RLS-enabled tables currently have no policies. Local migration adds owner/assigned-case/admin policies. |
+| `20260905130100` | **HOLD:** financial RPCs already have ownership checks remotely, but exact body/grant equivalence must be compared before deciding APPLY vs SKIP. |
+| `20260908100000` | **APPLY candidate after review:** `portfolio_cash_flows`, `performance_snapshots`, and `benchmark_base100_series` are absent remotely. |
+| `20260908110000` | **APPLY candidate after review:** `idx_missing_symbols` is absent; `idx_etl_logs` exists and its actual columns must be compared before any change. |
+| `20260908120000` | **APPLY candidate after review:** Company Operations tables `plans`, `features`, `plan_entitlements`, `company_subscriptions`, `payments`, and `revenue_records` are absent remotely. |
+| `20260909100000` | **APPLY candidate after review:** Telegram gateway tables are absent remotely; verify chat IDs, bot permissions, RLS and invite expiry in staging/local tests. |
+| `20261003120000` | **HOLD:** remote financial RPCs already show caller ownership checks, fixed search path and authenticated-only execution, but exact SQL equivalence must be proven; do not repair the ledger. |
+| `20261003140000` | **HOLD / superseded candidate:** remote holdings and portfolio snapshot policies allow any advisor role rather than assigned clients only. Use the later scoped correction only after replay/authorization review; do not blindly apply both. |
+| `20261005100000` | **HOLD:** `user_sub_roles` exists remotely but its version is absent from the ledger and `has_role` lacks a cross-user caller guard. Compare constraints and apply the canonical role-source corrections through the reviewed forward migrations. |
+| `20261007120000`, `20261007130000` | **APPLY candidates after a fresh preflight:** the remote `idx_financial_ratios` lacks fiscal-period columns; it had zero rows at the last check, but row count/null checks must be repeated immediately before release. |
+| `20261010120000` | **APPLY candidate after review:** remote quota RPC lacks caller binding and positive-token validation; the status constraint also rejects its `reserved` lifecycle. Branch fix is locally tested. |
+| `20261010130000` | **APPLY candidate after review:** current remote advisor access is broader than assigned-client scope; the branch adds owner/assigned-advisor reads and admin-only snapshot writes. |
+| `20261010140000`, `20261010150000` | **APPLY candidates after review:** fix the invalid role-claim trigger and seed the canonical `user_sub_roles` source during new-user provisioning. Fresh local replay and authorization tests pass. |
+
+Remote-only versions `20261002183536`, `20261002183606`, `20261002183624`, `20261002183633`, `20261002183716`, `20261002183743`, `20261002183752`, `20261002183831`, `20261002183853`, and `20261003075330` are an iterative financial-RPC/advisor-scope repair and verification sequence. **HOLD / preserve the remote ledger** until their original SQL or sufficient release evidence is recovered and each effect is mapped. Current financial RPC schema partially reflects ownership hardening, but advisor scope is still too broad. Never delete remote history, rename local versions, or fabricate ledger rows to make the list green.
 
 ### Integration and hosting snapshot
 - **Supabase:** linked project is reachable and reports `ACTIVE_HEALTHY`; schema, migration parity and behavioral authorization are not fully reconciled.
@@ -31,9 +53,9 @@
 - **Sentry:** Vercel environment metadata contains DSN-related variables, but the Sentry API connector/tool is not available in this session and actual Sentry project ingestion cannot be verified here. Do not infer connectivity from variable presence alone.
 
 ### Security / functional blockers still open
-1. Complete migration replay and fix each first failure in the isolated chain only.
-2. Complete separate-identity RLS tests; quota RPC must reject cross-user quota consumption and non-positive tokens.
-3. Confirm the corrective role-claim migration passes the fresh replay and signup fixture.
+1. **Production remains blocked by migration ledger/schema drift**, even though isolated local replay, RLS and browser smoke gates now pass.
+2. Apply/reconcile the quota, role-claim, user-provisioning and advisor-scope corrections only through a reviewed staged release after exact SQL/schema comparison and rollback review.
+3. Recheck production's `ai_usage_logs_status_check`: current remote constraint allows only `success/error`, while the existing quota RPC inserts `reserved`; the current remote `ai_usage_logs` table had zero rows at the last read-only check. Do not change production until the forward migration is approved.
 4. Resolve migration ledger/schema drift with per-version SQL/schema evidence and explicit APPLY/SKIP/HOLD; never repair the production ledger blindly.
 5. Resolve the remaining schema/migration gaps (IDX ratio periods, Telegram, Company Operations, portfolio/performance objects) before declaring parity.
 6. Review advisor scope on holdings and performance snapshots; test assigned vs unassigned client access.

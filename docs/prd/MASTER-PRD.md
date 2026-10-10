@@ -10,7 +10,7 @@
 
 KBAI Terminal is a **market-intelligence operating system** and financial-intelligence infrastructure that bridges retail investors and institutional-quality research in Indonesia. It combines market context, portfolio intelligence, community-derived investment intelligence, and internal company operations in one governed platform. It is not technology-first and is not a broker or autonomous investment decision-maker.
 
-Positioning shorthand: **“market brain company”** and “the first retail-to-institution bridge platform in Indonesia” (positioning statement, not a verified market-share claim). Product inspiration includes the information density and workflow value of a Bloomberg-style terminal, adapted to Indonesian retail-to-institution use cases. Brand phrase: **“Tumbuh dalam diam.”**
+Positioning shorthand: **“market brain company”** and “the first retail-to-institution bridge platform in Indonesia” (positioning statement, not a verified market-share claim). Product bundle: **Personal Fund Manager + Market Intelligence Infrastructure + Community Investment Intelligence**. Product inspiration includes the information density and workflow value of a Bloomberg-style terminal, adapted to Indonesian retail-to-institution use cases. Brand phrase: **“Tumbuh dalam diam.”**
 
 Core principles:
 - Intelligence before action; data before opinion.
@@ -36,7 +36,8 @@ Core principles:
 - Internal mission/control plane to monitor product, data, delivery, quality and operations.
 
 ### Explicit exclusions / hard guardrails
-- No autonomous stock screening/selection AI exposed to public users.
+- No autonomous stock screening/selection AI or custom stock screener exposed to public users unless separately approved.
+- No public AI-generated stock-specific thesis, issuer scoring or free-form analysis/recommendation engine. User-authored thesis, evidence and counterargument workflows remain in scope.
 - No free-form AI investment recommendations, autonomous portfolio construction or optimization, autonomous rebalancing, or AI dividend/technical-analysis recommendation engine.
 - No autonomous trading, broker execution, exchange, or trade-routing feature.
 - No DCF/intrinsic-value engine as an unapproved autonomous product capability.
@@ -100,8 +101,8 @@ Product research buckets discussed: **Scalping / Penadah / Hidden Gems / Super G
 ### Minimum fundamental filter
 The discussed minimum filter includes **PBV, DER, PER, EPS, ROE, and Free Float >60%**. ROE is intentional (not ROA). Explain each measure and its limitations; never imply that passing these filters is a guaranteed buy signal. FCF/PCF and intrinsic-value calculations require separate explicit methodology approval before becoming product logic.
 
-### Current known methodology gap
-The existing directional index calculation has been described as portfolio value divided by portfolio cost × 100; this is not TWR or XIRR and is affected by deposits/withdrawals. Any TWR/XIRR or index-rule change must be a versioned methodology with backtesting, historical comparison and migration notes, not a silent replacement.
+### Portfolio-return and methodology requirements
+Portfolio performance must support **TWR (time-weighted return)** for comparing performance independently of the timing/size of external cash flows, and **XIRR (money-weighted return)** where the user's dated cash flows matter. Base-100 benchmark comparisons must use a common start window and clearly disclose data gaps. The existing directional value/cost calculation is provisional and must not be labelled as TWR or XIRR; it is affected by deposits/withdrawals. Any TWR/XIRR implementation or index-rule change must be versioned, tested against historical examples, compared with the prior methodology and accompanied by migration notes rather than silently replacing a metric.
 
 ## 7. Portfolio and advisor experience
 
