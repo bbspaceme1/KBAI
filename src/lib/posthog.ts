@@ -7,8 +7,7 @@ if (typeof window !== "undefined" && posthogKey) {
   posthog.init(posthogKey, {
     api_host: posthogHost,
     autocapture: false,
-    capture_pageview: true,
-    capture_pageleave: true,
+    capture_pageview: false,
     persistence: "memory",
     person_profiles: "identified_only",
     loaded: () => {
