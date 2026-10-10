@@ -76,6 +76,8 @@ async function main() {
   );
 
   const lines = {
+    VITE_SUPABASE_URL: url,
+    VITE_SUPABASE_PUBLISHABLE_KEY: anonKey,
     RLS_TEST_ENVIRONMENT: "isolated",
     RLS_TEST_SUPABASE_URL: url,
     RLS_TEST_SUPABASE_ANON_KEY: anonKey,
