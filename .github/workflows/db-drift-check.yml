@@ -309,13 +309,14 @@ jobs:
                 [
                   $schema.functions[]?
                   | select(
-                      (.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "try_consume_ai_quota" or .name == "reserve_ai_quota")
+                      (.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "adjust_cash_balance" or .name == "try_consume_ai_quota" or .name == "reserve_ai_quota")
                       and .security_definer == true
                       and .authenticated_execute == true
                       and (
                         (([.settings[]? | strings | startswith("search_path=")] | any) != true)
                         or (.name == "upsert_holding_buy" and (.owner_guard_signature != true or .validates_positive_lot != true or .validates_nonnegative_price != true))
                         or (.name == "upsert_holding_sell" and (.owner_guard_signature != true or .validates_positive_lot != true))
+                        or (.name == "adjust_cash_balance" and .owner_guard_signature != true)
                         or (.name == "reserve_ai_quota" and (.owner_guard_signature != true or .validates_positive_tokens != true))
                         or (.name == "try_consume_ai_quota" and (
                           .auth_uid_reference != true
@@ -327,7 +328,7 @@ jobs:
                 ]
                 +
                 [
-                  "Missing required security RPC: " + (["upsert_holding_buy", "upsert_holding_sell", "try_consume_ai_quota", "reserve_ai_quota"] - [$schema.functions[].name])[]
+                  "Missing required security RPC: " + (["upsert_holding_buy", "upsert_holding_sell", "adjust_cash_balance", "try_consume_ai_quota", "reserve_ai_quota"] - [$schema.functions[].name])[]
                 ]
                 +
                 [
