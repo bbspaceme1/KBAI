@@ -34,14 +34,26 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Apply npm audit fixes within declared semver ranges only
+      - name: Upgrade vulnerable direct tooling to audited compatible releases
         shell: bash
         run: |
-          set +e
-          npm audit fix --no-fund
-          code=$?
-          set -e
-          echo "npm audit fix exit code: $code (non-forced updates only; validation below is authoritative)"
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const path = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+          pkg.devDependencies ??= {};
+          // Explicit, reviewed major upgrades: npm audit reports these as required fixes.
+          pkg.devDependencies.vercel = "^54.17.3";
+          pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
+          pkg.devDependencies.vitest = "^5.0.3";
+          pkg.devDependencies["@vitest/coverage-v8"] = "^5.0.3";
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\\n");
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit
+          # Apply any additional fixes that do not require force/major overrides.
+          npm audit fix --package-lock-only --no-fund || echo "Some advisories remain; test and report them below."
+          npm install --package-lock-only --ignore-scripts --no-audit
           git status --short
 
       - name: Reinstall strictly from the candidate lockfile
