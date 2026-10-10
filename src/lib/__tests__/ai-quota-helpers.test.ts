@@ -15,7 +15,7 @@ let subscription: { daily_limit: number; monthly_limit: number; status: string }
 let usageRows: Array<{ total_tokens: number }>;
 
 function queryFor(table: string) {
-  const query: Record<string, any> = {};
+  const query: Record<string, unknown> = {};
   query.select = vi.fn(() => query);
   query.eq = vi.fn(() => query);
   query.limit = vi.fn(() => query);
