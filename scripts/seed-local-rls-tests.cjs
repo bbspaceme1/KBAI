@@ -91,6 +91,37 @@ async function main() {
     ]),
   );
 
+  const caseAResult = await admin
+    .from("assistance_cases")
+    .insert({ user_id: userA.id, subject: "RLS fixture case A" })
+    .select("id")
+    .single();
+  const caseA = (await requireData("seed case A", caseAResult)).id;
+  const caseBResult = await admin
+    .from("assistance_cases")
+    .insert({ user_id: userB.id, subject: "RLS fixture case B" })
+    .select("id")
+    .single();
+  const caseB = (await requireData("seed case B", caseBResult)).id;
+  await requireData(
+    "assign advisor to case A",
+    await admin.from("case_assignments").insert({ case_id: caseA, advisor_id: advisor.id }),
+  );
+  await requireData(
+    "seed case analysis",
+    await admin.from("case_analysis").insert([
+      { case_id: caseA, author_id: userA.id, analysis: { fixture: "A" } },
+      { case_id: caseB, author_id: userB.id, analysis: { fixture: "B" } },
+    ]),
+  );
+  await requireData(
+    "seed case notes",
+    await admin.from("case_notes").insert([
+      { case_id: caseA, author_id: userA.id, body: "RLS fixture note A" },
+      { case_id: caseB, author_id: userB.id, body: "RLS fixture note B" },
+    ]),
+  );
+
   const lines = {
     VITE_SUPABASE_URL: url,
     VITE_SUPABASE_PUBLISHABLE_KEY: anonKey,
@@ -104,6 +135,8 @@ async function main() {
     RLS_TEST_ADVISOR_ID: advisor.id,
     RLS_TEST_ASSIGNED_CLIENT_ID: userA.id,
     RLS_TEST_UNASSIGNED_CLIENT_ID: userB.id,
+    RLS_TEST_CASE_A_ID: caseA,
+    RLS_TEST_CASE_B_ID: caseB,
   };
 
   for (const [key, value] of Object.entries(lines)) {
