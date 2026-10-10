@@ -377,3 +377,7 @@ Local-only migrations requiring reviewed disposition, dependency/order checks, a
 - Current PR #26 head observed after these changes: `6d824ea936a8e39af261adc760ec2023f1221c7b`; PR remains draft/open. No workflow runs for this exact head were returned at the time of this update. Results from earlier SHA `b7f3c3f9b907135b4a517b45895c894be782a5b7` must not be reused as final-candidate verification.
 - PR #24 remains open and its latest observed head checks failed. No merge was performed.
 - Release decision remains **HOLD** pending fresh same-SHA tests, dependency remediation, migration disposition, Supabase security fixes, staging/telemetry evidence, and required review.
+
+
+### Count correction after the new case-RLS migration
+- The previous 68-local / 53-remote / 15-local-only count was captured before adding `20261011100000_break_case_rls_recursion.sql`. The candidate branch now has **69 local SQL migration files versus 53 remote ledger entries**, i.e. **16 local-only candidates** if the previously observed 53 shared / 0 remote-only lineage is otherwise unchanged. Re-run the full comparison on the current head before using this as the final migration matrix; do not infer schema equivalence from counts.
