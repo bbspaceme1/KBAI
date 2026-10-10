@@ -60,7 +60,7 @@ jobs:
             "path-to-regexp@^8": "^8.4.2",
             "smol-toml": "^1.8.1",
             "tar": "^7.5.22",
-            "undici@^5": "^6.29.0",
+            "undici@^6": "^6.28.1",
             "@vercel/static-config": {
               ...((pkg.overrides ?? {})["@vercel/static-config"] ?? {}),
               "ajv": "^8.18.0"
