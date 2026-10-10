@@ -145,8 +145,9 @@ jobs:
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:
-          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          RLS_TEST_ENVIRONMENT: isolated
+          RLS_TEST_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          RLS_TEST_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
           RLS_TEST_USER_A_TOKEN: ${{ secrets.STAGING_RLS_TEST_USER_A_TOKEN }}
           RLS_TEST_USER_A_ID: ${{ secrets.STAGING_RLS_TEST_USER_A_ID }}
           RLS_TEST_USER_B_ID: ${{ secrets.STAGING_RLS_TEST_USER_B_ID }}
