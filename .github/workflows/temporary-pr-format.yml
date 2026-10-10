@@ -34,5 +34,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/lib/__tests__/ai-quota-helpers.test.ts src/lib/__tests__/ai-quota.test.ts src/lib/__tests__/market-data-provider.test.ts src/lib/__tests__/rls-authorization.test.ts
-          git commit -m "style: apply Prettier to security and data tests"
+          HUSKY=0 git commit -m "style: apply Prettier to security and data tests"
           git push origin HEAD:fix/gitleaks-pr-base-ref-20261010
