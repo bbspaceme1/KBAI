@@ -41,3 +41,44 @@ The latest recorded read-only remote audit identifies:
 ## Safety record
 
 No production migration, ledger repair, reset, production data write, deployment promotion, DNS mutation, or paid resource activation was performed as part of this report. Do not run `supabase db push`, migration repair, or production SQL writes while any version remains UNRESOLVED.
+
+
+## Follow-up read-only reconciliation — 2026-10-10 (latest head)
+
+The exact current PR #26 head is `dee26ca83245139cdc0994008f335405bdd20827`. The latest workflow set now shows **Local Migration Replay PASS** (run `38060616081`), while Drift Check (run `38060616089`) and CI (run `38060616096`) fail. The local replay completed successfully, including migration replay from an empty local database, RLS/RBAC behavior tests, and browser smoke tests. This does not prove remote migration parity.
+
+### Confirmed workflow failure causes
+
+- Drift authorization invariant: remote RPC `public.reserve_ai_quota` is missing. This is a real schema gap because the quota candidate migration introduces that function.
+- Drift parity: the live remote ledger still has 53 versions and the branch has 68 SQL files (53 shared, 15 local-only, 0 remote-only). The audit fails closed; it did not apply any migration.
+- CI dependency gate: the production-only dependency audit passed, but the full dependency tree gate failed. It explicitly reported unresolved high/critical advisories for `@vitest/coverage-v8`, `vitest`, `tinypool`, `vercel`, `vite`, `fast-glob`, `micromatch`, `ts-morph`, and several Vercel transitive packages. Do not suppress the gate or apply blind force/major upgrades.
+
+### Per-version preliminary disposition from live read-only schema evidence
+
+These are *review dispositions*, not permission to write to production. APPLY means the SQL appears to fill a confirmed gap and must first pass isolated staging plus behavioral tests. UNRESOLVED means schema equivalence, data migration, or security semantics still need proof.
+
+| Local-only version | Evidence from current remote read-only inspection | Preliminary disposition |
+|---|---|---|
+| `20260905130001` | Security advisor still reports six RLS-enabled tables without policies, including case-analysis/notes, deletion verification codes, ETL logs, methodologies and methodology versions. | **APPLY in isolated staging**, after verifying each policy predicate and admin/owner access tests. |
+| `20260905130100` | The related financial RPCs exist remotely, but existence alone does not prove the deployed function bodies, grants, and owner guards equal this SQL. | **UNRESOLVED** — compare definitions/ACLs and run owner-isolation tests. |
+| `20260908100000` | `portfolio_cash_flows` is absent from the remote table inventory. | **APPLY in isolated staging**, after validating cash-movement backfill, trigger idempotency and RLS. |
+| `20260908110000` | Remote `idx_etl_logs` lacks `expected_count`, `missing_count`, and `duplicate_count`; `idx_missing_symbols` is absent. | **APPLY in isolated staging**, after testing ETL retry/fencing and admin-only visibility. |
+| `20260908120000` | `plans`, `features`, `plan_entitlements`, and `company_subscriptions` are absent. | **APPLY in isolated staging**, after entitlement, capacity, and billing-state tests. |
+| `20260909100000` | Telegram gateway tables are absent from the remote inventory. | **APPLY in isolated staging** only after Telegram identity, master-gate, invite expiry/revocation, and RLS tests pass. |
+| `20261003120000` | Financial RPCs exist, but current function bodies and ACLs have not been proven equivalent to this corrective migration. | **UNRESOLVED** — compare exact definitions and concurrency/ownership behavior. |
+| `20261003140000` | Remote cash policies already show assigned-client scope, but holdings and portfolio-snapshot SELECT/INSERT/UPDATE policies still allow any advisor rather than only assigned clients. | **UNRESOLVED / partial schema equivalence** — do not treat this version as fully applied; validate the exact remaining policy delta. |
+| `20261005100000` | `user_sub_roles` exists remotely, but table constraints, policies, grants and `has_role` body still need semantic comparison against the migration. | **UNRESOLVED** — no ledger repair based on table existence alone. |
+| `20261007120000` | Remote `idx_financial_ratios` lacks all five proposed period/source/fetch columns. | **APPLY in isolated staging**, after confirming the intended fiscal-period model and duplicate handling. |
+| `20261007130000` | It requires every existing ratio row to have a fiscal year and quarter immediately after the prior migration adds those columns as nullable. Existing rows would therefore need an explicit backfill/deduplication step between these migrations. | **UNRESOLVED** — fix migration sequence/backfill and prove duplicate handling before considering apply. |
+| `20261010120000` | Remote `ai_usage_logs_status_check` allows only `success/error`; `reserve_ai_quota` is missing. | **APPLY in isolated staging**, after reservation/finalization, caller ownership, positive-token and concurrency tests. |
+| `20261010130000` | Remote holdings and snapshot policies currently grant broader advisor access than assigned-client scope. | **APPLY in isolated staging**, after positive and negative advisor/client RLS tests. |
+| `20261010140000` | `sync_user_roles_app_metadata`/trigger behavior and backfill have not been proven equivalent from a read-only existence check. | **UNRESOLVED** — verify trigger target, role source, and claim update semantics before apply. |
+| `20261010150000` | `handle_new_user` exists remotely, but its body, trigger wiring, and grants have not been proven equivalent to canonical `user_sub_roles` provisioning. | **UNRESOLVED** — verify signup fixtures and service-role-only execution. |
+
+### What changed after the previous snapshot
+
+- Local replay is now **completed PASS** on the exact current head.
+- The earlier status “local replay still running” is superseded.
+- Remote authorization inspection now confirms the missing `reserve_ai_quota` RPC and the broad advisor holdings/snapshot policies.
+- The ratio-period pair has a sequencing hazard: the enforcement migration cannot safely follow the nullable-column migration without an explicit backfill/deduplication step.
+- No production migration, ledger repair, deployment promotion, DNS mutation, or paid feature was used to obtain these results.
