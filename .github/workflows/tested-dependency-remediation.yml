@@ -59,7 +59,8 @@ jobs:
             "path-to-regexp@^6": "^6.3.0",
             "path-to-regexp@^8": "^8.4.2",
             "smol-toml": "^1.8.1",
-            "tar": "^7.5.22"
+            "tar": "^7.5.22",
+            "undici@^6": "^6.28.1"
           };
           fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
           NODE
