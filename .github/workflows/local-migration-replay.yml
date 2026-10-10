@@ -12,14 +12,19 @@ permissions:
 
 jobs:
   replay:
-    name: Replay migrations on a clean local Supabase database
+    name: Replay migrations and test RLS on local Supabase
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     env:
       SUPABASE_TELEMETRY_DISABLED: "1"
       DO_NOT_TRACK: "1"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -29,6 +34,19 @@ jobs:
         run: supabase db reset --local
       - name: Verify local stack status
         run: supabase status
+      - name: Prepare isolated RLS test users and fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
+            echo "::add-mask::$value"
+          done
+          node scripts/seed-local-rls-tests.cjs
+      - name: Run behavioral RLS authorization matrix
+        run: npm run test:rls
+        env:
+          RLS_TEST_ENVIRONMENT: isolated
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
