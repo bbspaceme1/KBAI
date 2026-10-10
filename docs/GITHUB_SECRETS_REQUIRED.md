@@ -56,3 +56,23 @@ Nama berikut diperlukan jika fitur terkait diaktifkan di environment aplikasi, t
 
 - These values are required for end-to-end and deployment verification steps.
 - The CI workflow validates that each value is present before running E2E tests.
+
+## Staging-only integration secrets (required before CI can pass)
+
+The GitHub Actions staging environment must define the following **staging-only** secrets. Do not point them at the production Supabase project or production user accounts.
+
+- STAGING_E2E_URL
+- STAGING_SUPABASE_URL
+- STAGING_SUPABASE_SERVICE_ROLE_KEY
+- STAGING_SUPABASE_ANON_KEY
+- STAGING_RLS_TEST_USER_A_TOKEN
+- STAGING_RLS_TEST_USER_A_ID
+- STAGING_RLS_TEST_USER_B_ID
+- STAGING_RLS_TEST_ADVISOR_TOKEN
+- STAGING_RLS_TEST_ADVISOR_ID
+- STAGING_RLS_TEST_ASSIGNED_CLIENT_ID
+- STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID
+
+Configure these under **Settings → Environments → staging → Environment secrets**. Use synthetic test users and records in an isolated staging database. The CI workflow rejects the production Supabase project ref `ejiufnrqvkvqzxroustb` for these tests. Do not copy production credentials into staging.
+
+The integration workflow intentionally fails closed when any required staging secret is absent. Keep production deployment credentials (`VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN`, and production Supabase credentials) separate from staging integration credentials.
