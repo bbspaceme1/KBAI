@@ -80,7 +80,6 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(sell.error).toBeTruthy();
   });
 
-
   it("rejects AI quota consumption for another user's ID", async () => {
     const authenticated = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
