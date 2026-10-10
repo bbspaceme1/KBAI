@@ -44,7 +44,7 @@ jobs:
           const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
           pkg.devDependencies ??= {};
           // Explicit, reviewed major upgrades: npm audit reports these as required fixes.
-          pkg.devDependencies.vercel = "^54.17.3";
+          pkg.devDependencies.vercel = "^63.1.2";
           pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
           pkg.devDependencies.vitest = "^5.0.3";
           pkg.devDependencies["@vitest/coverage-v8"] = "^5.0.3";
