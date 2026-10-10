@@ -33,7 +33,7 @@ jobs:
         with:
           version: latest
       - name: Start isolated local Supabase stack
-        run: supabase start
+        run: supabase start --exclude studio,edge-runtime,logflare,vector,mailpit,imgproxy,realtime,storage-api,supavisor
       - name: Replay every migration from an empty database
         run: supabase db reset --local
       - name: Verify local stack status
@@ -43,8 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
-          ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-}}"
-          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SECRET_KEY:-}}"
+          API_URL="${API_URL:-${SUPABASE_URL:-}}"
+          ANON_KEY="${ANON_KEY:-${SUPABASE_ANON_KEY:-${PUBLISHABLE_KEY:-}}}"
+          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-${SECRET_KEY:-}}}"
           export API_URL ANON_KEY SERVICE_ROLE_KEY
           for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
             echo "::add-mask::$value"
