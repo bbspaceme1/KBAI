@@ -122,7 +122,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "^1.4.0",
+    "@lovable.dev/vite-tanstack-config": "^2.26.6",
     "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -145,8 +145,22 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vercel": "^37.14.0",
+    "vercel": "^63.1.2",
     "vite": "^7.3.1",
     "vitest": "^2.1.8"
+  },
+  "overrides": {
+    "@fastify/busboy": "^3.2.2",
+    "js-yaml": "^4.3.2",
+    "minimatch": "^10.2.3",
+    "path-to-regexp@^4": "^6.3.0",
+    "path-to-regexp@^6": "^6.3.0",
+    "path-to-regexp@^8": "^8.4.2",
+    "smol-toml": "^1.8.1",
+    "tar": "^7.5.22",
+    "undici@^5": "^6.29.0",
+    "@vercel/static-config": {
+      "ajv": "^8.18.0"
+    }
   }
 }

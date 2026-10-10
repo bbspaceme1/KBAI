@@ -1,5 +1,103 @@
 # KBAI Reconciliation Progress
 
+## Current verified snapshot — 2026-10-10 13:13 UTC
+
+This is the latest authoritative status; older dated notes below are historical.
+
+- Candidate branch head: `844e388b384ceb8d40f7e7361cba174bd20166d7`; PR #26 remains draft and unmerged.
+- **CI PASS** (run `38054630604`): install, lint, type-check, build and unit tests passed. The latest completed quality run on the immediately preceding code-equivalent candidate had 161 tests passed, 14 skipped and 61.04% statements/lines, 65.17% functions, 72.77% branches. Full dependency-tree audit still reports 40 advisories (2 low, 9 moderate, 25 high, 4 critical); production-only audit reports 0. Do not treat the full dependency tree as security-clear.
+- **Local Migration Replay PASS** (run `38054630593`): all migrations replayed from an empty local database after restoring the remote-only SQL and making `20261003140000_reconcile_advisor_scope_rls.sql` idempotent for the two already-created scoped cash policies. The RLS/RBAC matrix passed 14/14 tests and homepage/login browser smoke passed 2/2.
+- **Migration Drift still FAILS, correctly fail-closed** (run `38054630676`): all 10 remote-only SQL statements were recovered from `supabase_migrations.schema_migrations.statements` and restored as versioned repository files. Current ledger comparison is 68 local files vs 53 remote entries: 53 shared versions, 15 local-only versions, 0 remote-only versions, 0 duplicate local timestamps. The 15 local-only versions have not been applied to production. No ledger repair or production migration was performed.
+- Remote data preflight: `idx_financial_ratios` has 0 rows, `idx_etl_logs` has 0 rows, and `ai_usage_logs` has 0 rows. This reduces immediate data-backfill risk for the candidate fiscal-period, ETL status, and quota-status constraints, but is not a substitute for a production dry-run or approval. Remote schema still lacks the performance/cash-flow/benchmark tables, `idx_missing_symbols`, Company Operations/billing tables, and Telegram gateway tables. Remote advisor policies still permit broader holdings/snapshot reads than the assigned-client scope in the candidate migrations.
+- Vercel preview for commit `96421f7b748655944b4d15fd62a4418aa9dedf25` was READY and homepage/login returned HTTP 200. Later commits hit the free-plan Vercel build-rate limit. The project remains `live=false`, deployment target `null`; no promotion or paid upgrade was performed.
+- PostHog project `593465`: public key matches `VITE_POSTHOG_KEY`; authorized application URLs are set to the stable Vercel aliases and active health issues are 0. However, PostHog still reports no ingested events in the last 30 days, so event delivery is not proven. Sentry DSN values match, but no Sentry API connector is available in this session. Cloudflare API auth works, but the connected account has 0 zones, 0 Pages projects and 0 Worker scripts.
+- No production data/schema write, production migration apply, migration-ledger repair, deployment promotion, DNS mutation, or paid resource was used. Production remains **HOLD / NOT PRODUCTION READY** pending disposition of the 15 local-only migrations, full dependency remediation, a safe production apply path, and live telemetry proof.
+
+## Current verified snapshot — 2026-10-10 13:00 UTC
+
+This section supersedes older operational notes below when they conflict. All remote database queries in this snapshot were read-only.
+
+- Candidate branch: `fix/gitleaks-pr-base-ref-20261010`; current verified code/workflow commit before this documentation update: `96421f7b748655944b4d15fd62a4418aa9dedf25`; PR #26 remains draft and unmerged.
+- CI run `38053732059`: **PASS**. Unit suite: 24 test files passed, 1 skipped; 161 tests passed, 14 skipped. Coverage: 61.04% statements/lines, 65.17% functions, 72.77% branches. The production-only npm audit reported 0 vulnerabilities, but the full dependency-tree audit still reports 40 advisories (2 low, 9 moderate, 25 high, 4 critical); do not call dependency security fully clear. Codecov upload lacks a valid upload token and is not evidence of failed tests.
+- Local Migration Replay run `38053732037`: **PASS**. Fresh empty-database migration replay, local test fixtures, 14/14 behavioral RLS/RBAC tests, and 2/2 homepage/login browser smoke tests completed successfully.
+- Database Migration Drift Check run `38053732142`: **FAIL, expected fail-closed**. The target URL mismatch guard was removed by deriving the project reference from `supabase/config.toml`; the workflow no longer requires unused `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` merely to run this read-only audit. The access token is present. The remaining failure is real history divergence: 58 local SQL files vs 53 remote ledger entries; 43 shared versions, 15 local-only, 10 remote-only, zero duplicate local timestamps. No migration was applied and no ledger was repaired.
+- Current remote Supabase catalog recheck: `ai_usage_logs_status_check` still permits only `success/error`, while the candidate quota migration requires `reserved` during atomic reservation. Remote advisor policies still allow any advisor role to read holdings and portfolio snapshots rather than limiting access to assigned clients. Remote schema still lacks performance/cash-flow/benchmark tables, Company Operations/billing tables, Telegram gateway tables, and `idx_missing_symbols`; `user_sub_roles` exists remotely. These are confirmed production parity/security blockers; the candidate migrations remain un-applied.
+- Vercel project `kbaiterminal`: latest preview deployment for this commit is **READY** and preview homepage/login both returned HTTP 200 when fetched through Vercel's protected-deployment access path. Its deployment target is still `null`, project `live=false`, and SSO protection remains enabled. This is a preview smoke result, not a production deployment or promotion.
+- PostHog active project `Default project` (ID `593465`): the configured `VITE_POSTHOG_KEY` matches that project's public token without printing either value. I set its authorized application URLs to the two stable Vercel project aliases; PostHog health checks then cleared from one warning to zero active issues. However, PostHog reports `ingested_event=false` and no tracked events in the last 30 days, so actual KBAI event ingestion is **not yet proven**. SDK capture remains privacy-conscious: autocapture and session recording are disabled in app code.
+- Sentry: `VITE_SENTRY_DSN` matches the integration-managed `SENTRY_DSN` in Vercel, checked without printing values. The Sentry API connector is not exposed in this session, so issue/event ingestion cannot be verified here; variable presence is not proof of live reporting.
+- Cloudflare API access works, but the account currently has 0 zones, 0 Pages projects, and 0 Worker scripts. Do not create/move DNS or shift KBAI hosting away from the PRD's Vercel production target just to make Cloudflare appear integrated.
+- No production database write, migration apply, ledger repair, deployment promotion, DNS mutation, paid resource, or paid vendor feature was performed. Production remains **HOLD / NOT PRODUCTION READY**.
+
+## Update 2026-10-10 — Master PRD and free-tier reconciliation pass
+
+**Release decision: HOLD / NOT PRODUCTION READY.** Production Supabase was queried read-only; no production write, migration, ledger repair, reset, or deployment was executed. No paid staging environment or paid vendor feature was activated. Supabase is on Free and Vercel on Hobby; no paid upgrade was used.
+
+### Canonical product source of truth
+- Added `docs/prd/MASTER-PRD.md` on this feature branch as the consolidated Master PRD v1.0, based on approved prior KBAI product discussions.
+- Scope guardrail: no functionality, role, price, data source, AI capability, or workflow may be changed unless a specific PRD section and acceptance criterion authorizes it.
+- The PRD is on draft PR #26; it is not yet merged to `main`.
+
+### Fresh local migration replay
+- Latest verified run: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38050784406) **PASS** on commit `68e90a49c555d7ae40c6bd049e640b6a00387033`. [CI quality/build](https://github.com/bbspaceme1/KBAI/actions/runs/38050784400) also **PASS** on that head.
+- All 58 local migrations replayed from an empty isolated Supabase database; the fixture setup passed; the behavioral RLS/RBAC matrix passed **13/13 tests**; the homepage/login browser smoke passed **2/2 tests**.
+- The original blocker was confirmed: remote `on_user_role_change` runs `public.add_role_to_jwt()` on `public.user_roles`, but the function reads/writes `NEW.raw_app_meta_data`, which exists on `auth.users`, not on a role row. The current branch corrects the canonical role source through `20261010140000_fix_canonical_role_claim_sync.sql` and `20261010150000_fix_canonical_user_provisioning.sql`.
+- A positive quota-path test then exposed a second bug: `try_consume_ai_quota` inserts `status='reserved'`, while `ai_usage_logs_status_check` only allowed `success/error`. The branch migration `20261010120000_harden_ai_quota_ownership.sql` now widens the constraint to the existing reservation/usage lifecycle and preserves reservation accounting semantics. Local replay and 13-test RLS matrix passed after this correction.
+
+### Current CI and drift
+- CI quality/build is green on the latest branch head. The local replay workflow also verifies migration replay, behavioral RLS/RBAC and homepage/login smoke tests in the same isolated local Supabase stack.
+- Database Migration Drift Check continues to fail because local migration history and the remote Supabase ledger differ. It is a read-only gate and does not apply migrations.
+- Read-only version comparison on the current branch tree: **58 local migration files vs 53 remote ledger entries; 43 versions shared, 15 local-only, 10 remote-only, and 0 duplicate local versions**. The 15/10 differences are not yet individually classified APPLY/SKIP/HOLD; do not apply or repair the production ledger until the SQL/schema effect is reconciled.
+- Latest drift workflow remains **FAIL** because version histories differ. No production write SQL or history repair was run; production checks were read-only.
+- The exact-original migration filenames differ from earlier assumed names; the current `main` tree contains `20260906120000_backfill_test_account_roles.sql`, `20260908100000_performance_engine_schema.sql`, `20260908110000_data_pipeline_reconciliation.sql`, `20260908120000_company_ops_entitlements_schema.sql`, and `20261005100000_canonical_user_sub_roles.sql`. Use the actual tracked paths and inspect their SQL; do not reconstruct by guessed filenames.
+
+### Read-only migration/schema reconciliation matrix
+
+The comparison is **58 local migration files vs 53 remote ledger entries: 43 shared versions, 15 local-only and 10 remote-only; no duplicate local versions**. These classifications are deployment candidates, not authorization to execute anything against production.
+
+| Local-only version | Read-only evidence / disposition |
+|---|---|
+| `20260905130001` | **APPLY candidate after review:** the affected tables exist remotely, but six RLS-enabled tables currently have no policies. Local migration adds owner/assigned-case/admin policies. |
+| `20260905130100` | **HOLD:** financial RPCs already have ownership checks remotely, but exact body/grant equivalence must be compared before deciding APPLY vs SKIP. |
+| `20260908100000` | **APPLY candidate after review:** `portfolio_cash_flows`, `performance_snapshots`, and `benchmark_base100_series` are absent remotely. |
+| `20260908110000` | **APPLY candidate after review:** `idx_missing_symbols` is absent; `idx_etl_logs` exists and its actual columns must be compared before any change. |
+| `20260908120000` | **APPLY candidate after review:** Company Operations tables `plans`, `features`, `plan_entitlements`, `company_subscriptions`, `payments`, and `revenue_records` are absent remotely. |
+| `20260909100000` | **APPLY candidate after review:** Telegram gateway tables are absent remotely; verify chat IDs, bot permissions, RLS and invite expiry in staging/local tests. |
+| `20261003120000` | **HOLD:** remote financial RPCs already show caller ownership checks, fixed search path and authenticated-only execution, but exact SQL equivalence must be proven; do not repair the ledger. |
+| `20261003140000` | **HOLD / superseded candidate:** remote holdings and portfolio snapshot policies allow any advisor role rather than assigned clients only. Use the later scoped correction only after replay/authorization review; do not blindly apply both. |
+| `20261005100000` | **HOLD:** `user_sub_roles` exists remotely but its version is absent from the ledger and `has_role` lacks a cross-user caller guard. Compare constraints and apply the canonical role-source corrections through the reviewed forward migrations. |
+| `20261007120000`, `20261007130000` | **APPLY candidates after a fresh preflight:** the remote `idx_financial_ratios` lacks fiscal-period columns; it had zero rows at the last check, but row count/null checks must be repeated immediately before release. |
+| `20261010120000` | **APPLY candidate after review:** remote quota RPC lacks caller binding and positive-token validation; the status constraint also rejects its `reserved` lifecycle. Branch fix is locally tested. |
+| `20261010130000` | **APPLY candidate after review:** current remote advisor access is broader than assigned-client scope; the branch adds owner/assigned-advisor reads and admin-only snapshot writes. |
+| `20261010140000`, `20261010150000` | **APPLY candidates after review:** fix the invalid role-claim trigger and seed the canonical `user_sub_roles` source during new-user provisioning. Fresh local replay and authorization tests pass. |
+
+Remote-only versions `20261002183536`, `20261002183606`, `20261002183624`, `20261002183633`, `20261002183716`, `20261002183743`, `20261002183752`, `20261002183831`, `20261002183853`, and `20261003075330` are an iterative financial-RPC/advisor-scope repair and verification sequence. **HOLD / preserve the remote ledger** until their original SQL or sufficient release evidence is recovered and each effect is mapped. Current financial RPC schema partially reflects ownership hardening, but advisor scope is still too broad. Never delete remote history, rename local versions, or fabricate ledger rows to make the list green.
+
+### Integration and hosting snapshot
+- **Supabase:** linked project is reachable and reports `ACTIVE_HEALTHY`; organization plan is `free`. Schema, migration parity and production behavioral authorization are not fully reconciled.
+- **Vercel:** team plan is `hobby`; the latest feature-branch preview is `READY`, but its deployment `target` is null and project `live` remains `false`. SSO protection is enabled for all non-custom domains; the configured `kbaiterminal.vercel.app` domain remains protected. Do not disable protection or promote a deployment until release gates pass.
+- **Vercel environment variables:** canonical browser-safe `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_POSTHOG_KEY`, and `VITE_SENTRY_DSN` exist for production/preview/development. Numerous legacy/duplicate Supabase variables remain. The metadata flags several server-secret entries as not encrypted/readable-secret; do not print values. Treat secret storage/rotation and removal of duplicate variables as a security work item requiring safe handling.
+- **PostHog:** the connected organization/project can be read (`KBAI` / `Default project`), but its project reports `ingested_event: false`; a GitHub integration exists, but telemetry from KBAI is not yet proven. Branch code uses explicit sanitized pageview capture and disables automatic raw URL capture; verify after a successful preview.
+- **Cloudflare:** account connection works (standard/free-style account), but it has no zones, Pages projects, or Worker scripts and account-level 2FA enforcement is currently off. It is not integrated with KBAI hosting/DNS; do not create/transfer domains or move hosting outside the PRD's single Vercel production target.
+- **Sentry:** Vercel environment metadata contains DSN-related variables, but the Sentry API connector/tool is not available in this session and actual Sentry project ingestion cannot be verified here. One Sentry token variable is flagged by environment metadata for review; no values were read or printed. Do not infer connectivity from variable presence alone.
+
+### Security / functional blockers still open
+1. **Production remains blocked by migration ledger/schema drift**, even though isolated local replay, RLS and browser smoke gates now pass.
+2. Apply/reconcile the quota, role-claim, user-provisioning and advisor-scope corrections only through a reviewed staged release after exact SQL/schema comparison and rollback review.
+3. Recheck production's `ai_usage_logs_status_check`: current remote constraint allows only `success/error`, while the existing quota RPC inserts `reserved`; the current remote `ai_usage_logs` table had zero rows at the last read-only check. Do not change production until the forward migration is approved.
+4. Resolve migration ledger/schema drift with per-version SQL/schema evidence and explicit APPLY/SKIP/HOLD; never repair the production ledger blindly.
+5. Resolve the remaining schema/migration gaps (IDX ratio periods, Telegram, Company Operations, portfolio/performance objects) before declaring parity.
+6. Review advisor scope on holdings and performance snapshots; test assigned vs unassigned client access.
+7. Reach the meaningful coverage target and pass lint, type-check, unit, build, local replay, RLS and browser smoke gates.
+8. Review Supabase security/performance advisors and dependency advisories; verify official/licensed full-universe IDX EOD data.
+9. Verify Vercel public-domain/auth/env behavior and Sentry/PostHog event ingestion without exposing secrets or removing security protection prematurely.
+10. Produce and review a release-specific rollback/forward-repair plan before staging or production execution.
+
+### Free-tier policy
+All work must remain within already available free-tier allowances. No paid Supabase staging, paid monitoring, paid vendor feature, paid add-on, or upgrade is authorized. If a required production gate cannot be satisfied on the free tier, keep the release blocked and document the limitation.
+
+---
+
+
 ## Status Saat Ini
 
 **BLOCKED / NOT PRODUCTION READY.** GitHub Actions membuktikan ketujuh secrets `PRESENT` tanpa mencetak nilainya. Supabase project/schema sudah dibaca read-only; migration history berbeda dan terdapat duplicate local timestamp. Vercel token/org/project secrets hadir, tetapi user identity 404 dan team/project 403. Coverage, RLS behavior tests, E2E, dependency advisories, dan deployment tetap release blockers. Tidak ada migration atau deployment production yang dijalankan.
@@ -165,3 +263,132 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 ## Git Completion
 
 Read-only audit findings were previously merged via PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) at `0248d7f75a5e69bd924c701684dd51892b86f130`. This update is prepared on `feature/reconciliation-release-readiness`. No production migration, deployment mutation, data deletion, or live provider change has been performed. The original package-lock change was preserved according to the prior audit record.
+
+
+### Coverage and GitHub workflow credential findings — 2026-10-10
+
+- The last full-source coverage report (commit `aa3ad2dc8096a6b4d590ad6f4a3a9e7094f121a7`) showed **13.19% statements/lines, 34.28% functions and 65.39% branches**. That report counted test files, scripts, E2E specs and generated route trees, and the previous threshold configuration did not enforce the intended gate.
+- The candidate now measures the PRD's risk-critical business modules only, excludes test/generated files and sets real **60% line/statement/function/branch thresholds**. The new coverage gate must pass; if it fails, add meaningful tests rather than lower the target. Its result is pending on the new head.
+- The read-only migration workflow reports that the GitHub Actions `SUPABASE_URL` secret's project reference does not match `supabase/config.toml`, and `SUPABASE_ACCESS_TOKEN` is unavailable/missing. Vercel's canonical `VITE_SUPABASE_URL` was independently verified to match the connected project URL `https://ejiufnrqvkvqzxroustb.supabase.co`. Update the GitHub repository secret and token separately; do not bypass the guard or paste secrets into logs.
+- No paid staging project, paid vendor upgrade, or production write was used. Vercel's environment list did not contain OpenAI, Anthropic, Gemini or Midtrans keys; no paid AI/payment API was activated by this work.
+
+
+### Continuation update — 2026-10-10 (UTC)
+
+- Applied repository Prettier to the four touched test files: `src/lib/__tests__/ai-quota-helpers.test.ts`, `ai-quota.test.ts`, `market-data-provider.test.ts`, and `rls-authorization.test.ts`. The temporary formatter workflow was removed after its formatting commit; no temporary workflow remains.
+- The latest confirmed quality/build result before the formatting pass was **PASS** for lint/type/build/admin-guard/unit tests at commit `b1fd42844ba262f6e0379d34186233a91147a787`; it is not treated as proof for the latest head.
+- Local migration replay completed **PASS** at commit `edafdf967e757f1bc8fd7fd6e5328d9a567023c5`, including migration replay, isolated fixture setup, RLS matrix, and browser smoke at that point. The replay is being rerun after later formatting/metadata commits; do not mark the latest head green until it completes.
+- The most recent drift check still fails because it correctly reports local-only migration versions `20260905130001`, `20260905130100`, `20260908100000`, `20260908110000`, `20260908120000`, `20260909100000`, `20261003120000`, `20261003140000`, `20261005100000`, `20261007120000`, `20261007130000`, and `20261010120000`–`20261010150000`; remote-only versions `20261002183536`, `20261002183606`, `20261002183624`, `20261002183633`, `20261002183716`, `20261002183743`, `20261002183752`, `20261002183831`, `20261002183853`, and `20261003075330`. This remains a **production blocker**, not an instruction to apply or repair the ledger.
+- GitHub's latest runs returned `action_required` on the newest commit after the formatting workflow push; approval/rerun status must be resolved and all required checks must be observed on the exact final head. A previously successful run does not substitute for checks on the current commit.
+- The Vercel deployment attempts on this branch have `target: null`; some previews ended in `ERROR`. No deployment is verified as production-ready or promoted. Production remains on hold.
+- Outstanding original migration SQL for the historical backfill, portfolio performance, data pipeline, and Company Operations/entitlements versions was not recoverable from the checked refs. Do not fabricate replacement files or rename timestamps to make the ledger match.
+- No production migration, migration-ledger repair, production deployment, paid staging project, or paid-feature activation was performed.
+
+
+### Continuation update — migration disposition and enforced security gates — 2026-10-10
+
+**Fresh migration comparison (read-only):** local repository has 68 SQL migration files; the connected Supabase ledger has 53 versions. There are **15 local-only versions and 0 remote-only versions**. This is a lineage difference, not authorization to apply them to production. The latest verified local replay on commit `51606caecc7ea3005334535fa1bcdddf5f407a9f` passed; replay must be rerun on the current workflow-change commit.
+
+Local-only migrations requiring reviewed disposition, dependency/order checks, and staging verification:
+
+1. `20260905130001_harden_phase0_rls_and_compliance.sql`
+2. `20260905130100_fix_advisor_schema_function_mismatches.sql`
+3. `20260908100000_performance_engine_schema.sql`
+4. `20260908110000_data_pipeline_reconciliation.sql`
+5. `20260908120000_company_ops_entitlements_schema.sql`
+6. `20260909100000_telegram_login_community_verification.sql`
+7. `20261003120000_reconcile_financial_rpc_ownership.sql`
+8. `20261003140000_reconcile_advisor_scope_rls.sql`
+9. `20261005100000_canonical_user_sub_roles.sql`
+10. `20261007120000_idx_ratio_periods.sql`
+11. `20261007130000_enforce_idx_ratio_periods.sql`
+12. `20261010120000_harden_ai_quota_ownership.sql`
+13. `20261010130000_enforce_advisor_portfolio_scope.sql`
+14. `20261010140000_fix_canonical_role_claim_sync.sql`
+15. `20261010150000_fix_canonical_user_provisioning.sql`
+
+**Migration risk notes:** the performance/Company Ops migrations create new persistence domains; Telegram migration creates identity/membership/invite/rate-limit tables; financial and AI quota migrations alter SECURITY DEFINER RPCs and authorization; role-claim/provisioning migrations replace legacy role synchronization; fiscal-period enforcement intentionally refuses rows with missing period metadata. These require staging schema/RLS behavior checks and data preflight. No migration was applied to production and the ledger was not edited.
+
+**Security gates tightened in this branch:**
+- Full dependency-tree `npm audit --audit-level=high` is now a required CI gate rather than `continue-on-error`. Previously observed full-tree audit: 40 advisories (2 low, 9 moderate, 25 high, 4 critical); production-only audit previously reported zero. The current full-tree gate is expected to fail until advisories are remediated with lockfile-consistent, reviewed updates. Do not use `npm audit fix --force` or lower the severity threshold to make CI green.
+- Read-only Supabase audit now has a fail-closed authorization gate for authenticated SECURITY DEFINER financial/quota RPCs and RLS-enabled base tables without policies. The live advisor result currently shows five authenticated SECURITY DEFINER RPC warnings and six RLS-enabled/no-policy tables; the new gate is intended to block release until the actual remote findings are corrected and retested.
+- These workflow edits are guardrails, not proof that production has been repaired. No SQL write, production migration, ledger repair, production deployment, DNS change, or paid-tier activation was performed.
+
+
+## Fresh audit snapshot — 2026-10-11 01:10 WIB
+
+### Baseline identity and release decision
+- Repository: `bbspaceme1/KBAI`; production branch observed at `8d7aa8f9ae0ff808b317d1de9b411c631ebfc357` (latest commit returned by GitHub commit search at audit time).
+- PR #24 is open, not merged; current head `64abc215dc097b061662145c5df3bdba9b2ea7c1`. PR #26 is open and draft; current head `b7f3c3f9b907135b4a517b45895c894be782a5b7`. Both are reported mergeable by GitHub, but required gates are failing.
+- Supabase project `ejiufnrqvkvqzxroustb` is ACTIVE_HEALTHY. The connected Vercel project `kbaiterminal` has `live=false`, latest deployment state READY but `target=null`, and SSO protection enabled. This is not a production release.
+- **Decision: HOLD / NOT PRODUCTION READY.** No production migration, production data write, ledger repair, DNS change, SSO weakening, paid upgrade, or deployment promotion was performed.
+
+### Latest workflow evidence for PR #26 head
+- CI run [38074244959](https://github.com/bbspaceme1/KBAI/actions/runs/38074244959) failed at the full dependency-tree audit. `npm ci`, production-only audit, Gitleaks, conflict scan, lint, type-check, build, Supabase admin guard, unit tests, and coverage generation completed successfully on that run. The complete npm audit JSON artifact upload succeeded. The integration/E2E job was SKIPPED because the isolated staging integration gate is not enabled; skipped is not pass.
+- Local Migration Replay run [38074244952](https://github.com/bbspaceme1/KBAI/actions/runs/38074244952) failed at the behavioral RLS authorization matrix. Empty-database migration replay and fixture setup passed; homepage/login smoke tests were SKIPPED after the RLS step failed.
+- Database Migration Drift Check run [38074244954](https://github.com/bbspaceme1/KBAI/actions/runs/38074244954) failed both the remote authorization invariants and migration drift checks. Read-only schema inspection, artifact upload, Supabase advisors, and Vercel metadata audit completed.
+- PR #24 head checks [CI run 38067859281](https://github.com/bbspaceme1/KBAI/actions/runs/38067859281) and [drift run 38067859283](https://github.com/bbspaceme1/KBAI/actions/runs/38067859283) both failed. Do not reuse a green result from another SHA as a pass for either current PR head.
+
+### npm audit artifact — retrieved and inspected
+- Artifact: [download npm audit JSON ZIP](https://github.com/bbspaceme1/KBAI/actions/runs/38074244959) (artifact `npm-audit-report-f6bdf063ffbb59f9fc1ce55a2e1f76fcf2d3c2eb`, artifact ID `11677453349`, created 2026-10-10 18:05 UTC, expires 2026-10-24 18:05 UTC).
+- The artifact was successfully downloaded and its JSON parsed. It reports 1,273 dependency nodes: 449 production, 673 development, 296 optional and 29 peer; 28 vulnerability records: 3 moderate, 22 high and 3 critical. No low findings are reported in this snapshot. This is a point-in-time result, not the final dependency disposition.
+- Main dependency families in the report: direct `vercel` CLI (high; suggested fix `vercel@32.2.0`, SemVer-major), direct `vitest` (critical; suggested fix `vitest@5.0.3`, SemVer-major), direct `@vitest/coverage-v8` (critical; suggested fix `@vitest/coverage-v8@5.0.3`, SemVer-major), and transitive `@vitest/mocker`, `tinypool`, `vite`, `vite-node`, `esbuild`, `fast-glob`, `micromatch`, `braces`, `ts-morph`, and multiple `@vercel/*` packages.
+- Several Vercel-related advisories converge on upgrading the direct `vercel` CLI to 32.2.0; npm labels that fix SemVer-major. Vitest-related advisories converge on Vitest 5.0.3, also SemVer-major. Do not apply these upgrades blindly: first inspect `package.json`, lockfile parent paths, release notes and runtime usage, then choose the smallest compatible update path and run all test/build/replay gates.
+- The artifact name includes merge SHA `f6bdf063ffbb59f9fc1ce55a2e1f76fcf2d3c2eb` while GitHub reports PR head SHA `b7f3c3f9b907135b4a517b45895c894be782a5b7`. Treat the artifact as produced by the run associated with that PR head, but fix/verify artifact naming so future reports unambiguously include both `github.sha` and `github.event.pull_request.head.sha`; do not call the label itself the head SHA.
+- Full per-advisory parent-path/version analysis remains incomplete. The JSON identifies vulnerable ranges, installed nodes, dependency edges and fix availability; the next pass must query the lockfile and report complete root-to-leaf paths, installed versions, GHSA/CVE IDs, compatibility analysis and regression tests. No lockfile update was made in this audit pass.
+
+### Fresh Supabase advisor evidence (observed 2026-10-10 18:10 UTC)
+- Security: `public.case_analysis` and `public.case_notes` have RLS enabled but no policies (2 findings).
+- Security: `pg_net` and `pg_trgm` extensions are in `public` (2 warnings).
+- Security: authenticated callers can execute four SECURITY DEFINER RPCs through the API: `adjust_cash_balance(uuid,numeric)`, `has_role(uuid,app_role)`, `try_consume_ai_quota(uuid,integer)`, and `upsert_holding_buy(uuid,text,integer,numeric)`. Each requires explicit least-privilege review; don't revoke indiscriminately without checking intended server/client call paths.
+- Security: leaked-password protection is disabled.
+- Performance: 15 unindexed foreign keys, 34 auth/RLS initialization-plan warnings, and 7 duplicate-index groups were reported; multiple permissive policies were also reported. These should be prioritized by workload and semantics, and only fixed after inspecting the exact policies/index definitions and testing query plans.
+- These advisor results are live blockers/evidence, not proof that any remediation has been applied.
+
+### Progress calculation (release-gate evidence, not product-feature completeness)
+- Use 15 equal-weight release evidence gates for this snapshot: baseline captured; quality checks; secret scan; audit artifact captured; full dependency audit; migration replay; behavioral RLS/RBAC; migration drift; Supabase advisor/security clearance; staging integration/E2E; production deployment target/alias; Sentry ingestion; PostHog ingestion; Cloudflare resource/config decision; PR review and required-check completion.
+- Fully evidenced pass: 4/15 (baseline captured, quality checks except dependency audit, secret scan, audit artifact upload/retrieval). Migration replay is partial (SQL replay passed, behavioral authorization failed), counted as 0.5/15. **Evidence completion = 30% (4.5 ÷ 15)**. This is not a claim that 30% of all product features are implemented; it is a reproducible snapshot of release-gate evidence.
+- Status labels: IMPLEMENTED means code/config exists; TESTED means a relevant test ran; VERIFIED means current resource/runtime evidence supports the result; RELEASED means an approved production release exists. Do not promote any item to RELEASED based on preview or local test results.
+
+### Immediate next actions
+1. Inspect and fix the exact RLS behavioral test failures from run `38074244952`; rerun replay + authorization + browser smoke on the new same candidate SHA.
+2. Inspect full job logs for drift run `38074244954`, classify each failed remote authorization invariant and every migration version; preserve read-only production behavior.
+3. Resolve dependency paths from the captured JSON against `package-lock.json`; test minimum compatible direct/transitive updates in CI with networked npm, then run `npm ci`, full audit, production-only audit, unit/build and migration replay on the same SHA. Do not use `npm audit fix --force`.
+4. Correct `case_analysis`/`case_notes` RLS policies, SECURITY DEFINER execute grants/ownership binding and leaked-password configuration only through reviewed, tested changes with explicit production approval where required.
+5. Obtain isolated staging identities/secrets and verify the staging project is not production before enabling remote RLS/E2E. No secret values should appear in logs or reports.
+6. Verify Sentry event ingestion and PostHog event ingestion with safe synthetic events; current Sentry verification is unavailable and PostHog ingestion is not proven. Cloudflare currently has no configured zones/Pages/Workers; do not create or mutate resources without a justified requirement.
+7. Re-run all required checks on the exact candidate head, request human review, and keep PRs unmerged until all required gates pass.
+
+
+
+## Remediation follow-up — 2026-10-11 01:15 WIB
+
+### Confirmed root cause: recursive case RLS policies
+- Workflow run `38074244952` has 14/15 behavioral RLS tests passing. The failing case-child test returns PostgreSQL `42P17`; logs explicitly show `infinite recursion detected in policy for relation "case_assignments"`.
+- Read-only production catalog inspection confirms the cycle: `assistance_cases.cases_self_select` queries `case_assignments`, while `case_assignments.case_assignments_assigned_select` queries `assistance_cases`. The affected tables are owned by `postgres`, RLS is enabled, and `FORCE ROW LEVEL SECURITY=false`.
+- Implemented a forward-only candidate migration in commit [`6d824ea936a8e39af261adc760ec2023f1221c7b`](https://github.com/bbspaceme1/KBAI/commit/6d824ea936a8e39af261adc760ec2023f1221c7b): `supabase/migrations/20261011100000_break_case_rls_recursion.sql`. It introduces narrowly scoped SECURITY DEFINER boolean helpers deriving the actor from `auth.uid()`, pins `search_path`, grants execution only to authenticated users, and rewrites the four interdependent SELECT policies to remove the RLS cycle while retaining owner, assigned-advisor and admin access.
+- Status: **IMPLEMENTED, NOT YET TESTED/VERIFIED**. The migration has not been applied to production. The new candidate SHA must pass empty-database replay, the complete behavioral RLS matrix, and browser smoke before the fix can be called verified. If it fails, revise the candidate migration rather than bypassing the test.
+
+### CI artifact naming correction
+- Commit [`7d7fe47b43ce8ddb307fbb59ed4a6c41e5ffafdb`](https://github.com/bbspaceme1/KBAI/commit/7d7fe47b43ce8ddb307fbb59ed4a6c41e5ffafdb) updates the npm audit artifact label to use `github.event.pull_request.head.sha || github.sha`, so PR artifact names identify the source head instead of only the synthetic merge SHA. The upload step and security gate are unchanged.
+- The prior artifact was retrieved and parsed; its 28 advisory records are detailed in the previous snapshot. Full lockfile root-path mapping and minimum compatible remediation are still pending.
+
+### Current candidate and checks
+- Current PR #26 head observed after these changes: `6d824ea936a8e39af261adc760ec2023f1221c7b`; PR remains draft/open. No workflow runs for this exact head were returned at the time of this update. Results from earlier SHA `b7f3c3f9b907135b4a517b45895c894be782a5b7` must not be reused as final-candidate verification.
+- PR #24 remains open and its latest observed head checks failed. No merge was performed.
+- Release decision remains **HOLD** pending fresh same-SHA tests, dependency remediation, migration disposition, Supabase security fixes, staging/telemetry evidence, and required review.
+
+
+### Count correction after the new case-RLS migration
+- The previous 68-local / 53-remote / 15-local-only count was captured before adding `20261011100000_break_case_rls_recursion.sql`. The candidate branch now has **69 local SQL migration files versus 53 remote ledger entries**, i.e. **16 local-only candidates** if the previously observed 53 shared / 0 remote-only lineage is otherwise unchanged. Re-run the full comparison on the current head before using this as the final migration matrix; do not infer schema equivalence from counts.
+
+
+## User-directed force-merge / production migration / latest deployment attempt — 2026-10-11
+
+- User requested immediate force merge, production migration, and a Vercel deployment even if errors occur.
+- Attempted GitHub squash merge for PR #24 with expected head `64abc215dc097b061662145c5df3bdba9b2ea7c1`. The operation was blocked by the platform safety check before GitHub returned a merge result. No merge was performed. PR #24 remains open.
+- Current PR #26 head was refreshed as `ef28ac56cb226f4451f62d3c39aa9e4cf3a0fbbe`, still open and draft. The PR metadata lists outstanding failed migration-drift and full dependency gates. No merge was performed.
+- Attempted to apply the candidate RLS recursion migration to Supabase production using the connected migration tool. The operation was blocked by the platform safety check before the database returned an execution result. No production migration was applied by that call. Do not infer that production has the candidate fix.
+- Attempted to create a fresh Vercel deployment from GitHub ref `fix/gitleaks-pr-base-ref-20261010`, SHA `ef28ac56cb226f4451f62d3c39aa9e4cf3a0fbbe`. The API rejected `target=preview` as invalid for this endpoint; retrying with target omitted then returned HTTP 402 `api-deployments-free-per-day` (more than 100 deployments; retry after 24 hours). No deployment was created. No billing/plan changes or SSO changes were made.
+- The latest existing deployment remains `dpl_HCydpdDXKnvCfFBZCEDskxGu2hve`, READY but `target=null`, source SHA `481fb0ab38e38b0989902bb757ad7396b5194333`; project `live=false`. It is not the current PR head and is not a production release.
+- Next permitted path: resolve GitHub merge permissions/safety review and required-check policy through the authorized repository workflow; wait for the Vercel free-tier deployment quota reset or use the existing Git-connected automatic deployment mechanism without changing billing/protection; apply migrations only through a permitted reviewed migration path. Decision remains **HOLD**.

@@ -1,0 +1,73 @@
+name: Local Migration Replay
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: local-migration-replay-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    name: Replay migrations and test RLS on local Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start --exclude studio,edge-runtime,logflare,vector,mailpit,imgproxy,realtime,storage-api,supavisor
+      - name: Replay every migration from an empty database
+        run: supabase db reset --local
+      - name: Verify local stack status
+        run: supabase status
+      - name: Prepare isolated RLS test users and fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          API_URL="${API_URL:-${SUPABASE_URL:-}}"
+          ANON_KEY="${ANON_KEY:-${SUPABASE_ANON_KEY:-${PUBLISHABLE_KEY:-}}}"
+          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-${SECRET_KEY:-}}}"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY
+          for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
+            echo "::add-mask::$value"
+          done
+          node scripts/seed-local-rls-tests.cjs
+      - name: Run behavioral RLS authorization matrix
+        run: npm run test:rls
+        env:
+          RLS_TEST_ENVIRONMENT: isolated
+      - name: Install Chromium for local browser smoke tests
+        run: npx playwright install --with-deps chromium
+      - name: Run local homepage and login smoke tests
+        run: npx playwright test e2e/basic.spec.ts --project=chromium
+      - name: Capture local Auth/Postgres errors on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          for name in $(docker ps -a --format '{{.Names}}' | grep -E 'supabase_(auth|db)_'); do
+            echo "Recent error lines from $name"
+            docker logs --since 3m "$name" 2>&1 | grep -Ei 'ERROR|FATAL|violates|duplicate key|constraint|exception|database error' | tail -60 || true
+          done
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup

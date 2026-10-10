@@ -3,9 +3,9 @@
 Masukkan nama berikut satu per satu di:
 `GitHub repository > Settings > Secrets and variables > Actions > New repository secret`.
 
-## CI
+## Runtime produksi, audit database, ETL, dan workflow terjadwal
 
-Secret berikut dipakai oleh workflow `CI`:
+Secret berikut dipakai oleh workflow audit database/ETL/alert dan/atau runtime server yang relevan; job integration/E2E di workflow `CI` memakai secret `STAGING_*` yang dijelaskan di bawah:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -23,6 +23,8 @@ Secret berikut dipakai oleh workflow `CI`:
 Secret berikut dipakai untuk menghubungkan workflow migration drift ke Supabase:
 
 - `SUPABASE_ACCESS_TOKEN`
+
+**Current drift-workflow blocker (2026-10-10):** the workflow reports that the `SUPABASE_URL` repository secret's project reference does not match `supabase/config.toml`, and the access token is missing/unavailable. Set `SUPABASE_URL` to the configured project's URL (`https://ejiufnrqvkvqzxroustb.supabase.co`) and add a valid `SUPABASE_ACCESS_TOKEN` in Repository Settings → Secrets and variables → Actions. Never paste the token into a PR, issue, chat, or workflow log; do not remove the mismatch guard or use production writes as a workaround.
 
 ## Vercel
 
@@ -56,3 +58,23 @@ Nama berikut diperlukan jika fitur terkait diaktifkan di environment aplikasi, t
 
 - These values are required for end-to-end and deployment verification steps.
 - The CI workflow validates that each value is present before running E2E tests.
+
+## Staging-only integration secrets (required before CI can pass)
+
+The GitHub Actions staging environment must define the following **staging-only** secrets. Do not point them at the production Supabase project or production user accounts.
+
+- STAGING_E2E_URL
+- STAGING_SUPABASE_URL
+- STAGING_SUPABASE_SERVICE_ROLE_KEY
+- STAGING_SUPABASE_ANON_KEY
+- STAGING_RLS_TEST_USER_A_TOKEN
+- STAGING_RLS_TEST_USER_A_ID
+- STAGING_RLS_TEST_USER_B_ID
+- STAGING_RLS_TEST_ADVISOR_TOKEN
+- STAGING_RLS_TEST_ADVISOR_ID
+- STAGING_RLS_TEST_ASSIGNED_CLIENT_ID
+- STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID
+
+Configure these under **Settings → Environments → staging → Environment secrets**. Use synthetic test users and records in an isolated staging database. The CI workflow rejects the production Supabase project ref `ejiufnrqvkvqzxroustb` for these tests. Do not copy production credentials into staging.
+
+The integration workflow intentionally fails closed when any required staging secret is absent. Keep production deployment credentials (`VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN`, and production Supabase credentials) separate from staging integration credentials.

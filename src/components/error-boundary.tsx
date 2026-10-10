@@ -1,19 +1,10 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 
-interface WindowWithMonitoring extends Window {
-  Sentry?: {
-    captureException: (
-      error: Error,
-      options?: { contexts?: { react?: { componentStack?: string } } },
-    ) => void;
-  };
-  posthog?: {
-    capture: (event: string, properties?: Record<string, unknown>) => void;
-  };
-}
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { CorrelationIdContext, logError } from "@/lib/observability";
+import * as Sentry from "@sentry/react";
+import { posthog } from "@/lib/posthog";
 
 interface Props {
   children: ReactNode;
@@ -48,28 +39,21 @@ export class ErrorBoundary extends Component<Props, State> {
     // Legacy console logging for backward compatibility
     console.error("ErrorBoundary caught an error:", error, errorInfo);
 
-    // In production, send to Sentry/PostHog
-    if (typeof window !== "undefined") {
-      const w = window as WindowWithMonitoring;
-      // Send to error monitoring
-      if (w.Sentry) {
-        w.Sentry.captureException(error, {
-          contexts: {
-            react: {
-              componentStack: errorInfo.componentStack ?? undefined,
-            },
-          },
-        });
-      }
+    // SDKs are imported directly; no undocumented window globals are required.
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack ?? undefined,
+        },
+      },
+    });
 
-      // Send to product analytics
-      if (w.posthog) {
-        w.posthog.capture("error_boundary_triggered", {
-          error: error.message,
-          componentStack: errorInfo.componentStack,
-        });
-      }
-    }
+    // Keep product analytics low-sensitivity: do not send raw error messages or stacks.
+    posthog.capture("error_boundary_triggered", {
+      error_name: error.name,
+      route: window.location.pathname,
+      correlation_id: correlationId,
+    });
   }
 
   render() {

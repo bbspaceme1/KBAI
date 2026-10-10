@@ -36,16 +36,39 @@ GRANT EXECUTE ON FUNCTION public.adjust_cash_balance(uuid, numeric) TO service_r
 REVOKE EXECUTE ON FUNCTION public.try_consume_ai_quota(uuid, integer) FROM anon, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.try_consume_ai_quota(uuid, integer) TO authenticated;
 
-REVOKE EXECUTE ON FUNCTION public.permanently_delete_user(uuid) FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.restore_user(uuid) FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.soft_delete_user() FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.anonymize_user_data(uuid) FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.add_role_to_jwt() FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.audit_feature_flag_changes() FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.archive_old_data(integer) FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.cleanup_expired_deletion_codes() FROM anon, authenticated, PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.cleanup_expired_exports() FROM anon, authenticated, PUBLIC;
+DO $migration$
+DECLARE
+  signature text;
+BEGIN
+  FOREACH signature IN ARRAY ARRAY[
+    'public.permanently_delete_user(uuid)',
+    'public.restore_user(uuid)',
+    'public.soft_delete_user()',
+    'public.anonymize_user_data(uuid)',
+    'public.add_role_to_jwt()',
+    'public.audit_feature_flag_changes()',
+    'public.rls_auto_enable()',
+    'public.archive_old_data(integer)',
+    'public.cleanup_expired_deletion_codes()',
+    'public.cleanup_expired_exports()'
+  ] LOOP
+    IF to_regprocedure(signature) IS NOT NULL THEN
+      EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM anon, authenticated, PUBLIC', signature);
+    END IF;
+  END LOOP;
+END;
+$migration$;
+
+
+
+
+
+
+
+
+
+
+
 
 ALTER VIEW public.active_users SET (security_invoker = true);
 ALTER VIEW public.active_holdings SET (security_invoker = true);
@@ -56,25 +79,26 @@ ALTER VIEW public.v_idx_index_performance SET (security_invoker = true);
 
 REVOKE SELECT ON public.data_compliance_status FROM anon;
 
-ALTER FUNCTION public.upsert_holding_sell(uuid, text, integer)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.restore_user(uuid)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.permanently_delete_user(uuid)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.soft_delete_user()
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.archive_old_data(integer)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.add_role_to_jwt()
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.try_consume_ai_quota(uuid, integer)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.audit_feature_flag_changes()
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.cleanup_expired_deletion_codes()
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.anonymize_user_data(uuid)
-  SET search_path = public, pg_temp;
-ALTER FUNCTION public.cleanup_expired_exports()
-  SET search_path = public, pg_temp;
+DO $migration$
+DECLARE
+  signature text;
+BEGIN
+  FOREACH signature IN ARRAY ARRAY[
+    'public.upsert_holding_sell(uuid, text, integer)',
+    'public.restore_user(uuid)',
+    'public.permanently_delete_user(uuid)',
+    'public.soft_delete_user()',
+    'public.archive_old_data(integer)',
+    'public.add_role_to_jwt()',
+    'public.try_consume_ai_quota(uuid, integer)',
+    'public.audit_feature_flag_changes()',
+    'public.cleanup_expired_deletion_codes()',
+    'public.anonymize_user_data(uuid)',
+    'public.cleanup_expired_exports()'
+  ] LOOP
+    IF to_regprocedure(signature) IS NOT NULL THEN
+      EXECUTE format('ALTER FUNCTION %s SET search_path = public, pg_temp', signature);
+    END IF;
+  END LOOP;
+END;
+$migration$;

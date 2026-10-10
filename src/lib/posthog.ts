@@ -1,13 +1,18 @@
 import posthog from "posthog-js";
 
-if (typeof window !== "undefined") {
-  posthog.init(import.meta.env.VITE_POSTHOG_KEY || "", {
-    api_host: "https://app.posthog.com",
-    autocapture: false, // Manual capture for control
-    capture_pageview: true,
+const posthogKey = import.meta.env.VITE_POSTHOG_KEY?.trim();
+const posthogHost = import.meta.env.VITE_POSTHOG_HOST?.trim() || "https://us.i.posthog.com";
+
+if (typeof window !== "undefined" && posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: posthogHost,
+    autocapture: false,
+    capture_pageview: false,
+    disable_session_recording: true,
     persistence: "memory",
-    loaded: (posthog) => {
-      if (import.meta.env.DEV) console.log("PostHog loaded");
+    person_profiles: "identified_only",
+    loaded: () => {
+      if (import.meta.env.DEV) console.info("PostHog analytics initialized");
     },
   });
 }

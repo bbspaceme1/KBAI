@@ -4,15 +4,24 @@
 
 ## Purpose
 
+## Product source of truth and change control
+
+- Canonical Master PRD: `docs/prd/MASTER-PRD.md`. Read it before implementing or reviewing any product behavior, role, data source, entitlement, price, AI capability, migration or workflow.
+- Do not change functionality outside an explicit PRD section and acceptance criterion. If scope is ambiguous or existing behavior conflicts with the PRD, document the discrepancy and stop at a proposal instead of guessing.
+- Keep implementation on a feature branch/PR. Do not merge, promote a deployment, weaken access protection, or apply/repair production migrations as part of a diagnostic task.
+- Free-tier-only constraint: do not activate paid plans, paid staging, paid add-ons or billable vendor features. If free-tier limits prevent a required control, report the blocker rather than upgrading.
+- Product requirements and exclusions in the Master PRD override stale or conflicting guidance elsewhere in this file. Update this file only to maintain consistent agent guardrails; product behavior still requires an explicit approved PRD criterion.
+
+
 KBAI Terminal is a production investment analytics SaaS platform targeting Indonesian stock market (IDX). This repository guides AI agents on codebase conventions, architectural boundaries, and critical guardrails.
 
 ## Product Context
 
 - **Market:** Indonesia IDX stock market analysis
 - **Users:** Retail investors (Member), professional advisors (Advisor), system admin (Admin)
-- **Core Features:** Portfolio tracking, AI market insights, IDX screener, economic dashboard, community broadcast
-- **Stage:** Pre-Scale (Late Startup) — target: 10K+ users, enterprise readiness
-- **Monetization:** Freemium + subscription tiers (Pro/Enterprise via Midtrans payment gateway)
+- **Core Features:** EOD IDX market/index intelligence, user-owned portfolio tracking and benchmark comparison, methodology-governed intelligence, Community OS and Company OS. See `docs/prd/MASTER-PRD.md` for the authoritative scope.
+- **Stage:** Follow the current product/release status in `KBAI_RECONCILIATION_PROGRESS.md`; do not infer readiness from this file.
+- **Monetization:** Configuration-driven plan → entitlement. Recorded tiers: Day Trader Rp5M/year, Swing Rp10M/year, Position Rp25M/year, Investor Rp50M/year; Telegram Community I Rp1,000/day and II Rp3,000/day. Do not invent Pro/Enterprise tiers or a payment provider without an approved product decision.
 
 ## Core Stack
 
@@ -39,6 +48,10 @@ KBAI Terminal is a production investment analytics SaaS platform targeting Indon
 - **Production Target:** Vercel (single production target)
 - Build: `vite build` → `dist/`
 - Deploy: `vercel --prod`
+
+## Authoritative Product Contract
+
+Read `docs/prd/MASTER-PRD.md` before implementing product behavior. It supersedes conflicting legacy summaries in this file. In particular, do not build or expose an unrestricted IDX screener, DCF engine, stock-selection/recommendation AI, AI technical/dividend recommendations, autonomous portfolio construction/optimization, or automated trading/rebalancing. Use the official/licensed EOD IDX source; never fall back to Yahoo/unofficial sources in production. Keep the user in control of their portfolio and preserve the canonical Company OS authorization chain and `user_sub_roles` role source.
 
 ## Critical Guardrails & Forbidden Patterns
 
@@ -76,9 +89,9 @@ KBAI Terminal is a production investment analytics SaaS platform targeting Indon
 
 - **AI token counting:** Use `estimateTokens()` pre-call, but ALWAYS use actual token counts from API response
 - **Feature flags:** MUST be persistent (DB-backed), not in-memory only
-- **Rate limiting:** Use Upstash Redis for rate limiting, NOT in-memory Map
-- **Billing calculations:** ALWAYS map highest tiers first (1M+ → enterprise, then 100K+ → pro)
-- **Market data:** Use Sectors Financial API (primary), NOT Yahoo Finance scraping
+- **Rate limiting:** Use an atomic, security-reviewed implementation that fits the existing free-tier budget (e.g. PostgreSQL/RPC where appropriate); do not introduce paid dependencies or rely on process-local Map for production enforcement.
+- **Plan/entitlement:** Follow `docs/prd/MASTER-PRD.md` and the canonical plan → entitlement mapping. Use only approved KBAI tiers; never invent Pro/Enterprise tiers or capital thresholds.
+- **Market data:** Official IDX/BEI or properly licensed commercial EOD source covering the intended IDX universe; never use Yahoo Finance/unofficial scraping or silent fallback in production.
 
 ## Testing Requirements (NON-NEGOTIABLE)
 
@@ -97,7 +110,7 @@ it("maps IDR 1,500,000 to enterprise tier", () => {
 
 ## Security & Compliance Checklist
 
-- ✅ RLS policies on all data tables (verified in schema)
+- ⏳ RLS policies, grants, and negative authorization tests must be verified against the current remote schema; never assume coverage from code alone.
 - ✅ MFA enforcement for admin/advisor users (implemented in `auth-middleware.ts`)
 - ✅ Server-side RBAC enforcement (use `requireRole()` for sensitive operations)
 - ✅ CSP headers with `'unsafe-inline'` for React (Tailwind requires it)

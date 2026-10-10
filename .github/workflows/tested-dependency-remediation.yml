@@ -1,0 +1,128 @@
+name: Tested Dependency Remediation
+
+on:
+  push:
+    branches:
+      - fix/gitleaks-pr-base-ref-20261010
+    paths:
+      - .github/workflows/tested-dependency-remediation.yml
+      - package.json
+      - package-lock.json
+  workflow_dispatch: {}
+
+concurrency:
+  group: tested-dependency-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    if: "${{ github.event_name != 'push' || !contains(github.event.head_commit.message, 'chore(deps): apply tested tooling upgrades') }}"
+    name: Upgrade audited tooling and test isolated stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Upgrade vulnerable direct tooling to audited compatible releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const path = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+          pkg.devDependencies ??= {};
+          // Explicit, reviewed major upgrades: npm audit reports these as required fixes.
+          pkg.devDependencies.vercel = "^63.1.2";
+          pkg.devDependencies["@lovable.dev/vite-tanstack-config"] = "^2.26.6";
+          pkg.devDependencies.vitest = "^2.1.8";
+          pkg.devDependencies["@vitest/coverage-v8"] = "^2.1.8";
+          // Pin vulnerable transitive tools to advisory-patched compatible releases.
+          pkg.overrides = {
+            ...(pkg.overrides ?? {}),
+            "@fastify/busboy": "^3.2.2",
+            "js-yaml": "^4.3.2",
+            "minimatch": "^10.2.3",
+            "path-to-regexp@^4": "^6.3.0",
+            "path-to-regexp@^6": "^6.3.0",
+            "path-to-regexp@^8": "^8.4.2",
+            "smol-toml": "^1.8.1",
+            "tar": "^7.5.22",
+            "undici@^5": "^6.29.0",
+            "@vercel/static-config": {
+              ...((pkg.overrides ?? {})["@vercel/static-config"] ?? {}),
+              "ajv": "^8.18.0"
+            }
+          };
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+          NODE
+          npm install --package-lock-only --ignore-scripts --no-audit
+          # Apply any additional fixes that do not require force/major overrides.
+          npm audit fix --no-fund || echo "Some advisories remain; test and report them below."
+          test -s package-lock.json
+          git status --short
+
+      - name: Reinstall strictly from the candidate lockfile
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:run
+
+      - name: Coverage threshold gate
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Vercel CLI smoke test
+        run: npx vercel --version
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Report remaining full dependency-tree advisories
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high
+          code=$?
+          set -e
+          echo "Full dependency audit exit code after safe updates: $code"
+          echo "This report does not waive the required full-tree audit in the main CI workflow."
+
+      # Local Supabase migration replay, RLS matrix, and browser smoke tests are
+      # run by local-migration-replay.yml. Do not start a second Docker stack here:
+      # repeated image pulls have hit Docker Hub rate limits.
+
+      - name: Commit validated tooling upgrades
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No semver-compatible dependency updates were available; no commit created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(deps): apply tested tooling upgrades"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

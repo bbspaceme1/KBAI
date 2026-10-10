@@ -8,6 +8,10 @@ on:
   workflow_dispatch: {}
   workflow_call: {}
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -28,10 +32,17 @@ jobs:
       - name: Dependency security audit (production surface)
         # Gate the dependency surface that runs in the deployed application.
         run: npm audit --omit=dev --audit-level=high
-      - name: Dependency security audit (full CI tree)
-        # Keep CI/dev tooling visible without confusing it with runtime exposure.
-        continue-on-error: true
-        run: npm audit --audit-level=high
+      - name: Ensure PR base ref exists for secret scan
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test -n "$PR_BASE_REF"
+          git fetch --no-tags origin "+refs/heads/$PR_BASE_REF:refs/remotes/origin/$PR_BASE_REF"
+          git rev-parse --verify "refs/remotes/origin/$PR_BASE_REF^{commit}"
+
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -62,9 +73,59 @@ jobs:
           verbose: true
         continue-on-error: true
 
+      - name: Dependency security audit (full CI tree)
+        if: always()
+        # Save the complete npm audit JSON even when npm audit exits non-zero.
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/kbai-npm-audit.json"
+          npm audit --json > "$report" || true
+          test -s "$report"
+          REPORT_PATH="$report" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+          const entries = Object.entries(report.vulnerabilities ?? {});
+          const isDocumentedBracesException = (name, vulnerability) =>
+            name === 'braces' &&
+            vulnerability.severity === 'high' &&
+            vulnerability.isDirect === false &&
+            Array.isArray(vulnerability.via) &&
+            vulnerability.via.some(item => typeof item === 'object' && item.source === 'GHSA-vfj7-8cjw-p6xm');
+
+          const blocked = entries.filter(([name, vulnerability]) =>
+            ['high', 'critical'].includes(vulnerability.severity) &&
+            !isDocumentedBracesException(name, vulnerability)
+          );
+          const accepted = entries.filter(([name, vulnerability]) => isDocumentedBracesException(name, vulnerability));
+
+          if (accepted.length > 0) {
+            console.warn('Accepted residual dev-only advisory: braces GHSA-vfj7-8cjw-p6xm; no patched upstream release is available. Do not add other allowlist entries without security review.');
+          }
+          if (blocked.length > 0) {
+            console.error('Unresolved high/critical dependency advisories:');
+            for (const [name, vulnerability] of blocked) {
+              console.error(`- ${name}: ${vulnerability.severity} (direct=${vulnerability.isDirect})`);
+            }
+            process.exit(1);
+          }
+          console.log(`Dependency security gate passed: ${accepted.length} documented dev-only exception(s); no other high/critical advisories.`);
+          NODE
+
+      - name: Upload complete npm audit JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/kbai-npm-audit.json
+          if-no-files-found: error
+          retention-days: 14
+
   integration:
     name: Integration and E2E
-    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    # Remote staging is opt-in; the free local migration/RLS/browser gates run separately.
+    # Set STAGING_INTEGRATION_ENABLED=true only when isolated staging secrets exist.
+    if: vars.STAGING_INTEGRATION_ENABLED == 'true' && (github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     # Never run browser or RLS verification against production data. The
     # staging environment must contain isolated test users and database data.
@@ -80,59 +141,76 @@ jobs:
       - run: npm ci
       - name: Build client for secret scan
         run: npm run build
+      - name: Validate isolated staging integration secrets
+        env:
+          E2E_URL: ${{ secrets.STAGING_E2E_URL }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          RLS_TEST_USER_A_TOKEN: ${{ secrets.STAGING_RLS_TEST_USER_A_TOKEN }}
+          RLS_TEST_USER_A_ID: ${{ secrets.STAGING_RLS_TEST_USER_A_ID }}
+          RLS_TEST_USER_B_ID: ${{ secrets.STAGING_RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.STAGING_RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.STAGING_RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in E2E_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_ANON_KEY \
+            RLS_TEST_USER_A_TOKEN RLS_TEST_USER_A_ID RLS_TEST_USER_B_ID \
+            RLS_TEST_ADVISOR_TOKEN RLS_TEST_ADVISOR_ID \
+            RLS_TEST_ASSIGNED_CLIENT_ID RLS_TEST_UNASSIGNED_CLIENT_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required as a staging environment secret."
+              missing=1
+            fi
+          done
+          [[ "$missing" -eq 0 ]] || exit 1
+          if [[ "$E2E_URL" == "http://localhost:3000" ]]; then
+            echo "::error::E2E_URL must target the isolated staging deployment, not localhost."
+            exit 1
+          fi
+          case "$SUPABASE_URL" in
+            https://*.supabase.co) ;;
+            *) echo "::error::STAGING_SUPABASE_URL must be an HTTPS Supabase project URL"; exit 1 ;;
+          esac
+          staging_project_ref="${SUPABASE_URL#https://}"
+          staging_project_ref="${staging_project_ref%%.*}"
+          if [[ "$staging_project_ref" == "ejiufnrqvkvqzxroustb" ]]; then
+            echo "::error::Refusing to run staging integration tests against the production Supabase project."
+            exit 1
+          fi
       - name: Verify no service-role key in client bundle
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
         run: |
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+          set -euo pipefail
           if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
             echo "Service-role key value found in client build output"
             exit 1
           fi
-      - name: Validate isolated staging integration secrets
-        env:
-          E2E_URL: ${{ secrets.E2E_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
-          RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
-          RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
-          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
-          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
-          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
-          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
-        run: |
-          test -n "$E2E_URL"
-          test "$E2E_URL" != "http://localhost:3000"
-          test -n "$SUPABASE_URL"
-          test -n "$SUPABASE_SERVICE_ROLE_KEY"
-          test -n "$SUPABASE_ANON_KEY"
-          test -n "$RLS_TEST_USER_A_TOKEN"
-          test -n "$RLS_TEST_USER_A_ID"
-          test -n "$RLS_TEST_USER_B_ID"
-          test -n "$RLS_TEST_ADVISOR_TOKEN"
-          test -n "$RLS_TEST_ADVISOR_ID"
-          test -n "$RLS_TEST_ASSIGNED_CLIENT_ID"
-          test -n "$RLS_TEST_UNASSIGNED_CLIENT_ID"
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
-          RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
-          RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
-          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
-          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
-          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
-          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
+          RLS_TEST_ENVIRONMENT: isolated
+          RLS_TEST_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          RLS_TEST_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          RLS_TEST_USER_A_TOKEN: ${{ secrets.STAGING_RLS_TEST_USER_A_TOKEN }}
+          RLS_TEST_USER_A_ID: ${{ secrets.STAGING_RLS_TEST_USER_A_ID }}
+          RLS_TEST_USER_B_ID: ${{ secrets.STAGING_RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.STAGING_RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.STAGING_RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID }}
       - name: Install Playwright browsers and Linux dependencies
         run: npx playwright install --with-deps chromium firefox webkit
       - name: E2E tests
         run: npm run test:e2e
         env:
-          E2E_URL: ${{ secrets.E2E_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          E2E_URL: ${{ secrets.STAGING_E2E_URL }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
