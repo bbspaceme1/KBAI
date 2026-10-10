@@ -82,3 +82,17 @@ These are *review dispositions*, not permission to write to production. APPLY me
 - Remote authorization inspection now confirms the missing `reserve_ai_quota` RPC and the broad advisor holdings/snapshot policies.
 - The ratio-period pair has a sequencing hazard: the enforcement migration cannot safely follow the nullable-column migration without an explicit backfill/deduplication step.
 - No production migration, ledger repair, deployment promotion, DNS mutation, or paid feature was used to obtain these results.
+
+
+## Latest continuation — 2026-10-10, exact PR #26 head `b9d82f2e11886a96f6d8d42115059b826212afab`
+
+This section supersedes the earlier workflow statuses above wherever their commit SHA or run IDs differ.
+
+- Current CI run `38060959685`: **FAIL**. Lint, type-check, build, Supabase admin guard, unit tests, secret scan, and production-only dependency audit passed. The full dependency audit failed on unresolved high/critical advisories listed below. Integration/E2E was skipped because the Quality/build job failed.
+- Current local migration replay run `38060959710`: **PASS**.
+- Current database drift run `38060959741`: **FAIL**. The read-only authorization-invariant step and migration-parity step both fail; Vercel's read-only project audit and Supabase advisor step completed.
+- The full dependency gate reported unresolved advisories: `@ts-morph/common`, `@vercel/backends`, `@vercel/cervel`, `@vercel/elysia`, `@vercel/express`, `@vercel/fastify`, `@vercel/h3`, `@vercel/hono`, `@vercel/hydrogen`, `@vercel/koa`, `@vercel/nestjs`, `@vercel/node`, `@vercel/redwood`, `@vercel/remix-builder`, `@vercel/static-build`, `@vercel/static-config`, `@vitest/coverage-v8` (critical, direct), `braces`, `fast-glob`, `micromatch`, `tinypool` (critical), `ts-morph`, `vercel` (direct), `vite`, and `vitest` (critical, direct). The current workflow's documented exception for one dev-only `braces` advisory did not match the returned package metadata, so it remains blocked; do not broaden the allowlist to make CI green.
+- The latest Supabase advisor output additionally identifies duplicate indexes on `audit_logs`, `eod_prices`, `holdings`, `kbai_index`, `notifications`, `portfolio_snapshots`, and `transactions`, and multiple permissive policies on `user_2fa` and `user_sub_roles`. These are performance warnings requiring definition/usage checks before removing indexes or combining policies; they are not permission to run immediate production DDL.
+- Migration `20261007120000_idx_ratio_periods.sql` adds fiscal period columns as nullable and creates a unique index; `20261007130000_enforce_idx_ratio_periods.sql` immediately raises if any row has a NULL year/quarter and then sets NOT NULL. A clean empty-database replay does not exercise legacy production rows. Keep this pair unresolved until a read-only profile of actual existing ratio rows and duplicate keys supports a deterministic backfill/quarantine plan.
+- PR #24 remains open and unmerged at head `f5167e5f26f6d4b372844149afb892e06c031c49`. PR #26 remains open, draft, and unmerged at the head above. Do not merge either solely because local replay passes.
+- No production migration, migration-ledger repair, production data write, paid-tier activation, or deployment promotion was performed during this continuation.
