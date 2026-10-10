@@ -28,8 +28,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
-BEGIN
+AS $function$1
   -- The trigger may write on behalf of the authenticated owner, or a trusted
   -- service-role operation. Do not permit a normal user to write another user's flow.
   IF auth.uid() IS NOT NULL
@@ -50,7 +49,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$function$;
 REVOKE ALL ON FUNCTION public.sync_portfolio_cash_flow() FROM PUBLIC, anon, authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.portfolio_cash_flows FROM anon, authenticated;
 GRANT SELECT ON public.portfolio_cash_flows TO authenticated;
