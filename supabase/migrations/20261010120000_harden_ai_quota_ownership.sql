@@ -59,14 +59,14 @@ BEGIN
   FROM public.ai_usage_logs
   WHERE user_id = p_user
     AND created_at >= day_start
-    AND status = 'success';
+    AND status IN ('success', 'completed', 'billed');
 
   SELECT COALESCE(SUM(total_tokens), 0)
     INTO current_monthly
   FROM public.ai_usage_logs
   WHERE user_id = p_user
     AND created_at >= month_start
-    AND status = 'success';
+    AND status IN ('success', 'completed', 'billed');
 
   IF current_daily + p_tokens > daily_limit THEN
     RETURN FALSE;
@@ -79,7 +79,7 @@ BEGIN
   INSERT INTO public.ai_usage_logs
     (user_id, model, input_tokens, output_tokens, total_tokens, cost_usd, operation, status)
   VALUES
-    (p_user, 'quota_reserve', p_tokens, 0, p_tokens, 0, 'quota_reserve', 'success');
+    (p_user, 'quota_reserve', p_tokens, 0, p_tokens, 0, 'quota_reserve', 'reserved');
 
   RETURN TRUE;
 END;
