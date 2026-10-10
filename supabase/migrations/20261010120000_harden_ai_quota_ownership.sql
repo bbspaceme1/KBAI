@@ -38,6 +38,12 @@ BEGIN
   WHERE s.user_id = p_user
   LIMIT 1;
 
+  -- SELECT INTO sets targets to NULL when there is no matching subscription.
+  IF NOT FOUND THEN
+    daily_limit := 50000;
+    monthly_limit := 500000;
+  END IF;
+
   SELECT COALESCE(SUM(total_tokens), 0)
     INTO current_daily
   FROM public.ai_usage_logs
