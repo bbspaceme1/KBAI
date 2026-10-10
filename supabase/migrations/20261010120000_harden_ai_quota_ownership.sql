@@ -13,8 +13,8 @@ AS $$
 DECLARE
   daily_limit bigint := 50000;
   monthly_limit bigint := 500000;
-  day_start timestamptz := date_trunc('day', now() AT TIME ZONE 'utc');
-  month_start timestamptz := date_trunc('month', now() AT TIME ZONE 'utc');
+  day_start timestamptz := date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+  month_start timestamptz := date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
   current_daily bigint := 0;
   current_monthly bigint := 0;
 BEGIN
@@ -49,14 +49,14 @@ BEGIN
   FROM public.ai_usage_logs
   WHERE user_id = p_user
     AND created_at >= day_start
-    AND status IN ('success', 'completed', 'billed');
+    AND status = 'success';
 
   SELECT COALESCE(SUM(total_tokens), 0)
     INTO current_monthly
   FROM public.ai_usage_logs
   WHERE user_id = p_user
     AND created_at >= month_start
-    AND status IN ('success', 'completed', 'billed');
+    AND status = 'success';
 
   IF current_daily + p_tokens > daily_limit THEN
     RETURN FALSE;
