@@ -1,0 +1,138 @@
+name: Tested Dependency Remediation
+
+on:
+  push:
+    branches:
+      - fix/gitleaks-pr-base-ref-20261010
+    paths:
+      - .github/workflows/tested-dependency-remediation.yml
+  workflow_dispatch: {}
+
+concurrency:
+  group: tested-dependency-remediation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    name: Apply non-breaking audit fixes and test isolated stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply npm audit fixes within declared semver ranges only
+        shell: bash
+        run: |
+          set +e
+          npm audit fix --no-fund
+          code=$?
+          set -e
+          echo "npm audit fix exit code: $code (non-forced updates only; validation below is authoritative)"
+          git status --short
+
+      - name: Reinstall strictly from the candidate lockfile
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Report remaining full dependency-tree advisories
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high
+          code=$?
+          set -e
+          echo "Full dependency audit exit code after safe updates: $code"
+          echo "This report does not waive the required full-tree audit in the main CI workflow."
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Start isolated local Supabase stack
+        run: supabase start --exclude studio,edge-runtime,logflare,vector,mailpit,imgproxy,realtime,storage-api,supavisor
+
+      - name: Replay all migrations from an empty local database
+        run: supabase db reset --local
+
+      - name: Verify local database status
+        run: supabase status
+
+      - name: Seed isolated RLS fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          API_URL="${API_URL:-${SUPABASE_URL:-}}"
+          ANON_KEY="${ANON_KEY:-${SUPABASE_ANON_KEY:-${PUBLISHABLE_KEY:-}}}"
+          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-${SECRET_KEY:-}}}"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY
+          for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
+            echo "::add-mask::$value"
+          done
+          node scripts/seed-local-rls-tests.cjs
+
+      - name: RLS/RBAC authorization matrix
+        run: npm run test:rls
+        env:
+          RLS_TEST_ENVIRONMENT: isolated
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke tests
+        run: npx playwright test e2e/basic.spec.ts --project=chromium
+
+      - name: Capture local database errors on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          for name in $(docker ps -a --format '{{.Names}}' | grep -E 'supabase_(auth|db)_'); do
+            echo "Recent error lines from $name"
+            docker logs --since 3m "$name" 2>&1 | grep -Ei 'ERROR|FATAL|violates|duplicate key|constraint|exception|database error' | tail -60 || true
+          done
+
+      - name: Stop isolated local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
+
+      - name: Commit validated non-breaking dependency updates
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No semver-compatible dependency updates were available; no commit created."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(deps): apply tested non-breaking audit fixes"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
