@@ -1,1 +1,0 @@
-Temporary GitHub connector write/read/delete access probe. No application code change.
