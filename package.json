@@ -148,5 +148,15 @@
     "vercel": "^63.1.2",
     "vite": "^7.3.1",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "@fastify/busboy": "^3.2.2",
+    "js-yaml": "^4.3.2",
+    "minimatch": "^10.2.3",
+    "path-to-regexp@^4": "^6.3.0",
+    "path-to-regexp@^6": "^6.3.0",
+    "path-to-regexp@^8": "^8.4.2",
+    "smol-toml": "^1.8.1",
+    "tar": "^7.5.22"
   }
 }
