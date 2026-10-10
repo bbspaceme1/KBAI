@@ -18,7 +18,12 @@ const anon = createClient(url, anonKey, {
 });
 
 async function requireData(label, result) {
-  if (result.error) throw new Error(`${label}: ${result.error.message}`);
+  if (result.error) {
+    const error = result.error;
+    throw new Error(
+      `${label}: ${error.message}; status=${error.status ?? "n/a"}; code=${error.code ?? "n/a"}; details=${error.details ?? "n/a"}; hint=${error.hint ?? "n/a"}`,
+    );
+  }
   return result.data;
 }
 

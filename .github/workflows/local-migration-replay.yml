@@ -59,6 +59,15 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run local homepage and login smoke tests
         run: npx playwright test e2e/basic.spec.ts --project=chromium
+      - name: Capture local Auth/Postgres errors on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          for name in $(docker ps -a --format '{{.Names}}' | grep -E 'supabase_(auth|db)_'); do
+            echo "Recent error lines from $name"
+            docker logs --since 3m "$name" 2>&1 | grep -Ei 'ERROR|FATAL|violates|duplicate key|constraint|exception|database error' | tail -60 || true
+          done
       - name: Stop local Supabase stack
         if: always()
         run: supabase stop --no-backup
