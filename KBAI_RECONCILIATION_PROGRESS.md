@@ -283,3 +283,33 @@ Read-only audit findings were previously merged via PR [#17](https://github.com/
 - The Vercel deployment attempts on this branch have `target: null`; some previews ended in `ERROR`. No deployment is verified as production-ready or promoted. Production remains on hold.
 - Outstanding original migration SQL for the historical backfill, portfolio performance, data pipeline, and Company Operations/entitlements versions was not recoverable from the checked refs. Do not fabricate replacement files or rename timestamps to make the ledger match.
 - No production migration, migration-ledger repair, production deployment, paid staging project, or paid-feature activation was performed.
+
+
+### Continuation update — migration disposition and enforced security gates — 2026-10-10
+
+**Fresh migration comparison (read-only):** local repository has 68 SQL migration files; the connected Supabase ledger has 53 versions. There are **15 local-only versions and 0 remote-only versions**. This is a lineage difference, not authorization to apply them to production. The latest verified local replay on commit `51606caecc7ea3005334535fa1bcdddf5f407a9f` passed; replay must be rerun on the current workflow-change commit.
+
+Local-only migrations requiring reviewed disposition, dependency/order checks, and staging verification:
+
+1. `20260905130001_harden_phase0_rls_and_compliance.sql`
+2. `20260905130100_fix_advisor_schema_function_mismatches.sql`
+3. `20260908100000_performance_engine_schema.sql`
+4. `20260908110000_data_pipeline_reconciliation.sql`
+5. `20260908120000_company_ops_entitlements_schema.sql`
+6. `20260909100000_telegram_login_community_verification.sql`
+7. `20261003120000_reconcile_financial_rpc_ownership.sql`
+8. `20261003140000_reconcile_advisor_scope_rls.sql`
+9. `20261005100000_canonical_user_sub_roles.sql`
+10. `20261007120000_idx_ratio_periods.sql`
+11. `20261007130000_enforce_idx_ratio_periods.sql`
+12. `20261010120000_harden_ai_quota_ownership.sql`
+13. `20261010130000_enforce_advisor_portfolio_scope.sql`
+14. `20261010140000_fix_canonical_role_claim_sync.sql`
+15. `20261010150000_fix_canonical_user_provisioning.sql`
+
+**Migration risk notes:** the performance/Company Ops migrations create new persistence domains; Telegram migration creates identity/membership/invite/rate-limit tables; financial and AI quota migrations alter SECURITY DEFINER RPCs and authorization; role-claim/provisioning migrations replace legacy role synchronization; fiscal-period enforcement intentionally refuses rows with missing period metadata. These require staging schema/RLS behavior checks and data preflight. No migration was applied to production and the ledger was not edited.
+
+**Security gates tightened in this branch:**
+- Full dependency-tree `npm audit --audit-level=high` is now a required CI gate rather than `continue-on-error`. Previously observed full-tree audit: 40 advisories (2 low, 9 moderate, 25 high, 4 critical); production-only audit previously reported zero. The current full-tree gate is expected to fail until advisories are remediated with lockfile-consistent, reviewed updates. Do not use `npm audit fix --force` or lower the severity threshold to make CI green.
+- Read-only Supabase audit now has a fail-closed authorization gate for authenticated SECURITY DEFINER financial/quota RPCs and RLS-enabled base tables without policies. The live advisor result currently shows five authenticated SECURITY DEFINER RPC warnings and six RLS-enabled/no-policy tables; the new gate is intended to block release until the actual remote findings are corrected and retested.
+- These workflow edits are guardrails, not proof that production has been repaired. No SQL write, production migration, ledger repair, production deployment, DNS change, or paid-tier activation was performed.
