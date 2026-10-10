@@ -1,3 +1,4 @@
+import "./lib/monitoring";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
