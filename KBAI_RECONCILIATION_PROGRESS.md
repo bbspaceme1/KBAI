@@ -359,3 +359,21 @@ Local-only migrations requiring reviewed disposition, dependency/order checks, a
 6. Verify Sentry event ingestion and PostHog event ingestion with safe synthetic events; current Sentry verification is unavailable and PostHog ingestion is not proven. Cloudflare currently has no configured zones/Pages/Workers; do not create or mutate resources without a justified requirement.
 7. Re-run all required checks on the exact candidate head, request human review, and keep PRs unmerged until all required gates pass.
 
+
+
+## Remediation follow-up — 2026-10-11 01:15 WIB
+
+### Confirmed root cause: recursive case RLS policies
+- Workflow run `38074244952` has 14/15 behavioral RLS tests passing. The failing case-child test returns PostgreSQL `42P17`; logs explicitly show `infinite recursion detected in policy for relation "case_assignments"`.
+- Read-only production catalog inspection confirms the cycle: `assistance_cases.cases_self_select` queries `case_assignments`, while `case_assignments.case_assignments_assigned_select` queries `assistance_cases`. The affected tables are owned by `postgres`, RLS is enabled, and `FORCE ROW LEVEL SECURITY=false`.
+- Implemented a forward-only candidate migration in commit [`6d824ea936a8e39af261adc760ec2023f1221c7b`](https://github.com/bbspaceme1/KBAI/commit/6d824ea936a8e39af261adc760ec2023f1221c7b): `supabase/migrations/20261011100000_break_case_rls_recursion.sql`. It introduces narrowly scoped SECURITY DEFINER boolean helpers deriving the actor from `auth.uid()`, pins `search_path`, grants execution only to authenticated users, and rewrites the four interdependent SELECT policies to remove the RLS cycle while retaining owner, assigned-advisor and admin access.
+- Status: **IMPLEMENTED, NOT YET TESTED/VERIFIED**. The migration has not been applied to production. The new candidate SHA must pass empty-database replay, the complete behavioral RLS matrix, and browser smoke before the fix can be called verified. If it fails, revise the candidate migration rather than bypassing the test.
+
+### CI artifact naming correction
+- Commit [`7d7fe47b43ce8ddb307fbb59ed4a6c41e5ffafdb`](https://github.com/bbspaceme1/KBAI/commit/7d7fe47b43ce8ddb307fbb59ed4a6c41e5ffafdb) updates the npm audit artifact label to use `github.event.pull_request.head.sha || github.sha`, so PR artifact names identify the source head instead of only the synthetic merge SHA. The upload step and security gate are unchanged.
+- The prior artifact was retrieved and parsed; its 28 advisory records are detailed in the previous snapshot. Full lockfile root-path mapping and minimum compatible remediation are still pending.
+
+### Current candidate and checks
+- Current PR #26 head observed after these changes: `6d824ea936a8e39af261adc760ec2023f1221c7b`; PR remains draft/open. No workflow runs for this exact head were returned at the time of this update. Results from earlier SHA `b7f3c3f9b907135b4a517b45895c894be782a5b7` must not be reused as final-candidate verification.
+- PR #24 remains open and its latest observed head checks failed. No merge was performed.
+- Release decision remains **HOLD** pending fresh same-SHA tests, dependency remediation, migration disposition, Supabase security fixes, staging/telemetry evidence, and required review.
