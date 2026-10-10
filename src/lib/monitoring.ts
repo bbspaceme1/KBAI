@@ -10,13 +10,9 @@ if (sentryDsn) {
     sendDefaultPii: false,
     tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1,
+    replaysOnErrorSampleRate: 0,
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
     ],
   });
 }
