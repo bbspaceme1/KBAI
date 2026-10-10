@@ -43,6 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
+          ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-}}"
+          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SECRET_KEY:-}}"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY
           for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
             echo "::add-mask::$value"
           done
