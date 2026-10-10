@@ -11,7 +11,22 @@ CREATE TABLE IF NOT EXISTS public.portfolio_cash_flows (
 CREATE INDEX IF NOT EXISTS portfolio_cash_flows_user_date_idx ON public.portfolio_cash_flows(user_id, flow_date);
 ALTER TABLE public.portfolio_cash_flows ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS portfolio_cash_flows_owner_select ON public.portfolio_cash_flows;
-CREATE POLICY portfolio_cash_flows_owner_select ON public.portfolio_cash_flows FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS portfolio_cash_flows_scoped_select ON public.portfolio_cash_flows;
+CREATE POLICY portfolio_cash_flows_scoped_select
+  ON public.portfolio_cash_flows
+  FOR SELECT TO authenticated
+  USING (
+    (SELECT auth.uid()) = user_id
+    OR public.has_role((SELECT auth.uid()), 'admin'::public.app_role)
+    OR (
+      public.has_role((SELECT auth.uid()), 'advisor'::public.app_role)
+      AND EXISTS (
+        SELECT 1 FROM public.advisor_clients ac
+        WHERE ac.advisor_id = (SELECT auth.uid())
+          AND ac.client_id = portfolio_cash_flows.user_id
+      )
+    )
+  );
 
 INSERT INTO public.portfolio_cash_flows
   (user_id, flow_date, amount, flow_type, source_cash_movement_id)
@@ -80,7 +95,24 @@ CREATE TABLE IF NOT EXISTS public.performance_snapshots (
 CREATE INDEX IF NOT EXISTS performance_snapshots_user_date_idx ON public.performance_snapshots(user_id, snapshot_date DESC);
 ALTER TABLE public.performance_snapshots ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS performance_snapshots_owner_select ON public.performance_snapshots;
-CREATE POLICY performance_snapshots_owner_select ON public.performance_snapshots FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+DROP POLICY IF EXISTS performance_snapshots_scoped_select ON public.performance_snapshots;
+CREATE POLICY performance_snapshots_scoped_select
+  ON public.performance_snapshots
+  FOR SELECT TO authenticated
+  USING (
+    (SELECT auth.uid()) = user_id
+    OR public.has_role((SELECT auth.uid()), 'admin'::public.app_role)
+    OR (
+      public.has_role((SELECT auth.uid()), 'advisor'::public.app_role)
+      AND EXISTS (
+        SELECT 1 FROM public.advisor_clients ac
+        WHERE ac.advisor_id = (SELECT auth.uid())
+          AND ac.client_id = performance_snapshots.user_id
+      )
+    )
+  );
+GRANT SELECT ON public.performance_snapshots TO authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.performance_snapshots FROM anon, authenticated;
 
 CREATE TABLE IF NOT EXISTS public.benchmark_base100_series (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), benchmark_symbol public.benchmark_symbol NOT NULL,
