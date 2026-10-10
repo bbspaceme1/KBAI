@@ -292,6 +292,51 @@ jobs:
             triggers: .triggers
           }' "$schema_file"
 
+      - name: Enforce remote authorization invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema_file="$RUNNER_TEMP/kbai-supabase-schema-audit.json"
+          test -s "$schema_file"
+
+          findings="$(jq -r '
+            [
+              .functions[]?
+              | select(
+                  (.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "try_consume_ai_quota")
+                  and .security_definer == true
+                  and .authenticated_execute == true
+                  and (
+                    .auth_uid_reference != true
+                    or .owner_guard_signature != true
+                    or (([.settings[]? | strings | startswith("search_path=")] | any) != true)
+                    or (.name == "upsert_holding_buy" and (.validates_positive_lot != true or .validates_nonnegative_price != true))
+                    or (.name == "upsert_holding_sell" and .validates_positive_lot != true)
+                    or (.name == "try_consume_ai_quota" and .validates_positive_tokens != true)
+                  )
+                )
+              | "Unsafe authenticated SECURITY DEFINER RPC: (.name)((.arguments))"
+            ]
+            +
+            [
+              .rls[] as $r
+              | select(
+                  $r.enabled == true
+                  and (([.tables[].table] | index($r.table)) != null)
+                  and ([.policies[] | select(.table == $r.table)] | length == 0)
+                )
+              | "RLS enabled without a policy: ($r.table)"
+            ]
+            | .[]
+          ' "$schema_file")"
+
+          if [[ -n "$findings" ]]; then
+            printf '%s\\n' "$findings"
+            echo "::error::Remote authorization invariants failed; keep production release blocked."
+            exit 1
+          fi
+          echo "Remote authorization invariants passed."
+
       - name: Check migration drift
         shell: bash
         env:
