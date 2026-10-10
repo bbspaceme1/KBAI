@@ -1,4 +1,5 @@
 import "./lib/monitoring";
+import { posthog } from "./lib/posthog";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
@@ -12,6 +13,13 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
 });
+
+if (import.meta.env.VITE_POSTHOG_KEY) {
+  router.subscribe("onResolved", () => {
+    const currentUrl = `${window.location.origin}${window.location.pathname}`;
+    posthog.capture("$pageview", { $current_url: currentUrl });
+  });
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
