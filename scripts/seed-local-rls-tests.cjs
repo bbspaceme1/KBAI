@@ -3,8 +3,8 @@ const { appendFileSync } = require("node:fs");
 const { randomUUID } = require("node:crypto");
 
 const url = process.env.API_URL;
-const anonKey = process.env.ANON_KEY;
-const serviceRoleKey = process.env.SERVICE_ROLE_KEY;
+const anonKey = process.env.ANON_KEY || process.env.PUBLISHABLE_KEY;
+const serviceRoleKey = process.env.SERVICE_ROLE_KEY || process.env.SECRET_KEY;
 
 if (!url || !anonKey || !serviceRoleKey || !process.env.GITHUB_ENV) {
   throw new Error("Local Supabase API URL, keys, and GITHUB_ENV are required.");
