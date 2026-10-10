@@ -67,19 +67,23 @@ describe("AI usage quota helpers", () => {
     });
   });
 
-  it("fails safely to default limits when a quota query throws", async () => {
+  it("fails closed when a quota query throws", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     fromMock.mockImplementationOnce(() => {
       throw new Error("database unavailable");
     });
 
-    await expect(getUserAiUsage("user-a")).resolves.toEqual({
-      daily_limit: 5000,
-      monthly_limit: 100000,
-      current_daily_usage: 0,
-      current_monthly_usage: 0,
-    });
+    await expect(getUserAiUsage("user-a")).rejects.toThrow("database unavailable");
     expect(errorSpy).toHaveBeenCalled();
+
+    fromMock.mockImplementationOnce(() => {
+      throw new Error("database unavailable");
+    });
+    await expect(checkAiQuota("user-a", 1)).resolves.toEqual({
+      allowed: false,
+      reason: "quota_check_error",
+      quotaRemaining: 0,
+    });
   });
 
   it("allows usage within both limits and returns the remaining quota", async () => {
