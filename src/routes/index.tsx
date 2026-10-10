@@ -4,17 +4,17 @@ import { ImprovedLandingPage } from "@/components/landing-upgraded";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "KBAI — Investment Operating System" },
+      { title: "KBAI Terminal — Investment Operating System" },
       {
         name: "description",
         content:
-          "KBAI adalah sistem intelijen investasi multi-layer untuk advisor, komunitas, dan investor yang ingin mengambil keputusan berbasis data.",
+          "KBAI Terminal menggabungkan intelijen pasar IDX, pelacakan portofolio, perbandingan benchmark, dan intelijen komunitas yang terstruktur.",
       },
-      { property: "og:title", content: "KBAI — Investment Operating System" },
+      { property: "og:title", content: "KBAI Terminal — Investment Operating System" },
       {
         property: "og:description",
         content:
-          "Kelola portofolio dengan sistem, bukan feeling. Framework 5-layer, trigger engine, dan community alpha.",
+          "Kelola portofolio dengan sistem dan data. Bandingkan performa, pantau alokasi, dan gunakan intelijen pasar serta komunitas secara terstruktur.",
       },
     ],
   }),
