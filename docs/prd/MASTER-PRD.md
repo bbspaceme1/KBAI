@@ -235,7 +235,7 @@ Production readiness is not a percentage of code written; it requires evidence. 
 14. Rollback is written before any schema/deployment release; database rollback is forward-only where data/schema cannot safely be reversed.
 15. All release evidence is recorded in the reconciliation progress document and CI artifacts.
 
-Current known blockers must remain visible: remote migration history/schema drift; four migration files that were not found at the expected `main` paths and must be recovered from exact original history rather than recreated from filenames; local replay failures; quota RPC caller binding; RLS behavioral tests; coverage/dependency findings; and Vercel's previously observed `live:false`, latest deployment target null/building and SSO protection. These are evidence-based blockers, not permission to make speculative production changes.
+Current known blockers must remain visible: remote migration history/schema drift; migration files whose names differ from earlier assumed paths (the actual tracked files must be reviewed by their SQL and version, never recreated from guessed names); local replay failures; quota RPC caller binding; RLS behavioral tests; coverage/dependency findings; and Vercel's previously observed non-live project state, preview-only deployment target and SSO protection. These are evidence-based blockers, not permission to make speculative production changes.
 
 ## 16. Migration and rollback policy
 
