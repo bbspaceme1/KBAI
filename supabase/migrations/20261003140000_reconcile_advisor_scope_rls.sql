@@ -2,6 +2,7 @@
 -- Restrict advisor access to explicitly assigned clients and fix the case ownership predicate.
 
 DROP POLICY IF EXISTS "Users and admins view cash" ON public.cash_balances;
+DROP POLICY IF EXISTS "Users and scoped staff view cash" ON public.cash_balances;
 CREATE POLICY "Users and scoped staff view cash"
   ON public.cash_balances
   FOR SELECT
@@ -21,6 +22,7 @@ CREATE POLICY "Users and scoped staff view cash"
   );
 
 DROP POLICY IF EXISTS "Users and admins view cash movements" ON public.cash_movements;
+DROP POLICY IF EXISTS "Users and scoped staff view cash movements" ON public.cash_movements;
 CREATE POLICY "Users and scoped staff view cash movements"
   ON public.cash_movements
   FOR SELECT
