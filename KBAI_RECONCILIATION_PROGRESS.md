@@ -1,5 +1,52 @@
 # KBAI Reconciliation Progress
 
+## Update 2026-10-10 — Master PRD and free-tier reconciliation pass
+
+**Release decision: HOLD / NOT PRODUCTION READY.** Production Supabase was queried read-only; no production migration, ledger repair, reset, or deployment was executed. No paid staging environment or paid vendor feature was activated.
+
+### Canonical product source of truth
+- Added `docs/prd/MASTER-PRD.md` on this feature branch as the consolidated Master PRD v1.0, based on approved prior KBAI product discussions.
+- Scope guardrail: no functionality, role, price, data source, AI capability, or workflow may be changed unless a specific PRD section and acceptance criterion authorizes it.
+- The PRD is on draft PR #26; it is not yet merged to `main`.
+
+### Fresh local migration replay
+- Workflow: [Local Migration Replay](https://github.com/bbspaceme1/KBAI/actions/runs/38049418728) was running at the last check; later retry is tracked on the branch's newest commit.
+- First full replay reached isolated fixture setup and exposed a real auth blocker: the `on_user_role_change` trigger fires on `public.user_roles`, but `public.add_role_to_jwt()` tried to read/write `NEW.raw_app_meta_data`, a field that exists on `auth.users`, not on a `user_roles` row. New isolated users therefore failed to be created.
+- Added forward-only corrective migration `20261010150000_fix_role_claim_sync_trigger.sql` on the feature branch. It synchronizes role claims through `auth.users`, handles INSERT/UPDATE/DELETE and user reassignment, restricts helper execution, and refreshes existing role claims.
+- This correction is **not yet considered verified** until a fresh local replay and the isolated RLS fixture setup pass.
+
+### Current CI and drift
+- CI passed on earlier commit `8ea134a`, then a later commit failed only the Prettier lint check for the Sentry browser tracing integration; formatting was corrected on the branch and CI was rerun.
+- Database Migration Drift Check continues to fail because local migration history and the remote Supabase ledger differ. It is a read-only gate and does not apply migrations.
+- Latest drift workflow evidence must be rechecked on the current head before any APPLY/SKIP classification. No history repair or production SQL was run.
+- The exact-original migration filenames differ from earlier assumed names; the current `main` tree contains `20260906120000_backfill_test_account_roles.sql`, `20260908100000_performance_engine_schema.sql`, `20260908110000_data_pipeline_reconciliation.sql`, `20260908120000_company_ops_entitlements_schema.sql`, and `20261005100000_canonical_user_sub_roles.sql`. Use the actual tracked paths and inspect their SQL; do not reconstruct by guessed filenames.
+
+### Integration and hosting snapshot
+- **Supabase:** linked project is reachable and reports `ACTIVE_HEALTHY`; schema, migration parity and behavioral authorization are not fully reconciled.
+- **Vercel:** project `kbaiterminal` has a READY preview deployment from the feature branch, but deployment `target` is null and project `live` was false at the earlier project audit. SSO protection is enabled for all non-custom domains, and only `kbaiterminal.vercel.app` is listed as a verified project domain. Do not disable protection or promote a deployment until release gates pass.
+- **Vercel environment variables:** canonical browser-safe `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_POSTHOG_KEY`, and `VITE_SENTRY_DSN` exist for production/preview/development. Numerous legacy/duplicate Supabase variables remain. The metadata flags several server-secret entries as not encrypted/readable-secret; do not print values. Treat secret storage/rotation and removal of duplicate variables as a security work item requiring safe handling.
+- **PostHog:** the connected organization/project can be read (`KBAI` / `Default project`), but its project reports `ingested_event: false`; a GitHub integration exists, but telemetry from KBAI is not yet proven. Branch code uses explicit sanitized pageview capture and disables automatic raw URL capture; verify after a successful preview.
+- **Cloudflare:** account connection works, but the account has no zones, Pages projects, or Worker scripts. It is not currently integrated with KBAI hosting/DNS; do not create or transfer domains or move hosting outside the PRD's single Vercel production target.
+- **Sentry:** Vercel environment metadata contains DSN-related variables, but the Sentry API connector/tool is not available in this session and actual Sentry project ingestion cannot be verified here. Do not infer connectivity from variable presence alone.
+
+### Security / functional blockers still open
+1. Complete migration replay and fix each first failure in the isolated chain only.
+2. Complete separate-identity RLS tests; quota RPC must reject cross-user quota consumption and non-positive tokens.
+3. Confirm the corrective role-claim migration passes the fresh replay and signup fixture.
+4. Resolve migration ledger/schema drift with per-version SQL/schema evidence and explicit APPLY/SKIP/HOLD; never repair the production ledger blindly.
+5. Resolve the remaining schema/migration gaps (IDX ratio periods, Telegram, Company Operations, portfolio/performance objects) before declaring parity.
+6. Review advisor scope on holdings and performance snapshots; test assigned vs unassigned client access.
+7. Reach the meaningful coverage target and pass lint, type-check, unit, build, local replay, RLS and browser smoke gates.
+8. Review Supabase security/performance advisors and dependency advisories; verify official/licensed full-universe IDX EOD data.
+9. Verify Vercel public-domain/auth/env behavior and Sentry/PostHog event ingestion without exposing secrets or removing security protection prematurely.
+10. Produce and review a release-specific rollback/forward-repair plan before staging or production execution.
+
+### Free-tier policy
+All work must remain within already available free-tier allowances. No paid Supabase staging, paid monitoring, paid vendor feature, paid add-on, or upgrade is authorized. If a required production gate cannot be satisfied on the free tier, keep the release blocked and document the limitation.
+
+---
+
+
 ## Status Saat Ini
 
 **BLOCKED / NOT PRODUCTION READY.** GitHub Actions membuktikan ketujuh secrets `PRESENT` tanpa mencetak nilainya. Supabase project/schema sudah dibaca read-only; migration history berbeda dan terdapat duplicate local timestamp. Vercel token/org/project secrets hadir, tetapi user identity 404 dan team/project 403. Coverage, RLS behavior tests, E2E, dependency advisories, dan deployment tetap release blockers. Tidak ada migration atau deployment production yang dijalankan.
