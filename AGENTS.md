@@ -4,6 +4,15 @@
 
 ## Purpose
 
+## Product source of truth and change control
+
+- Canonical Master PRD: `docs/prd/MASTER-PRD.md`. Read it before implementing or reviewing any product behavior, role, data source, entitlement, price, AI capability, migration or workflow.
+- Do not change functionality outside an explicit PRD section and acceptance criterion. If scope is ambiguous or existing behavior conflicts with the PRD, document the discrepancy and stop at a proposal instead of guessing.
+- Keep implementation on a feature branch/PR. Do not merge, promote a deployment, weaken access protection, or apply/repair production migrations as part of a diagnostic task.
+- Free-tier-only constraint: do not activate paid plans, paid staging, paid add-ons or billable vendor features. If free-tier limits prevent a required control, report the blocker rather than upgrading.
+- Product requirements and exclusions in the Master PRD override stale or conflicting guidance elsewhere in this file. Update this file only to maintain consistent agent guardrails; product behavior still requires an explicit approved PRD criterion.
+
+
 KBAI Terminal is a production investment analytics SaaS platform targeting Indonesian stock market (IDX). This repository guides AI agents on codebase conventions, architectural boundaries, and critical guardrails.
 
 ## Product Context
@@ -80,7 +89,7 @@ Read `docs/prd/MASTER-PRD.md` before implementing product behavior. It supersede
 
 - **AI token counting:** Use `estimateTokens()` pre-call, but ALWAYS use actual token counts from API response
 - **Feature flags:** MUST be persistent (DB-backed), not in-memory only
-- **Rate limiting:** Use Upstash Redis for rate limiting, NOT in-memory Map
+- **Rate limiting:** Use an atomic, security-reviewed implementation that fits the existing free-tier budget (e.g. PostgreSQL/RPC where appropriate); do not introduce paid dependencies or rely on process-local Map for production enforcement.
 - **Billing calculations:** ALWAYS map highest tiers first (1M+ → enterprise, then 100K+ → pro)
 - **Market data:** Use Sectors Financial API (primary), NOT Yahoo Finance scraping
 
@@ -101,7 +110,7 @@ it("maps IDR 1,500,000 to enterprise tier", () => {
 
 ## Security & Compliance Checklist
 
-- ✅ RLS policies on all data tables (verified in schema)
+- ⏳ RLS policies, grants, and negative authorization tests must be verified against the current remote schema; never assume coverage from code alone.
 - ✅ MFA enforcement for admin/advisor users (implemented in `auth-middleware.ts`)
 - ✅ Server-side RBAC enforcement (use `requireRole()` for sensitive operations)
 - ✅ CSP headers with `'unsafe-inline'` for React (Tailwind requires it)
