@@ -160,7 +160,11 @@ jobs:
                 'auth_uid_reference', position('auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0,
                 'owner_guard_signature',
                   position('auth.uid() <> p_user_id' in lower(pg_get_functiondef(proc.oid))) > 0 OR
-                  position('auth.uid() <> p_user' in lower(pg_get_functiondef(proc.oid))) > 0,
+                  position('auth.uid() <> p_user' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_user_id is distinct from auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_user is distinct from auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_user_id <> auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0 OR
+                  position('p_user <> auth.uid()' in lower(pg_get_functiondef(proc.oid))) > 0,
                 'for_update_lock', position('for update' in lower(pg_get_functiondef(proc.oid))) > 0,
                 'validates_positive_lot',
                   position('p_lot <= 0' in lower(pg_get_functiondef(proc.oid))) > 0 OR
@@ -300,33 +304,42 @@ jobs:
           test -s "$schema_file"
 
           findings="$(jq -r '
-            [
-              .functions[]?
-              | select(
-                  (.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "try_consume_ai_quota")
-                  and .security_definer == true
-                  and .authenticated_execute == true
-                  and (
-                    .auth_uid_reference != true
-                    or .owner_guard_signature != true
-                    or (([.settings[]? | strings | startswith("search_path=")] | any) != true)
-                    or (.name == "upsert_holding_buy" and (.validates_positive_lot != true or .validates_nonnegative_price != true))
-                    or (.name == "upsert_holding_sell" and .validates_positive_lot != true)
-                    or (.name == "try_consume_ai_quota" and .validates_positive_tokens != true)
-                  )
-                )
-              | "Unsafe authenticated SECURITY DEFINER RPC: (.name)((.arguments))"
-            ]
-            +
-            [
-              .rls[] as $r
-              | select(
-                  $r.enabled == true
-                  and (([.tables[].table] | index($r.table)) != null)
-                  and ([.policies[] | select(.table == $r.table)] | length == 0)
-                )
-              | "RLS enabled without a policy: ($r.table)"
-            ]
+            . as $schema
+            | (
+                [
+                  $schema.functions[]?
+                  | select(
+                      (.name == "upsert_holding_buy" or .name == "upsert_holding_sell" or .name == "try_consume_ai_quota" or .name == "reserve_ai_quota")
+                      and .security_definer == true
+                      and .authenticated_execute == true
+                      and (
+                        (([.settings[]? | strings | startswith("search_path=")] | any) != true)
+                        or (.name == "upsert_holding_buy" and (.owner_guard_signature != true or .validates_positive_lot != true or .validates_nonnegative_price != true))
+                        or (.name == "upsert_holding_sell" and (.owner_guard_signature != true or .validates_positive_lot != true))
+                        or (.name == "reserve_ai_quota" and (.owner_guard_signature != true or .validates_positive_tokens != true))
+                        or (.name == "try_consume_ai_quota" and (
+                          .auth_uid_reference != true
+                          or ([$schema.functions[]? | select(.name == "reserve_ai_quota" and .security_definer == true and .owner_guard_signature == true and .validates_positive_tokens == true)] | length == 0)
+                        ))
+                      )
+                    )
+                  | "Unsafe authenticated SECURITY DEFINER RPC: (.name)((.arguments))"
+                ]
+                +
+                [
+                  "Missing required security RPC: " + (["upsert_holding_buy", "upsert_holding_sell", "try_consume_ai_quota", "reserve_ai_quota"] - [$schema.functions[].name])[]
+                ]
+                +
+                [
+                  $schema.rls[] as $r
+                  | select(
+                      $r.enabled == true
+                      and (([$schema.tables[].table] | index($r.table)) != null)
+                      and ([$schema.policies[] | select(.table == $r.table)] | length == 0)
+                    )
+                  | "RLS enabled without a policy: ($r.table)"
+                ]
+              )
             | .[]
           ' "$schema_file")"
 
