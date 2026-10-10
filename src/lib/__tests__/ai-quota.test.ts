@@ -45,7 +45,7 @@ describe("ai-quota helpers", () => {
 });
 
 function createQuery(result: unknown) {
-  const query: Record<string, any> = {};
+  const query: Record<string, ReturnType<typeof vi.fn>> = {};
   query.select = vi.fn(() => query);
   query.eq = vi.fn(() => query);
   query.limit = vi.fn(() => query);
