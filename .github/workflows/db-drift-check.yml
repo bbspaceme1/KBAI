@@ -324,7 +324,7 @@ jobs:
                         ))
                       )
                     )
-                  | "Unsafe authenticated SECURITY DEFINER RPC: (.name)((.arguments))"
+                  | "Unsafe authenticated SECURITY DEFINER RPC: " + .name + "(" + .arguments + ")"
                 ]
                 +
                 [
@@ -338,7 +338,7 @@ jobs:
                       and (([$schema.tables[].table] | index($r.table)) != null)
                       and ([$schema.policies[] | select(.table == $r.table)] | length == 0)
                     )
-                  | "RLS enabled without a policy: ($r.table)"
+                  | "RLS enabled without a policy: " + $r.table
                 ]
               )
             | .[]
