@@ -153,6 +153,19 @@ DECLARE
   reservation_id uuid;
   affected_rows integer;
 BEGIN
+  -- Keep the ownership invariant explicit in this public compatibility RPC as
+  -- well as in reserve_ai_quota. This also protects against future changes to
+  -- the delegated implementation and makes the security contract auditable.
+  IF auth.uid() IS NULL OR p_user IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Not authorized to consume quota for this user'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_tokens IS NULL OR p_tokens <= 0 THEN
+    RAISE EXCEPTION 'Token count must be a positive integer'
+      USING ERRCODE = '22023';
+  END IF;
+
   reservation_id := public.reserve_ai_quota(p_user, p_tokens);
   IF reservation_id IS NULL THEN
     RETURN FALSE;
