@@ -8,6 +8,7 @@ if (typeof window !== "undefined" && posthogKey) {
     api_host: posthogHost,
     autocapture: false,
     capture_pageview: false,
+    disable_session_recording: true,
     persistence: "memory",
     person_profiles: "identified_only",
     loaded: () => {

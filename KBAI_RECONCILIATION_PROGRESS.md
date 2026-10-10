@@ -235,3 +235,11 @@ Tidak ada migration production dibuat atau dijalankan. Remote migration history 
 ## Git Completion
 
 Read-only audit findings were previously merged via PR [#17](https://github.com/bbspaceme1/KBAI/pull/17) at `0248d7f75a5e69bd924c701684dd51892b86f130`. This update is prepared on `feature/reconciliation-release-readiness`. No production migration, deployment mutation, data deletion, or live provider change has been performed. The original package-lock change was preserved according to the prior audit record.
+
+
+### Coverage and GitHub workflow credential findings — 2026-10-10
+
+- The last full-source coverage report (commit `aa3ad2dc8096a6b4d590ad6f4a3a9e7094f121a7`) showed **13.19% statements/lines, 34.28% functions and 65.39% branches**. That report counted test files, scripts, E2E specs and generated route trees, and the previous threshold configuration did not enforce the intended gate.
+- The candidate now measures the PRD's risk-critical business modules only, excludes test/generated files and sets real **60% line/statement/function/branch thresholds**. The new coverage gate must pass; if it fails, add meaningful tests rather than lower the target. Its result is pending on the new head.
+- The read-only migration workflow reports that the GitHub Actions `SUPABASE_URL` secret's project reference does not match `supabase/config.toml`, and `SUPABASE_ACCESS_TOKEN` is unavailable/missing. Vercel's canonical `VITE_SUPABASE_URL` was independently verified to match the connected project URL `https://ejiufnrqvkvqzxroustb.supabase.co`. Update the GitHub repository secret and token separately; do not bypass the guard or paste secrets into logs.
+- No paid staging project, paid vendor upgrade, or production write was used. Vercel's environment list did not contain OpenAI, Anthropic, Gemini or Midtrans keys; no paid AI/payment API was activated by this work.

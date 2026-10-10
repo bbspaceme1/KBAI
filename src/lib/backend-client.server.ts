@@ -22,13 +22,12 @@ export function getAdminDatabaseClient() {
  * @returns Supabase client scoped to authenticated user
  */
 export function getUserScopedDatabaseClient(accessToken: string) {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey =
-    process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !publishableKey) {
     throw new Error(
-      "Supabase configuration (SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) is missing",
+      "Supabase configuration (SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY) is missing",
     );
   }
 

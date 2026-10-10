@@ -24,6 +24,8 @@ Secret berikut dipakai untuk menghubungkan workflow migration drift ke Supabase:
 
 - `SUPABASE_ACCESS_TOKEN`
 
+**Current drift-workflow blocker (2026-10-10):** the workflow reports that the `SUPABASE_URL` repository secret's project reference does not match `supabase/config.toml`, and the access token is missing/unavailable. Set `SUPABASE_URL` to the configured project's URL (`https://ejiufnrqvkvqzxroustb.supabase.co`) and add a valid `SUPABASE_ACCESS_TOKEN` in Repository Settings → Secrets and variables → Actions. Never paste the token into a PR, issue, chat, or workflow log; do not remove the mismatch guard or use production writes as a workaround.
+
 ## Vercel
 
 Secret berikut dipakai untuk deploy production:
