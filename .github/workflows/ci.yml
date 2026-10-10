@@ -93,7 +93,7 @@ jobs:
         run: npm run build
       - name: Verify no service-role key in client bundle
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           if grep -r -F -- "$SUPABASE_SERVICE_ROLE_KEY" dist/client/ 2>/dev/null; then
@@ -102,21 +102,31 @@ jobs:
           fi
       - name: Validate isolated staging integration secrets
         env:
-          E2E_URL: ${{ secrets.E2E_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
-          RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
-          RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
-          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
-          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
-          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
-          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
+          E2E_URL: ${{ secrets.STAGING_E2E_URL }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          RLS_TEST_USER_A_TOKEN: ${{ secrets.STAGING_RLS_TEST_USER_A_TOKEN }}
+          RLS_TEST_USER_A_ID: ${{ secrets.STAGING_RLS_TEST_USER_A_ID }}
+          RLS_TEST_USER_B_ID: ${{ secrets.STAGING_RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.STAGING_RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.STAGING_RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID }}
         run: |
           test -n "$E2E_URL"
           test "$E2E_URL" != "http://localhost:3000"
           test -n "$SUPABASE_URL"
+          case "$SUPABASE_URL" in
+            https://*.supabase.co) ;;
+            *) echo "::error::STAGING_SUPABASE_URL must be an HTTPS Supabase project URL"; exit 1 ;;
+          esac
+          staging_project_ref="${SUPABASE_URL#https://}"
+          staging_project_ref="${staging_project_ref%%.*}"
+          if [[ "$staging_project_ref" == "ejiufnrqvkvqzxroustb" ]]; then
+            echo "::error::Refusing to run staging integration tests against the production Supabase project."
+            exit 1
+          fi
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           test -n "$SUPABASE_ANON_KEY"
           test -n "$RLS_TEST_USER_A_TOKEN"
@@ -129,21 +139,21 @@ jobs:
       - name: Behavioral RLS authorization gate
         run: npm run test:rls
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          RLS_TEST_USER_A_TOKEN: ${{ secrets.RLS_TEST_USER_A_TOKEN }}
-          RLS_TEST_USER_A_ID: ${{ secrets.RLS_TEST_USER_A_ID }}
-          RLS_TEST_USER_B_ID: ${{ secrets.RLS_TEST_USER_B_ID }}
-          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.RLS_TEST_ADVISOR_TOKEN }}
-          RLS_TEST_ADVISOR_ID: ${{ secrets.RLS_TEST_ADVISOR_ID }}
-          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_ASSIGNED_CLIENT_ID }}
-          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.RLS_TEST_UNASSIGNED_CLIENT_ID }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+          RLS_TEST_USER_A_TOKEN: ${{ secrets.STAGING_RLS_TEST_USER_A_TOKEN }}
+          RLS_TEST_USER_A_ID: ${{ secrets.STAGING_RLS_TEST_USER_A_ID }}
+          RLS_TEST_USER_B_ID: ${{ secrets.STAGING_RLS_TEST_USER_B_ID }}
+          RLS_TEST_ADVISOR_TOKEN: ${{ secrets.STAGING_RLS_TEST_ADVISOR_TOKEN }}
+          RLS_TEST_ADVISOR_ID: ${{ secrets.STAGING_RLS_TEST_ADVISOR_ID }}
+          RLS_TEST_ASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_ASSIGNED_CLIENT_ID }}
+          RLS_TEST_UNASSIGNED_CLIENT_ID: ${{ secrets.STAGING_RLS_TEST_UNASSIGNED_CLIENT_ID }}
       - name: Install Playwright browsers and Linux dependencies
         run: npx playwright install --with-deps chromium firefox webkit
       - name: E2E tests
         run: npm run test:e2e
         env:
-          E2E_URL: ${{ secrets.E2E_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          E2E_URL: ${{ secrets.STAGING_E2E_URL }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
