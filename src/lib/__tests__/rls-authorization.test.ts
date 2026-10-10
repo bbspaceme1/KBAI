@@ -80,6 +80,19 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(sell.error).toBeTruthy();
   });
 
+  it("allows a user to reserve positive AI quota for their own account", async () => {
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { data, error } = await authenticated.rpc("try_consume_ai_quota", {
+      p_user: userAId,
+      p_tokens: 1,
+    });
+
+    expect(error).toBeNull();
+    expect(data).toBe(true);
+  });
+
   it("rejects AI quota consumption for another user's ID", async () => {
     const authenticated = createClient(url!, anonKey!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
