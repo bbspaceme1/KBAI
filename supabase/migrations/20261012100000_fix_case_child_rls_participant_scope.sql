@@ -7,6 +7,16 @@ DROP POLICY IF EXISTS case_analysis_visible_to_case_participants ON public.case_
 DROP POLICY IF EXISTS case_notes_visible_to_case_participants ON public.case_notes;
 DROP POLICY IF EXISTS case_analysis_assigned_select ON public.case_analysis;
 DROP POLICY IF EXISTS case_notes_assigned_select ON public.case_notes;
+DROP POLICY IF EXISTS case_analysis_insert_by_author_on_visible_case ON public.case_analysis;
+DROP POLICY IF EXISTS case_analysis_update_by_author ON public.case_analysis;
+DROP POLICY IF EXISTS case_analysis_update_by_author_on_visible_case ON public.case_analysis;
+DROP POLICY IF EXISTS case_analysis_delete_by_author ON public.case_analysis;
+DROP POLICY IF EXISTS case_analysis_delete_by_author_on_visible_case ON public.case_analysis;
+DROP POLICY IF EXISTS case_notes_insert_by_author_on_visible_case ON public.case_notes;
+DROP POLICY IF EXISTS case_notes_update_by_author ON public.case_notes;
+DROP POLICY IF EXISTS case_notes_update_by_author_on_visible_case ON public.case_notes;
+DROP POLICY IF EXISTS case_notes_delete_by_author ON public.case_notes;
+DROP POLICY IF EXISTS case_notes_delete_by_author_on_visible_case ON public.case_notes;
 
 CREATE POLICY case_analysis_visible_to_case_participants
   ON public.case_analysis
