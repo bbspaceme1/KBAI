@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: tested-dependency-remediation-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -85,59 +85,11 @@ jobs:
           echo "Full dependency audit exit code after safe updates: $code"
           echo "This report does not waive the required full-tree audit in the main CI workflow."
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.120.0
+      # Local Supabase migration replay, RLS matrix, and browser smoke tests are
+      # run by local-migration-replay.yml. Do not start a second Docker stack here:
+      # repeated image pulls have hit Docker Hub rate limits.
 
-      - name: Start isolated local Supabase stack
-        run: supabase start --exclude studio,edge-runtime,logflare,vector,mailpit,imgproxy,realtime,storage-api,supavisor
-
-      - name: Replay all migrations from an empty local database
-        run: supabase db reset --local
-
-      - name: Verify local database status
-        run: supabase status
-
-      - name: Seed isolated RLS fixtures
-        shell: bash
-        run: |
-          set -euo pipefail
-          eval "$(supabase status -o env)"
-          API_URL="${API_URL:-${SUPABASE_URL:-}}"
-          ANON_KEY="${ANON_KEY:-${SUPABASE_ANON_KEY:-${PUBLISHABLE_KEY:-}}}"
-          SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-${SECRET_KEY:-}}}"
-          export API_URL ANON_KEY SERVICE_ROLE_KEY
-          for value in "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY"; do
-            echo "::add-mask::$value"
-          done
-          node scripts/seed-local-rls-tests.cjs
-
-      - name: RLS/RBAC authorization matrix
-        run: npm run test:rls
-        env:
-          RLS_TEST_ENVIRONMENT: isolated
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Browser smoke tests
-        run: npx playwright test e2e/basic.spec.ts --project=chromium
-
-      - name: Capture local database errors on failure
-        if: failure()
-        shell: bash
-        run: |
-          set +e
-          for name in $(docker ps -a --format '{{.Names}}' | grep -E 'supabase_(auth|db)_'); do
-            echo "Recent error lines from $name"
-            docker logs --since 3m "$name" 2>&1 | grep -Ei 'ERROR|FATAL|violates|duplicate key|constraint|exception|database error' | tail -60 || true
-          done
-
-      - name: Stop isolated local Supabase stack
-        if: always()
-        run: supabase stop --no-backup
-
-      - name: Commit validated non-breaking dependency updates
+      - name: Commit validated tooling upgrades
         if: success()
         shell: bash
         run: |
