@@ -143,6 +143,20 @@ describe.skipIf(!enabled)("isolated-database RLS/RBAC authorization matrix", () 
     expect(error).toBeTruthy();
   });
 
+  it("does not let a normal user probe another user's role assignments", async () => {
+    if (!advisorId) throw new Error("RLS_TEST_ADVISOR_ID is required for role-probing test");
+    const authenticated = createClient(url!, anonKey!, {
+      global: { headers: { Authorization: `Bearer ${userAToken}` } },
+    });
+    const { data, error } = await authenticated.rpc("has_role", {
+      _user_id: advisorId,
+      _role: "advisor",
+    });
+
+    expect(error).toBeNull();
+    expect(data).toBe(false);
+  });
+
   it("allows Advisor A to select assigned clients but not unassigned clients", async () => {
     if (!advisorToken || !advisorId || !assignedClientId || !unassignedClientId) {
       throw new Error(
