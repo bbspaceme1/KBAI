@@ -38,7 +38,7 @@ async function createTestUser(email) {
   const signedIn = await anon.auth.signInWithPassword({ email, password });
   const session = await requireData(`sign in ${email}`, signedIn);
   if (!session.session?.access_token) throw new Error(`No access token for ${email}`);
-  return { id: user.user.id, token: session.session.access_token };
+  return { id: user.user.id, token: session.session.access_token, email, password };
 }
 
 async function main() {
@@ -56,6 +56,17 @@ async function main() {
     "assign advisor client",
     await admin.from("advisor_clients").insert({ advisor_id: advisor.id, client_id: userA.id }),
   );
+
+  // Role claims are refreshed into the JWT only at sign-in time.
+  const refreshedAdvisor = await anon.auth.signInWithPassword({
+    email: advisor.email,
+    password: advisor.password,
+  });
+  const refreshedAdvisorData = await requireData("refresh advisor sign-in", refreshedAdvisor);
+  if (!refreshedAdvisorData.session?.access_token) {
+    throw new Error("No refreshed advisor access token");
+  }
+  advisor.token = refreshedAdvisorData.session.access_token;
 
   await requireData(
     "seed holdings",
