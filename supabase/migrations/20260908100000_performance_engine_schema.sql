@@ -26,8 +26,21 @@ WHERE movement_type IN ('DEPOSIT','WITHDRAW')
   );
 
 CREATE OR REPLACE FUNCTION public.sync_portfolio_cash_flow()
-RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
 BEGIN
+  -- The trigger may write on behalf of the authenticated owner, or a trusted
+  -- service-role operation. Do not permit a normal user to write another user's flow.
+  IF auth.uid() IS NOT NULL
+     AND auth.uid() IS DISTINCT FROM NEW.user_id
+     AND NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
+    RAISE EXCEPTION 'not authorized to sync portfolio cash flow'
+      USING ERRCODE = '42501';
+  END IF;
+
   IF NEW.movement_type = 'DEPOSIT' THEN
     INSERT INTO public.portfolio_cash_flows(user_id, flow_date, amount, flow_type)
     VALUES (NEW.user_id, (NEW.created_at AT TIME ZONE 'UTC')::date, NEW.amount, 'deposit');
@@ -36,7 +49,11 @@ BEGIN
     VALUES (NEW.user_id, (NEW.created_at AT TIME ZONE 'UTC')::date, -NEW.amount, 'withdrawal');
   END IF;
   RETURN NEW;
-END; $$;
+END;
+$;
+REVOKE ALL ON FUNCTION public.sync_portfolio_cash_flow() FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.portfolio_cash_flows FROM anon, authenticated;
+GRANT SELECT ON public.portfolio_cash_flows TO authenticated;
 DROP TRIGGER IF EXISTS cash_movements_performance_flow ON public.cash_movements;
 CREATE TRIGGER cash_movements_performance_flow AFTER INSERT ON public.cash_movements FOR EACH ROW EXECUTE FUNCTION public.sync_portfolio_cash_flow();
 
