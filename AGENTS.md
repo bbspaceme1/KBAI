@@ -10,9 +10,9 @@ KBAI Terminal is a production investment analytics SaaS platform targeting Indon
 
 - **Market:** Indonesia IDX stock market analysis
 - **Users:** Retail investors (Member), professional advisors (Advisor), system admin (Admin)
-- **Core Features:** Portfolio tracking, AI market insights, IDX screener, economic dashboard, community broadcast
-- **Stage:** Pre-Scale (Late Startup) — target: 10K+ users, enterprise readiness
-- **Monetization:** Freemium + subscription tiers (Pro/Enterprise via Midtrans payment gateway)
+- **Core Features:** EOD IDX market/index intelligence, user-owned portfolio tracking and benchmark comparison, methodology-governed intelligence, Community OS and Company OS. See `docs/KBAI_MASTER_PRD.md` for the authoritative scope.
+- **Stage:** Follow the current product/release status in `KBAI_RECONCILIATION_PROGRESS.md`; do not infer readiness from this file.
+- **Monetization:** Configuration-driven plan → entitlement. Recorded tiers: Day Trader Rp5M/year, Swing Rp10M/year, Position Rp25M/year, Investor Rp50M/year; Telegram Community I Rp1,000/day and II Rp3,000/day. Do not invent Pro/Enterprise tiers or a payment provider without an approved product decision.
 
 ## Core Stack
 
@@ -39,6 +39,10 @@ KBAI Terminal is a production investment analytics SaaS platform targeting Indon
 - **Production Target:** Vercel (single production target)
 - Build: `vite build` → `dist/`
 - Deploy: `vercel --prod`
+
+## Authoritative Product Contract
+
+Read `docs/KBAI_MASTER_PRD.md` before implementing product behavior. It supersedes conflicting legacy summaries in this file. In particular, do not build or expose an unrestricted IDX screener, DCF engine, stock-selection/recommendation AI, AI technical/dividend recommendations, autonomous portfolio construction/optimization, or automated trading/rebalancing. Use the official/licensed EOD IDX source; never fall back to Yahoo/unofficial sources in production. Keep the user in control of their portfolio and preserve the canonical Company OS authorization chain and `user_sub_roles` role source.
 
 ## Critical Guardrails & Forbidden Patterns
 
