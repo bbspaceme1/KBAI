@@ -26,7 +26,8 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public, pg_temp
-AS $function$1DECLARE
+AS $function$
+DECLARE
   active_count integer;
   membership_year integer;
 BEGIN
@@ -61,7 +62,8 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $function$1BEGIN
+AS $function$
+BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.status = 'paid' THEN
       INSERT INTO public.revenue_records(payment_id, amount, currency)
