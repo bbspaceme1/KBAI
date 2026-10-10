@@ -64,4 +64,35 @@ CREATE POLICY "Admins update snapshots"
   USING (public.has_role((SELECT auth.uid()), 'admin'::public.app_role))
   WITH CHECK (public.has_role((SELECT auth.uid()), 'admin'::public.app_role));
 
+
+-- Do not expose other users' role assignments through direct RPC calls.
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $rolecheck$
+DECLARE
+  caller_id uuid := auth.uid();
+BEGIN
+  IF caller_id IS NOT NULL AND _user_id IS DISTINCT FROM caller_id THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.user_sub_roles r
+      WHERE r.user_id = caller_id AND r.role = 'admin'::public.app_role
+    ) THEN
+      RETURN FALSE;
+    END IF;
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM public.user_sub_roles r
+    WHERE r.user_id = _user_id AND r.role = _role
+  );
+END;
+$rolecheck$;
+
+REVOKE ALL ON FUNCTION public.has_role(uuid, public.app_role) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated, service_role;
+
 COMMIT;
