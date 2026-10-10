@@ -16,8 +16,13 @@ const router = createRouter({
 
 if (import.meta.env.VITE_POSTHOG_KEY) {
   router.subscribe("onResolved", () => {
-    const currentUrl = `${window.location.origin}${window.location.pathname}`;
-    posthog.capture("$pageview", { $current_url: currentUrl });
+    // Use the route template, not the raw pathname, so IDs and user-provided
+    // path segments are never sent to analytics.
+    const routeId = router.state.matches.at(-1)?.routeId;
+    const safeRoute = routeId?.startsWith("/") ? routeId : "/";
+    posthog.capture("$pageview", {
+      $current_url: `${window.location.origin}${safeRoute}`,
+    });
   });
 }
 
