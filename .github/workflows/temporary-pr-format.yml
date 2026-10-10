@@ -1,0 +1,38 @@
+name: Temporary PR formatting repair
+
+on:
+  push:
+    branches:
+      - fix/gitleaks-pr-base-ref-20261010
+    paths:
+      - .github/workflows/temporary-pr-format.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/gitleaks-pr-base-ref-20261010
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format only files changed in this PR's test additions
+        run: npx prettier --write src/lib/__tests__/ai-quota-helpers.test.ts src/lib/__tests__/ai-quota.test.ts src/lib/__tests__/market-data-provider.test.ts src/lib/__tests__/rls-authorization.test.ts
+      - name: Commit formatting if needed
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/__tests__/ai-quota-helpers.test.ts src/lib/__tests__/ai-quota.test.ts src/lib/__tests__/market-data-provider.test.ts src/lib/__tests__/rls-authorization.test.ts
+          git commit -m "style: apply Prettier to security and data tests"
+          git push origin HEAD:fix/gitleaks-pr-base-ref-20261010
