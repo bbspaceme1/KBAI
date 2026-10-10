@@ -33,8 +33,7 @@ jobs:
         # Gate the dependency surface that runs in the deployed application.
         run: npm audit --omit=dev --audit-level=high
       - name: Dependency security audit (full CI tree)
-        # Keep CI/dev tooling visible without confusing it with runtime exposure.
-        continue-on-error: true
+        # Release gate: dev/test tooling can execute in CI and must not hide high/critical advisories.
         run: npm audit --audit-level=high
       - name: Ensure PR base ref exists for secret scan
         if: github.event_name == 'pull_request'
