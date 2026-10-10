@@ -43,9 +43,9 @@ async function createTestUser(email) {
 
 async function main() {
   const [userA, userB, advisor] = await Promise.all([
-    createTestUser("rls-user-a@kbai.test"),
-    createTestUser("rls-user-b@kbai.test"),
-    createTestUser("rls-advisor@kbai.test"),
+    createTestUser("rls-user-a@example.com"),
+    createTestUser("rls-user-b@example.com"),
+    createTestUser("rls-advisor@example.com"),
   ]);
 
   await requireData(
