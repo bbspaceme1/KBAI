@@ -1,5 +1,16 @@
 # Company OS Release Gate — Migration and Authorization Reconciliation
 
+## Latest live verification — 2026-10-11
+
+Candidate commit checked by GitHub Actions: `8e1281852ec4e50dcca47f9e2c6bbf88f484278f` (PR merge ref was used by the workflow).
+
+- Workflow run `38113563551` — Database Migration Drift Check: **FAIL**. Read-only production schema inventory and Supabase advisors completed. The migration-ledger comparison failed; no ledger writes or migrations were run.
+- Workflow run `38113563570` — CI: **PARTIAL FAIL**. Quality/build job `114393889165` passed dependency audits, secret scan, conflict check, lint, type check, build, admin guard, unit tests and coverage generation. Integration job `114393889053` stopped at `Validate isolated staging integration secrets`; behavioral RLS and E2E were skipped.
+- The integration job confirmed that `E2E_URL`, `RLS_TEST_USER_A_TOKEN`, `RLS_TEST_USER_A_ID`, `RLS_TEST_USER_B_ID`, `RLS_TEST_ADVISOR_TOKEN`, `RLS_TEST_ADVISOR_ID`, `RLS_TEST_ASSIGNED_CLIENT_ID`, and `RLS_TEST_UNASSIGNED_CLIENT_ID` are empty. It also requires staging Supabase URL, anon key, and service-role key; those were present in the run. Never substitute production identities or paste tokens into repository files/chat.
+- Live Supabase migration ledger confirmed the 11 remote-only versions listed above. It also confirms that the four Company OS migrations are not applied. The production branch status is reported as `MIGRATIONS_FAILED`; do not use the branch merge/rebase/reset operations as a shortcut.
+- Latest security advisors still report 2 RLS-enabled tables without policies (`case_analysis`, `case_notes`), two extensions in `public` (`pg_net`, `pg_trgm`), leaked-password protection disabled, and four callable SECURITY DEFINER RPCs (`adjust_cash_balance`, `has_role`, `try_consume_ai_quota`, `upsert_holding_buy`). Review each RPC's ownership checks before changing grants. Performance advisors report 15 unindexed foreign keys, 34 RLS auth-initplan findings, 16 multiple-permissive-policy findings, and 7 duplicate-index findings. These are investigation/remediation items, not permission to apply broad production DDL without impact review.
+- The current migration drift gate and isolated behavioral tests remain hard release blockers. Keep PR #28 draft and do not merge/promote/apply the four migrations until the ledger reconciliation, staging replay, negative/positive RLS tests, and deployment checks are evidenced.
+
 Status: **BLOCKED — do not merge or apply to production**.
 
 ## Evidence captured from GitHub Actions run 38113328864
