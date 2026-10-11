@@ -89,3 +89,8 @@ The Supabase URL, anon key, and service-role key were present. Do not put secret
 ## Explicit non-actions
 
 No production migration was applied, no PR was merged, and no production deployment was promoted as part of this investigation.
+
+## Follow-up remediation commit — 2026-10-11
+
+- Added migration `20261011120400_scope_case_notes_and_analysis_rls.sql` on the PR branch. It adds a narrowly scoped case-access predicate and SELECT/INSERT policies for `case_analysis` and `case_notes`, restricting access to the case owner, explicitly assigned advisor, or admin; inserts require `author_id = auth.uid()`. UPDATE/DELETE are not opened. The predicate uses SECURITY DEFINER to avoid the existing reciprocal RLS relationship between `assistance_cases` and `case_assignments`; its execute privilege is revoked from PUBLIC and granted to authenticated.
+- This migration is a **candidate-only code change**. It has not been applied to production. It still requires replay on isolated staging and positive/negative tests for owner, assigned advisor, unassigned advisor, unrelated user, and admin before release.
