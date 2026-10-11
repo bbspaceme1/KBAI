@@ -196,3 +196,20 @@ Vitest and coverage tooling were upgraded to `5.0.3`, and Vercel CLI to `63.1.2`
 ### Safety confirmation
 
 No production database or data was changed. No migration, migration repair, reset, deployment promotion, DNS change, paid service activation, or PR merge was performed. The latest evidence supports **NOT READY**, not production readiness.
+
+## Candidate Audit Update — 2026-10-11
+
+Candidate before this documentation change: `64abc215dc097b061662145c5df3bdba9b2ea7c1`.
+
+| Check                         | Result                  | Evidence boundary                                                                                                                                                                                                |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type-check                    | VERIFIED_PASS           | `npm run type-check` completed on the candidate worktree.                                                                                                                                                        |
+| Production build              | VERIFIED_PASS           | `npm run build` completed; Vite `7.3.6` produced `dist/`.                                                                                                                                                        |
+| Unit tests                    | VERIFIED_PASS_WITH_SKIP | `23 passed`, `1 skipped` file; `140 passed`, `8 skipped` tests. Skipped tests are authenticated RLS tests without staging identities.                                                                            |
+| Production dependency audit   | VERIFIED_FAIL           | JSON audit: 1 low advisory, 0 moderate/high/critical. The low advisory remains visible.                                                                                                                          |
+| Full dependency audit         | VERIFIED_FAIL           | JSON audit: 1 low, 12 moderate, 26 high, 1 critical. No suppression or force fix was used.                                                                                                                       |
+| Supabase live read-only check | BLOCKED_EXTERNAL        | Project URL variables available to the sandbox did not contain a valid HTTP(S) URL; Supabase MCP tools remain unavailable in this session. No live advisor/schema/RPC claim is made.                             |
+| Migration reconciliation      | BLOCKED_EXTERNAL        | Remote ledger and schema cannot be queried through the unavailable MCP; local inventory remains unresolved and no ledger was altered.                                                                            |
+| CI audit artifact             | IMPLEMENTED             | `.github/workflows/ci.yml` now captures production/full `npm audit --json` reports and uploads `dependency-audit-${{ github.sha }}` for 14 days. The artifact is not yet available until CI runs on this commit. |
+
+This update intentionally keeps release status **HOLD**. The audit artifact and all gate outcomes must be collected from one new candidate SHA after this workflow change is pushed; previous workflow results are not mixed into a final release claim.
