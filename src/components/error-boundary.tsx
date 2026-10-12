@@ -1,4 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
+import * as Sentry from "@sentry/react";
+import { posthog } from "@/lib/posthog";
 
 interface WindowWithMonitoring extends Window {
   Sentry?: {
@@ -48,27 +50,29 @@ export class ErrorBoundary extends Component<Props, State> {
     // Legacy console logging for backward compatibility
     console.error("ErrorBoundary caught an error:", error, errorInfo);
 
-    // In production, send to Sentry/PostHog
-    if (typeof window !== "undefined") {
-      const w = window as WindowWithMonitoring;
-      // Send to error monitoring
-      if (w.Sentry) {
-        w.Sentry.captureException(error, {
-          contexts: {
-            react: {
-              componentStack: errorInfo.componentStack ?? undefined,
-            },
-          },
-        });
-      }
+    // Send structured exception telemetry directly to initialized SDKs; never rely on window globals.
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.captureException(error, {
+        contexts: {
+          react: { componentStack: errorInfo.componentStack ?? undefined },
+        },
+        tags: { error_boundary: "react" },
+        extra: { correlationId },
+      });
+    }
 
-      // Send to product analytics
-      if (w.posthog) {
-        w.posthog.capture("error_boundary_triggered", {
-          error: error.message,
-          componentStack: errorInfo.componentStack,
-        });
-      }
+    if (import.meta.env.VITE_POSTHOG_KEY) {
+      posthog.capture("$exception", {
+        $exception_message: error.message,
+        $exception_type: error.name,
+        component_stack: errorInfo.componentStack,
+        correlation_id: correlationId,
+        source: "react_error_boundary",
+      });
+      posthog.capture("error_boundary_triggered", {
+        error_name: error.name,
+        correlation_id: correlationId,
+      });
     }
   }
 
