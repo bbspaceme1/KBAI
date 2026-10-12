@@ -25,6 +25,15 @@ jobs:
         with:
           version: latest
 
+      - name: Replay all migrations on an empty local database
+        shell: bash
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local
+          echo "Empty local database migration replay passed."
+
       - name: Check required audit secrets are present
         shell: bash
         env:
