@@ -115,6 +115,14 @@ See `docs/archive/AUDIT_COMPLETION_SUMMARY.md` for detailed remediation status.
 
 - For feature work, inspect `src/routes/`, `src/components/`, `src/features/`, and `src/lib/` first
 
+## Database change policy
+
+- Read-only database inspection MUST use SQL/`execute_sql` or an equivalent read-only query. Never use `apply_migration` to inspect, verify, or reconcile state.
+- Every schema, RLS, function, trigger, grant, or ACL change MUST land in Git first as `supabase/migrations/<version>_<snake_name>.sql`, pass replay on an empty local database, then be applied to staging, and only then be applied to production with explicit human approval.
+- Emergency production-first changes are permitted only when a same-day follow-up PR adds the same version with the verbatim statements and records the incident and approval.
+- Migration names must be descriptive. UUID-only names and duplicate migration names are forbidden.
+- Do not run remote `db push`, migration repair, reset, or ledger edits from an agent session unless the release owner explicitly authorizes the exact operation after reconciliation and backup evidence.
+
 ## Notes for maintainers
 
 - There is no root `README.md`; use `package.json`, `vercel.json`, and `src/` conventions as the canonical implementation reference
