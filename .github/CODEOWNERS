@@ -1,0 +1,3 @@
+# Database migrations and deployment workflows require repository-owner review.
+supabase/migrations/** @bbspaceme1
+.github/workflows/** @bbspaceme1
