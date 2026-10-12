@@ -119,3 +119,13 @@ See `docs/archive/AUDIT_COMPLETION_SUMMARY.md` for detailed remediation status.
 
 - There is no root `README.md`; use `package.json`, `vercel.json`, and `src/` conventions as the canonical implementation reference
 - Keep the focus on production-readiness: security headers, client/server alignment, build-time route generation, and ESM module semantics
+
+
+## Database change policy
+
+- Read-only inspection MUST use SQL/execute_sql, never apply_migration.
+- Every schema/RLS/function-ACL change MUST first land in git as supabase/migrations/<version>_<snake_name>.sql, pass replay on an empty local DB, then be applied to staging, then to production with human approval.
+- Emergency production-first changes are allowed only with a same-day follow-up PR that adds the file with the SAME version and verbatim statements.
+- Migration names must be descriptive; UUID names and duplicate names are forbidden.
+
+Never use a production database as an inspection scratchpad. Read-only SQL must not be recorded in the migration ledger. Agents must not run remote db push, migration repair, reset, or apply operations without explicit human approval for the specific change. Record replay results and any blockers in the PR; do not claim a validation passed unless it actually ran.
