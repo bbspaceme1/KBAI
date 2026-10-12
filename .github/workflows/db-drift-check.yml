@@ -25,14 +25,6 @@ jobs:
         with:
           version: latest
 
-      - name: Replay all migrations on an empty local database
-        shell: bash
-        timeout-minutes: 15
-        run: |
-          set -euo pipefail
-          supabase start
-          supabase db reset --local
-          echo "Empty local database migration replay passed."
 
       - name: Check required audit secrets are present
         shell: bash
@@ -447,3 +439,26 @@ jobs:
             --data-urlencode "teamId=${VERCEL_ORG_ID}" \
             "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/domains")"
           printf '%s\n' "$domains" | jq '[if type == "array" then .[] else .domains[]? end | {name, verified, redirect, gitBranch}]'
+
+  local-migration-replay:
+    name: Replay migrations on an empty local database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Replay all migrations on an empty local database
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local
+          echo "Empty local database migration replay passed."
