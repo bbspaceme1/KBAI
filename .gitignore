@@ -50,3 +50,7 @@ bun.lock
 # Supabase local runtime metadata
 supabase/.temp/
 supabase/.branches/
+
+# Python generated artifacts
+__pycache__/
+*.pyc

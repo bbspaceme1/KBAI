@@ -25,13 +25,30 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Prepare dependency audit artifacts
+        run: mkdir -p artifacts/dependency-audit
       - name: Dependency security audit (production surface)
         # Gate the dependency surface that runs in the deployed application.
-        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+        run: |
+          npm audit --omit=dev --json > artifacts/dependency-audit/npm-audit-production.json || audit_status=$?
+          npm audit --omit=dev --audit-level=high || audit_status=$?
+          exit "${audit_status:-0}"
       - name: Dependency security audit (full CI tree)
         # Keep CI/dev tooling visible without confusing it with runtime exposure.
         continue-on-error: true
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --json > artifacts/dependency-audit/npm-audit-full.json || audit_status=$?
+          npm audit --audit-level=high || audit_status=$?
+          exit "${audit_status:-0}"
+      - name: Upload dependency audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-${{ github.sha }}
+          path: artifacts/dependency-audit/
+          if-no-files-found: error
+          retention-days: 14
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
