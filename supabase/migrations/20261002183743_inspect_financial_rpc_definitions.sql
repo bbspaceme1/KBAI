@@ -1,1 +1,2 @@
+-- Parity file: statements copied verbatim from remote ledger; applied to production 2026-10-02.
 SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args, p.prosecdef, p.proconfig, p.proacl, pg_get_functiondef(p.oid) AS definition FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN ('upsert_holding_buy','upsert_holding_sell','adjust_cash_balance') ORDER BY p.proname, args;

@@ -1,1 +1,2 @@
+-- Parity file: statements copied verbatim from remote ledger; applied to production 2026-10-02.
 DO $$ DECLARE v_acl text; BEGIN SELECT coalesce(array_to_string(p.proacl, ', '), '') INTO v_acl FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname='public' AND p.proname='adjust_cash_balance' LIMIT 1; IF v_acl ~ '(^|, )anon=X($|,)' OR v_acl ~ '(^|, )=X($|,)' THEN RAISE EXCEPTION 'unexpected public/anon execute ACL: %', v_acl; END IF; END $$;
