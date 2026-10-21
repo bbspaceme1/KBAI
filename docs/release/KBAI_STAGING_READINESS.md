@@ -75,3 +75,13 @@ Configure through approved secret managers/settings UI; never paste values into 
 ## Change log
 
 - 2026-10-21: Read-only baseline performed; created `staging/preview-bootstrap` from the current `main` SHA. No Supabase branch, database migration, Production change, DNS change, or environment secret change was performed.
+
+
+## Follow-up execution — 2026-10-21
+
+- Updated `.github/workflows/ci.yml` on the staging branch at commit `1efee09cb8884cb5096886c8b9c9657b220ffc29` to generate and upload `npm-audit-full.json`, `npm-audit-production.json`, and exit-code metadata under a run-specific GitHub Actions artifact. The artifact upload step uses `if: always()` so a failed audit does not suppress evidence.
+- Candidate CI run: https://github.com/bbspaceme1/KBAI/actions/runs/39551771344 (run 290). At last observation, `npm ci` was still running; no final pass is claimed.
+- Read-only migration/schema audit run: https://github.com/bbspaceme1/KBAI/actions/runs/39551771423 (run 265). Supabase link and required audit-secret presence checks passed; schema inspection was still running at last observation. This does not authorize or perform migrations.
+- Prior completed CI evidence on the earlier candidate showed 40 total npm advisories (2 low, 9 moderate, 25 high, 4 critical) and one high-severity production-surface finding involving Vite 7.0.0–7.3.6 / launch-editor advisories GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, and GHSA-587h-7wmj-h5pm. Do not treat the count as current until the new artifact is retrieved.
+- Dependency lockfile was not edited because the connector cannot run npm/registry resolution locally; changing only package.json would make `npm ci` fail or leave an unverified lock. The CI report must identify the patched compatible version before updating both manifest and lockfile together.
+- No production migration, production environment change, DNS change, or Supabase paid branch creation occurred.
