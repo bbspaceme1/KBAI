@@ -32,6 +32,27 @@ jobs:
         # Keep CI/dev tooling visible without confusing it with runtime exposure.
         continue-on-error: true
         run: npm audit --audit-level=high
+      - name: Capture dependency audit JSON reports
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/security-audit
+          if [[ -f package-lock.json ]]; then
+            npm audit --json > artifacts/security-audit/npm-audit-full.json || audit_full_exit=$?
+            npm audit --omit=dev --json > artifacts/security-audit/npm-audit-production.json || audit_prod_exit=$?
+          else
+            printf '{"error":"package-lock.json missing; npm audit could not run"}\n' > artifacts/security-audit/npm-audit-full.json
+            cp artifacts/security-audit/npm-audit-full.json artifacts/security-audit/npm-audit-production.json
+          fi
+          printf 'full_audit_exit=%s\nproduction_audit_exit=%s\n' "${audit_full_exit:-not-run}" "${audit_prod_exit:-not-run}" > artifacts/security-audit/exit-codes.txt
+      - name: Upload dependency audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-json-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/security-audit/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
