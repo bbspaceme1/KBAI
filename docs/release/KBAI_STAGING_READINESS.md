@@ -1,16 +1,18 @@
 # KBAI Terminal — Staging Readiness
 
-**Status:** BLOCKED — isolated Supabase staging is not provisioned.  
+**Status:** BLOCKED — isolated Supabase staging project provisioned at $0, but schema replay, test users/secrets, and verified dependency lockfile update remain incomplete.  
 **Baseline checked:** 2026-10-21  
 **Repository:** `bbspaceme1/KBAI`  
 **Baseline main SHA:** `8d7aa8f9ae0ff808b317d1de9b411c631ebfc357`  
-**Supabase project ref:** `ejiufnrqvkvqzxroustb`  
+**Production Supabase project ref (do not use for tests):** `ejiufnrqvkvqzxroustb`  
+**Isolated staging Supabase project ref:** `ffixgojmdhbyouucdpyn`  
+**Isolated staging API URL:** `https://ffixgojmdhbyouucdpyn.supabase.co`  
 **Supabase organization:** `aklzlekyqzmkjunvswkn`  
 **Vercel project:** `kbaiterminal` (`prj_CE5uqT2B3WAtHYZsXsNMz7TqFESA`)
 
 ## Safety and cost decision
 
-The owner approved **free-only** staging. The Supabase branch cost check returned **$0.01344 per hour** for a development branch in the specified organization. This is not free, so no Supabase branch was created. Production was not modified. Use a local Supabase stack or another verified zero-cost isolated database until a genuinely free option is confirmed.
+The owner approved **free-only** staging. The Supabase development branch cost check returned **$0.01344 per hour**, so no paid branch was created. A separate project quote returned **$0/month**; isolated project `kbai-staging-isolated` (`ffixgojmdhbyouucdpyn`) was created in `ap-northeast-2` and reported `ACTIVE_HEALTHY`. Its database currently has **zero public tables and zero migrations**. It has no production data; production was not modified. Do not run RLS/E2E against it until the reviewed schema/migrations and synthetic users are provisioned.
 
 ## Evidence baseline
 
@@ -19,7 +21,8 @@ The owner approved **free-only** staging. The Supabase branch cost check returne
 | GitHub main | SHA `8d7aa8f9ae0ff808b317d1de9b411c631ebfc357`; branch protected | VERIFIED |
 | GitHub open PR search | PR #24 found: “Strengthen IDX data contract and ETL reliability”; search results do not prove this is the only open PR | PARTIAL |
 | Supabase config | `supabase/config.toml` points to `ejiufnrqvkvqzxroustb` | VERIFIED |
-| Supabase branches | Only `main` returned; status `MIGRATIONS_FAILED` | BLOCKED |
+| Supabase production branches | Only `main` returned; status `MIGRATIONS_FAILED`; no paid branch created | BLOCKED |
+| Isolated staging project | `ffixgojmdhbyouucdpyn`, `ACTIVE_HEALTHY`, API URL verified, zero migrations/tables | PROVISIONED / SCHEMA PENDING |
 | Supabase migration ledger | 49 remote entries returned, from `20260418154440` through `20261011193304`; this is a ledger count, not proof of schema parity | VERIFIED / PARITY NOT CHECKED |
 | Supabase Security Advisor | 2 RLS-enabled tables without policies; 2 extensions in `public`; 3 SECURITY DEFINER functions callable by `authenticated`; leaked-password protection disabled | FAIL |
 | Vercel project | `live=false`; latest deployment state `READY`, target `null`; SSO protection enabled | BLOCKED for public/Production verification |
@@ -49,7 +52,8 @@ Configure through approved secret managers/settings UI; never paste values into 
 
 ## Release gates (do not mark PASS without evidence)
 
-- [ ] Isolated zero-cost database selected and connectivity confirmed.
+- [x] Isolated zero-cost database provisioned (`ffixgojmdhbyouucdpyn`); project API URL confirmed from project metadata.
+- [ ] Staging schema/migrations replayed and connectivity verified from CI.
 - [ ] Clean migration replay from empty database.
 - [ ] Upgrade/reconciliation replay and schema parity verified.
 - [ ] RLS/RBAC positive and negative tests pass for User A/B and assigned/unassigned advisor.
@@ -64,7 +68,7 @@ Configure through approved secret managers/settings UI; never paste values into 
 
 ## Known blocking risks
 
-1. **Cost:** Supabase development branch quoted at $0.01344/hour; not created because the owner approved free-only.
+1. **Cost:** Supabase development branch quoted at $0.01344/hour and was not created. A separate staging project was created at a quoted $0/month.
 2. **Migration drift:** Supabase branch status is `MIGRATIONS_FAILED`; the 49-row ledger alone does not establish schema parity.
 3. **Database access:** `case_analysis` and `case_notes` have RLS enabled without policies. Keep access denied until correct ownership/scope policies are designed and tested.
 4. **Privileged RPCs:** `adjust_cash_balance`, `has_role`, and `upsert_holding_buy` are reported executable by `authenticated`; verify intended callers and authorization before changing grants.
@@ -98,3 +102,12 @@ Configure through approved secret managers/settings UI; never paste values into 
   - These differences are not proof that a migration should be applied or inserted into the ledger. Compare SQL effects, current objects, grants, policies, and function definitions individually before classifying each version.
 - Advisor evidence includes multiple permissive SELECT policies on `advisor_clients`, `economic_events`, and `macro_indicators`; duplicate/unused indexes on several tables including `audit_logs`, `transactions`, and `case_assignments`. These need impact review; no policy or index was altered by this read-only run.
 - The same CI run's quality job failed at the production dependency audit and uploaded the report; later lint/type/build/unit steps were skipped by GitHub Actions because of the fail-fast job sequence. The integration job had passed `npm ci` and was still building at the last captured status; RLS/E2E completion is not claimed.
+
+
+## Follow-up execution — isolated staging bootstrap — 2026-10-21
+
+- Created Supabase project `kbai-staging-isolated` in organization `aklzlekyqzmkjunvswkn` with quoted cost **$0/month**. Project ref: `ffixgojmdhbyouucdpyn`; API URL: `https://ffixgojmdhbyouucdpyn.supabase.co`. The project is isolated and currently empty (no migrations, no public tables, no production data copied).
+- Production Supabase project `ejiufnrqvkvqzxroustb` was not changed. No schema migration or seed data has been applied to either project in this step.
+- Registry advisory evidence confirms Vite **7.3.7** as the first fixed version for the cited 7.x launch-editor advisory (source: https://advisories.gitlab.com/npm/vite/CVE-2026-112943/). Current candidate lockfile still resolves Vite **7.3.6**. The package manifest/lockfile were intentionally not hand-edited because this environment cannot reach npm registry and the GitHub connector did not expose a working dispatch path for the temporary resolver workflow; an npm-registry-backed CI resolver and fresh `npm ci`/production audit are still required before this gate can be called fixed.
+- GitHub connector does not expose a supported API for writing GitHub Environment secrets or creating Auth user access tokens. Therefore no secret values were invented or written. After the staging schema and synthetic users are provisioned, populate the `staging` environment using only credentials from `ffixgojmdhbyouucdpyn`; never reuse Production keys/tokens.
+- No Production environment, DNS, schema, or deployment changes were made.
